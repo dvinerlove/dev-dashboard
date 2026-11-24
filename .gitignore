@@ -53,3 +53,4 @@ research/**/nul
 
 # research screenshots may contain private topology
 research/**/*.png
+research/**/raw/
