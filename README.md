@@ -1,6 +1,6 @@
 # Dev Dashboard
 
-**One window for everything running on your dev machine.**
+**One window for every dev service running on your machine.**
 
 [![Release](https://img.shields.io/github/v/release/dvinerlove/dev-dashboard)](https://github.com/dvinerlove/dev-dashboard/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -8,7 +8,7 @@
 
 ![Dev Dashboard](docs/screenshot.png)
 
-Dev Dashboard is a local control panel for dev services: dev servers, databases, tunnels, containers. It shows what's up and what's down, restarts what crashes, tells you which process owns which port, and exposes all of it to AI agents over MCP. Everything runs and stays on your machine — no account, no telemetry.
+Dev Dashboard is a local control panel for dev services on Windows: dev servers, databases, tunnels, containers. It shows what's up and what's down, restarts what crashes, and tells you which process owns which port. It also exposes all of it to AI agents over MCP. Everything runs and stays on your machine — no account, no telemetry.
 
 ## Features
 
@@ -29,7 +29,7 @@ Dev Dashboard is a local control panel for dev services: dev servers, databases,
 |---|---|
 | Windows app | Download `DevDashboard-windows-x64.zip` from [Releases](https://github.com/dvinerlove/dev-dashboard/releases), unzip anywhere, run `DevDashboard.exe` |
 | From source | See [Build from source](#build-from-source) below — works anywhere Python runs |
-| winget / scoop | Not yet installable — manifests are prepared in [`packaging/`](packaging/) and submission PRs are pending |
+| winget / scoop | Not yet installable — manifests are prepared in [`packaging/`](packaging/), ready for submission |
 
 Each release also ships a `.sha256` file for the zip — check it before running if you want to verify the download.
 
@@ -73,11 +73,11 @@ Config files are plain JSON in the [data directory](#data-location) — edit by 
 | `ports` | int[] | Ports the service listens on; `ports[0]` drives the chip and the TCP readiness check |
 | `proc` | string | Process name to match when probing (e.g. `postgres.exe`) |
 | `match` | string | Substring match against the process command line |
-| `url` | string | "Open" link for the service |
+| `url` | string | "Open" link for the service; for `type: "http"` this is also the probe URL |
 | `start` | string | Command used to start the service |
 | `cwd` | string | Working directory for `start` |
 | `env` | object | Env var overrides for the started process |
-| `env_key` / `env_file` | string | Read a secret from an `.env` file (`env_file`, defaults to `<data dir>/.env`) — used for monitor auth headers and editable via the env editor |
+| `env_key` / `env_file` | string | Read a secret from an `.env` file (`env_file`, defaults to `<data dir>/.env`) — used for monitor auth headers; editable in the service dialog |
 | `autorestart` | bool | Restart on unexpected exit, with backoff + circuit breaker |
 | `monitor_only` | bool | Probe the process but never start/stop it |
 | `depends_on` | string[] | Service names that must be healthy first (see below) |
@@ -143,7 +143,7 @@ Secrets are never written to `state.db`.
 | Platform | Status |
 |---|---|
 | Windows 10/11 | ✅ Supported — native window, tray, Job Objects, autorun, exe build |
-| macOS | ⚠️ Untested — the POSIX code path exists and CI builds pass, but it has never been run on a real machine. `--web` mode should work; please report issues |
+| macOS | ⚠️ Untested — the POSIX code path exists and CI passes, but it has never been run on a real machine. `--web` mode should work; please report issues |
 | Linux | ⚠️ Untested — same POSIX path, same caveat: `--web` mode should work; please report issues |
 
 ## Privacy

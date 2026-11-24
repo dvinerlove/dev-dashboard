@@ -2,7 +2,7 @@
 
 ## Reporting a vulnerability
 
-Please report security issues via [GitHub Security Advisories](../../security/advisories) ("Report a vulnerability") — do not open a public issue.
+Please report security issues via [GitHub Security Advisories](../../security/advisories/new) ("Report a vulnerability") — do not open a public issue.
 
 ## Scope notes
 

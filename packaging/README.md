@@ -8,7 +8,7 @@ from the `.sha256` file attached to each GitHub release.
 Copy the three `Dvinerlove.DevDashboard*.yaml` files to
 `manifests/d/Dvinerlove/DevDashboard/<version>/` in a winget-pkgs fork, replace
 `<SHA256>`, validate with `wingetcreate` or `winget validate`, open a PR.
-First submission also needs a publisher verification — one-time per publisher.
+First submission from a new publisher gets an extra manual review.
 
 ## scoop (ScoopInstaller/Extras or own bucket)
 

@@ -3,6 +3,7 @@ PackageVersion: 0.9.0
 PackageLocale: en-US
 Publisher: dvinerlove
 PackageName: Dev Dashboard
+PackageUrl: https://github.com/dvinerlove/dev-dashboard
 License: MIT
 LicenseUrl: https://github.com/dvinerlove/dev-dashboard/blob/main/LICENSE
 ShortDescription: Local dashboard that monitors and restarts your dev services — processes, ports, logs and dependencies in one window.

@@ -1,7 +1,8 @@
 # Dev Dashboard MCP server
 
-A lightweight stdio MCP server on top of the local HTTP API (`127.0.0.1:4850`).
-No external dependencies — Python stdlib only.
+A stdio MCP server on top of the local HTTP API (`127.0.0.1:4850`).
+The server itself is Python stdlib only — no pip install needed; the `api.port`
+auto-detect additionally needs the repo checkout with its deps installed.
 
 The dashboard must be running (`python dashboard.py` or `DevDashboard.exe`).
 

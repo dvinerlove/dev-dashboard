@@ -5,7 +5,12 @@
     "license": "MIT",
     "url": "https://github.com/dvinerlove/dev-dashboard/releases/download/v0.9.0/DevDashboard-windows-x64.zip",
     "hash": "<SHA256>",
-    "bin": "DevDashboard.exe",
+    "bin": [
+        [
+            "DevDashboard.exe",
+            "devdash"
+        ]
+    ],
     "shortcuts": [
         [
             "DevDashboard.exe",
@@ -14,6 +19,9 @@
     ],
     "checkver": "github",
     "autoupdate": {
-        "url": "https://github.com/dvinerlove/dev-dashboard/releases/download/v$version/DevDashboard-windows-x64.zip"
+        "url": "https://github.com/dvinerlove/dev-dashboard/releases/download/v$version/DevDashboard-windows-x64.zip",
+        "hash": {
+            "url": "$baseurl/DevDashboard-windows-x64.zip.sha256"
+        }
     }
 }

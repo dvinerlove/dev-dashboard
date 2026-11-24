@@ -32,7 +32,7 @@ Get-FileHash DevDashboard-windows-x64.zip -Algorithm SHA256
 
 - **Windows only, for now.** A POSIX code path exists and passes CI on macOS and Linux, but it has never been run on a real machine. `--web` mode should work there — please report what breaks.
 - **Unsigned exe** — SmartScreen warning on first run is expected (see above).
-- **No auto-update** — check Releases for new versions. winget and scoop manifests are prepared in `packaging/` and submission PRs are pending.
+- **No auto-update** — check Releases for new versions. winget and scoop manifests are prepared in `packaging/`, ready for submission.
 - **English and Russian UI only.**
 
 Full changelog: [CHANGELOG.md](../CHANGELOG.md). Report issues at [github.com/dvinerlove/dev-dashboard/issues](https://github.com/dvinerlove/dev-dashboard/issues).

@@ -40,10 +40,10 @@
   `log_error` (дедуп 60с). `api_service_log` отдаёт `{t,l}`.
 - **ENV**: `spec["env"]` — оверрайды; `GET/PUT /api/services/<name>/env`,
   секреты (`TOKEN|SECRET|KEY|PASSWORD|PASS|AUTH`) маскируются без `?reveal=1`.
-- **MCP**: `mcp_server.py` — stdio JSON-RPC → HTTP API (см. README_MCP.md).
 - **Точка входа**: `dashboard.py` — Dashboard + окно pywebview + трей
   (pystray). Закрытие окна = свернуть в трей, не выход.
-- Легаси Qt Quick перенесено в `_legacy_qml/` (bridge.py, ui/, dashboard_old.py).
+- Легаси Qt Quick — `_legacy_qml/` (bridge.py, ui/, dashboard_old.py),
+  локально, в репо нет.
 
 ## API :4850
 
@@ -63,9 +63,9 @@ cd .. && python dashboard.py                  # окно 1240×780, min 920×600
 
 - Проверка без окна: `python -c "import core; core.Dashboard().start()"`,
   затем `curl http://127.0.0.1:4850/api/state`.
-- Скриншот окна: `python _t/grab.py 1240 780 shots/x.png` (PrintWindow).
-- Скриншот страницы: python-playwright на `http://127.0.0.1:4850`
-  (chromium стоит, см. `_verify.py`-стиль).
+- Скриншот окна: `python _t/grab.py 1240 780 shots/x.png` (PrintWindow;
+  скрипт локальный, в репо нет).
+- Скриншот страницы: python-playwright на `http://127.0.0.1:4850`.
 - exe: `pyinstaller DevDashboard.spec` (datas уже включает `frontend/dist`).
 - Автотесты ядра: `python test_upgrades.py` (Job/backoff/deps/parser/env).
 
