@@ -733,7 +733,8 @@ class Dashboard:
                 self._svc_prev[name] = st
 
             ok = sum(1 for st, _ in services.values() if st == "up")
-            problems = [n for n, (st, _) in services.items()
+            problems = [{"name": n, "why": be.tr_detail(detail)}
+                        for n, (st, detail) in services.items()
                         if st in ("down", "dead")
                         and not specs.get(n, {}).get("note")]
             self._proj_info = projects
@@ -772,13 +773,16 @@ class Dashboard:
                 (mine if mn else other).append(self._ar_row(n, c, r, mn, e))
             self._ar_mine, self._ar_other = mine, other
             ok += sum(1 for _, _, r, mn, e in autorun if r and e)
-            problems += [n for n, _, r, mn, e in autorun if not r and mn and e]
+            known = {p["name"] for p in problems}
+            problems += [{"name": n, "why": be.tr("AR_PROBLEM")}
+                         for n, _, r, mn, e in autorun
+                         if not r and mn and e and n not in known]
 
             self._problems = problems
             status = be.tr("N_OK", n=ok)
             if problems:
                 status += f"  ·  ⚠ {len(problems)}: " \
-                          + ", ".join(problems[:3]) \
+                          + ", ".join(p["name"] for p in problems[:3]) \
                           + ("…" if len(problems) > 3 else "")
             self._status = status
 

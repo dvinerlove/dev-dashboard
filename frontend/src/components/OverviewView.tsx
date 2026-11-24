@@ -65,8 +65,20 @@ export function OverviewView() {
     }
   }
   for (const p of st.problems) {
-    if (!attention.some((a) => p.includes(a.name)))
-      attention.push({ name: "", text: p, tone: "warn" });
+    if (attention.some((a) => a.name && p.name.includes(a.name))) continue;
+    const row = all.find((r) => r.name === p.name);
+    attention.push({
+      name: p.name,
+      text: p.why || t("NEEDS_ATTENTION"),
+      tone: "warn",
+      actionLabel: row ? t("OPEN") : t("SECTION_AUTORUN"),
+      action: row
+        ? () => {
+            app.select({ kind: "svc", name: row.name, remote: row.remote });
+            app.setInspector(true);
+          }
+        : () => app.setSection("autorun"),
+    });
   }
 
   const stats = [
@@ -102,7 +114,11 @@ export function OverviewView() {
           {attention.map((a, i) => (
             <div
               key={i}
-              className="flex h-[38px] items-center gap-3 border-b border-(--border-hairline) px-3.5 last:border-b-0"
+              onClick={a.action}
+              className={cn(
+                "flex h-[38px] items-center gap-3 border-b border-(--border-hairline) px-3.5 last:border-b-0",
+                a.action && "cursor-pointer transition-colors hover:bg-(--bg-hover)",
+              )}
             >
               {a.tone === "bad" ? (
                 <OctagonAlert size={14} strokeWidth={1.75} className="shrink-0 text-(--status-red)" />
@@ -118,7 +134,10 @@ export function OverviewView() {
               </span>
               {a.action && (
                 <button
-                  onClick={a.action}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    a.action?.();
+                  }}
                   className={cn(
                     "shrink-0 cursor-pointer rounded-md border border-(--border-strong) px-2 py-0.5 text-[11px] text-(--text-secondary) transition-colors",
                     "hover:border-(--accent) hover:text-(--text-primary)",

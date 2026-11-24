@@ -121,7 +121,7 @@ export interface DashState {
   autorunMine: AutorunRow[];
   autorunOther: AutorunRow[];
   status: string;
-  problems: string[];
+  problems: { name: string; why: string }[];
   issues: number;
   infraUp: number;
   infraTotal: number;
