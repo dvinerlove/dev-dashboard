@@ -46,6 +46,7 @@ def test1_job_kills_tree():
     kids = [c.pid for c in psutil.Process(proc.pid).children(recursive=True)]
     assert kids, "дочерние процессы не найдены до убийства"
     job.terminate()
+    proc.wait(timeout=10)  # reap: иначе POSIX-зомби, is_running()=True
     job.close()
     time.sleep(0.5)
     dead = [p for p in [proc.pid] + kids if not alive(p)]
