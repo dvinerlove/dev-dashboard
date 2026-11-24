@@ -1,7 +1,7 @@
 """MCP-сервер Dev Dashboard: stdio JSON-RPC (newline-delimited JSON).
 
-Ходит только в локальный HTTP API :4850 — бизнес-логика не дублируется.
-Подключение (Cursor/Codex/Cline): см. README_MCP.md.
+Ходит только в локальный HTTP API (default :4850) — бизнес-логика не
+дублируется. Подключение (Cursor/Codex/Cline): см. README_MCP.md.
 """
 import json
 import os
@@ -10,8 +10,17 @@ import urllib.request
 import urllib.error
 import urllib.parse
 
-# порт API: default 4850; DEVDASH_PORT — если дашборд сел на fallback-порт
-API = "http://127.0.0.1:" + os.environ.get("DEVDASH_PORT", "4850")
+# порт API: DEVDASH_PORT (наследуют дочерние процессы дашборда) → маркер
+# api.port (bound-порт, внешние агенты) → default 4850
+_port = os.environ.get("DEVDASH_PORT")
+if not _port:
+    try:
+        from backend import DATA_DIR
+        _port = open(os.path.join(DATA_DIR, "api.port"),
+                     encoding="ascii").read().strip()
+    except (ImportError, OSError):
+        _port = None
+API = "http://127.0.0.1:" + (_port or "4850")
 
 
 def _get(path):

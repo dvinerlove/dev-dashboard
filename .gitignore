@@ -14,11 +14,14 @@ dashboard*.log
 
 # --- Root-level scratch dumps only ---
 /*.txt
+!requirements.txt
+!version.txt
 nul
 
 # --- Local dev/audit tooling ---
 audit/
 _t/
+!_t/i18n_check.py
 _legacy_qml/
 shots/
 AGENT_PROMPT.md
@@ -40,7 +43,7 @@ __pycache__/
 *.tmp
 
 # --- Frontend ---
-frontend/node_modules/
+node_modules/
 frontend/dist/
 frontend/tsconfig.tsbuildinfo
 
@@ -54,3 +57,6 @@ research/**/nul
 # research screenshots may contain private topology
 research/**/*.png
 research/**/raw/
+
+# bound api port marker (lives in DATA_DIR)
+api.port

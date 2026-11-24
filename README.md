@@ -94,6 +94,7 @@ Config files live in the data directory and are plain JSON — edit by hand or v
 
 | Key | Default | Meaning |
 |---|---|---|
+| `api_port` | `4850` | Local HTTP API port; if busy, the next free port (up to +9) is used |
 | `probe_interval` | `4` | Local probe loop period, seconds |
 | `dep_timeout` | `15` | How long `depends_on` waits before cancelling a start (`deps_timeout` issue) |
 | `backoff` | `[2, 5, 10, 20]` | Auto-restart delays, seconds (reset after 60s uptime) |

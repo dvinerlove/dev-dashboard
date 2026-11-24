@@ -179,7 +179,7 @@ class _ApiHandler(BaseHTTPRequestHandler):
         if path in ("", "/"):
             path = "/index.html"
         fs = os.path.normpath(os.path.join(STATIC_DIR, path.lstrip("/")))
-        if not fs.startswith(os.path.normpath(STATIC_DIR)):
+        if not fs.startswith(os.path.normpath(STATIC_DIR) + os.sep):
             self._send(403, {"error": "forbidden"})
             return
         if not os.path.isfile(fs):
@@ -465,14 +465,15 @@ class Dashboard:
                         # сервис запущен нами без proc/match: проба его не
                         # видит — «жив» по pid обёртки (своей или из spec)
                         if res[0] == "down" and not s.get("monitor_only"):
-                            ent = self._svc_spawn.get(s["name"])
-                            if ent is None and not s.get("proc") \
-                                    and not s.get("match"):
-                                ent = (s.get("pid"), s.get("pid_ctime"))
-                            if ent and be.is_pid_running(*ent):
-                                res = ("up", f"pid {ent[0]}")
-                            elif s["name"] in self._svc_spawn:
-                                del self._svc_spawn[s["name"]]  # обёртка ушла
+                            with self._lock:  # _svc_spawn пишется под _lock
+                                ent = self._svc_spawn.get(s["name"])
+                                if ent is None and not s.get("proc") \
+                                        and not s.get("match"):
+                                    ent = (s.get("pid"), s.get("pid_ctime"))
+                                if ent and be.is_pid_running(*ent):
+                                    res = ("up", f"pid {ent[0]}")
+                                elif s["name"] in self._svc_spawn:
+                                    del self._svc_spawn[s["name"]]  # обёртка ушла
                         services[s["name"]] = res
                     except Exception:
                         services[s["name"]] = ("dead", "bad spec")
@@ -1171,22 +1172,26 @@ class Dashboard:
     def _stop_service(self, spec):
         with self._lock:
             job = self._jobs.pop(spec["name"], None)
-            self._svc_spawn.pop(spec["name"], None)
-            if spec.get("pid"):  # принятый пробой pid — снять до убийства
-                spec["pid"] = spec["pid_ctime"] = None
+            spawn = self._svc_spawn.pop(spec["name"], None)
+            spid, sctime = spec.pop("pid", None), spec.pop("pid_ctime", None)
+            if spid:  # принятый пробой pid — снять до убийства
                 be.save_services(self.services_data)
         if job:  # Job Object: мгновенное убийство всего дерева
             job.terminate()
             job.close()
+        # adopted/spawned pid вне Job (перезапуск дашборда, Job() упал) —
+        # без этого stop «успешен», а процесс продолжает жить
+        killed = [pid for pid, ct in ((spawn or (None, None)), (spid, sctime))
+                  if pid and be.is_pid_running(pid, ct)
+                  and be.kill_proc_tree(pid)]
         matched = [p for p in be._proc_snapshot()[0]
                    if (spec.get("proc") and p["name"] == spec["proc"])
                    or (spec.get("match") and spec["match"].lower() in p["cl"])]
-        if not matched:
-            self._log(f"[{spec['name']}] " + be.tr("PROCS_NOT_FOUND"))
-            return True
-        killed = [p["pid"] for p in matched if be.kill_proc_tree(p["pid"])]
-        self._log(f"[{spec['name']}] " + be.tr(
-            "STOPPED_PID", p=", ".join(map(str, killed))))
+        killed += [p["pid"] for p in matched if p["pid"] not in killed
+                   and be.kill_proc_tree(p["pid"])]
+        self._log(f"[{spec['name']}] " + (be.tr(
+            "STOPPED_PID", p=", ".join(map(str, killed))) if killed
+            else be.tr("PROCS_NOT_FOUND")))
         self._force_probe(800)
         return True
 
@@ -1261,8 +1266,10 @@ class Dashboard:
         spec = self._service(name)
         if not spec:
             return False, be.tr("NAME_NOT_FOUND", name=name)
+        self._stop_service(spec)  # иначе запущенный процесс станет сиротой
         with self._lock:
-            self.services_data.remove(spec)
+            if spec in self.services_data:
+                self.services_data.remove(spec)
             be.save_services(self.services_data)
         self._force_probe()
         return True, ""
@@ -1781,6 +1788,11 @@ class Dashboard:
                         or (spec.get("match")
                             and spec["match"].lower() in p["cl"]):
                     own[p["pid"]] = spec["name"]
+            # spawned/adopted pid сервиса без proc/match — тоже «наш»
+            for pid in (spec.get("pid"),
+                        (self._svc_spawn.get(spec["name"]) or (0,))[0]):
+                if pid:
+                    own[pid] = spec["name"]
         for prj in prjs:
             if prj.get("pid"):
                 own[prj["pid"]] = prj["name"]
@@ -2023,10 +2035,16 @@ class Dashboard:
                 self.api = _ApiServer(("127.0.0.1", cand), _ApiHandler)
                 self.api_port = cand
                 break
-            except OSError:
+            except (OSError, OverflowError):  # OSError=занят, Overflow=мусор
                 pass
         if self.api:
             # дочерние процессы (mcp_server и т.п.) узнают реальный порт
             os.environ["DEVDASH_PORT"] = str(self.api_port)
+            try:  # маркер bound-порта: второй инстанс/MCP пингуют его
+                with open(os.path.join(be.DATA_DIR, "api.port"), "w",
+                          encoding="ascii") as f:
+                    f.write(str(self.api_port))
+            except OSError:
+                pass
             threading.Thread(target=self.api.serve_forever,
                              daemon=True).start()

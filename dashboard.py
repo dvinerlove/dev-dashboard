@@ -46,12 +46,18 @@ def main():
         except Exception:
             pass
 
-    # single-instance: вторая копия поднимает окно первой и выходит
-    if not pi.acquire_single_instance("DevDashboard"):
+    # single-instance: вторая копия поднимает окно первой и выходит.
+    # Ссылку держим: на POSIX flock живёт в объекте файла — GC его снимет
+    _SINGLETON = pi.acquire_single_instance("DevDashboard")
+    if not _SINGLETON:
+        try:  # bound-порт из маркера; конфиг может не совпадать (fallback)
+            port = int(open(os.path.join(be.DATA_DIR, "api.port"),
+                            encoding="ascii").read())
+        except (OSError, ValueError):
+            port = be.load_settings()["api_port"]
         try:
             urllib.request.urlopen(urllib.request.Request(
-                "http://127.0.0.1:%d/api/show-window"
-                % be.load_settings()["api_port"],
+                f"http://127.0.0.1:{port}/api/show-window",
                 data=b"{}"), timeout=3)
         except Exception:
             pass

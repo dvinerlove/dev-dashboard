@@ -105,6 +105,24 @@ def load_settings():
     for k in out:
         if k in raw:
             out[k] = raw[k]
+    # диск — граница доверия: мусорные числа не должны валить дашборд
+    try:
+        out["api_port"] = int(out["api_port"])
+        if not 1024 <= out["api_port"] <= 65535:
+            out["api_port"] = DEFAULT_SETTINGS["api_port"]
+    except (TypeError, ValueError):
+        out["api_port"] = DEFAULT_SETTINGS["api_port"]
+    try:
+        out["probe_interval"] = float(out["probe_interval"])
+        if out["probe_interval"] <= 0:
+            out["probe_interval"] = DEFAULT_SETTINGS["probe_interval"]
+    except (TypeError, ValueError):
+        out["probe_interval"] = DEFAULT_SETTINGS["probe_interval"]
+    try:
+        b = [float(x) for x in out["backoff"]]
+        out["backoff"] = b or DEFAULT_SETTINGS["backoff"]
+    except (TypeError, ValueError):
+        out["backoff"] = DEFAULT_SETTINGS["backoff"]
     _LANG = resolve_lang(out["lang"])
     return out
 

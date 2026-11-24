@@ -177,7 +177,8 @@ export default function App() {
       onboardedShown.current ||
       uiSetting("onboarded", false) ||
       st.services.length > 0 ||
-      st.projects.length > 0
+      st.projects.length > 0 ||
+      st.remotes.length > 0
     )
       return;
     onboardedShown.current = true;
