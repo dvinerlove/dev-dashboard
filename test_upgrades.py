@@ -27,10 +27,14 @@ def alive(pid):
 
 
 def test1_job_kills_tree():
-    """Job Object: родитель + порождённый им ребёнок умирают вместе."""
+    """Job Object: родитель + порождённый им ребёнок умирают вместе.
+    POSIX-ветка — start_new_session + killpg, тот же контракт."""
+    args = (["cmd.exe", "/c",
+             "ping -n 30 127.0.0.1 > nul & timeout /t 60 > nul"]
+            if os.name == "nt" else
+            ["sh", "-c", "sleep 60 & sleep 60"])
     proc, job = ptree.popen_in_job(
-        ["cmd.exe", "/c", "ping -n 30 127.0.0.1 > nul & timeout /t 60 > nul"],
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     if job is None:
         # hosted-раннеры сами внутри Job Object — assign запрещён (by design)
         print("  skip: job=None (процесс уже во внешнем Job)")

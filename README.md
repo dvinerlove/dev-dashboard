@@ -1,39 +1,45 @@
 # Dev Dashboard
 
-A control panel for your local dev environment — services, projects, ports, and monitors in one dark, dense window.
+**One window for everything running on your dev machine.**
 
-[![Release](https://img.shields.io/github/v/release/OWNER/dev-dashboard)](https://github.com/OWNER/dev-dashboard/releases)
+[![Release](https://img.shields.io/github/v/release/dvinerlove/dev-dashboard)](https://github.com/dvinerlove/dev-dashboard/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%2FmacOS%20(web)-lightgrey)](#platform-support)
+[![CI](https://github.com/dvinerlove/dev-dashboard/actions/workflows/ci.yml/badge.svg)](https://github.com/dvinerlove/dev-dashboard/actions/workflows/ci.yml)
 
-<!-- screenshot: docs/screenshot.png -->
+![Dev Dashboard](docs/screenshot.png)
+
+Dev Dashboard is a local control panel for dev services: dev servers, databases, tunnels, containers. It shows what's up and what's down, restarts what crashes, tells you which process owns which port, and exposes all of it to AI agents over MCP. Everything runs and stays on your machine — no account, no telemetry.
 
 ## Features
 
-- **Service lifecycle** — start/stop/restart with process-tree kill via Windows Job Objects (`CREATE_SUSPENDED` → assign → resume), `killpg` on POSIX
-- **Auto-restart** — exponential backoff (2→5→10→20s) plus a circuit breaker that flags `crash_loop` after 5 crashes/minute
-- **`depends_on` ordering** — wait for a dependency's `health_url` (HTTP), first port (TCP), or a 0.5s alive check before starting
-- **Ports inventory** — every TCP listener on the box, attributed to your services, with LAN-exposure flag and "mine/hidden" filtering
-- **Env editor** — per-service env overrides in the UI; secrets (`TOKEN|SECRET|KEY|PASSWORD|AUTH`) are masked in the API
-- **Remote monitors** — HTTP/TCP/Docker/Supabase probes for services you don't run locally
-- **Issues feed** — crashes, port conflicts, dep timeouts, log errors, deduplicated
-- **SQLite history** — runs and issues survive restarts (WAL mode)
-- **MCP server** — stdio JSON-RPC proxy so AI agents (Cursor/Cline/Codex) can list services, read logs, and restart things — see [README_MCP.md](README_MCP.md)
-- **System tray** — close-to-tray, autostart entries manager
-- **Themes + RU/EN i18n**
-- **`--web` mode** — run headless and use the UI in a browser (`python dashboard.py --web`)
+- **Run services without babysitting them** — start/stop/restart from one list; stop kills the whole process tree (Windows Job Objects, `killpg` on POSIX), not just the top process
+- **Crashes restart themselves, then stop** — auto-restart backs off 2→5→10→20 s, and a circuit breaker gives up after 5 crashes per minute, filing a `crash_loop` issue instead of looping forever
+- **Start dependencies in order** — `depends_on` waits for a dependency's health URL (HTTP), its first port (TCP), or a process that stays up, before starting what needs it
+- **Answer "what's holding this port?" at a glance** — every TCP listener on the machine, attributed to your services, flagged when it's reachable from the LAN
+- **Watch what you don't run locally** — HTTP, TCP, and Docker monitors for remote services; Supabase and ZeroTier probes included
+- **Edit env vars without leaking secrets** — per-service env overrides in the UI; values whose names look secret (`TOKEN`, `SECRET`, `KEY`, `PASSWORD`, `PASS`, `AUTH`, `CREDENTIAL`, `JWT`, `SESSION`) are masked in API responses
+- **Know why something is red** — an issues feed collects crashes, port conflicts, dependency timeouts, and errors parsed from service logs; run and issue history persists in SQLite
+- **Let AI agents operate it** — a zero-dependency stdio MCP server (7 tools) lets Cursor, Cline, or Codex list services, read logs, and restart things — [setup](README_MCP.md)
+- **Lives on the desktop** — system tray, launch-at-login manager, single instance, RU/EN UI, six themes
+- **Works headless too** — `python dashboard.py --web` serves the same UI and API in a browser
 
 ## Install
 
-### Release exe (Windows)
+| Method | How |
+|---|---|
+| Windows app | Download `DevDashboard-windows-x64.zip` from [Releases](https://github.com/dvinerlove/dev-dashboard/releases), unzip anywhere, run `DevDashboard.exe` |
+| From source | See [Build from source](#build-from-source) below — works anywhere Python runs |
+| winget / scoop | Not yet installable — manifests are prepared in [`packaging/`](packaging/) and submission PRs are pending |
 
-Download `DevDashboard-windows-x64.zip` from [Releases](https://github.com/OWNER/dev-dashboard/releases), unzip, run `DevDashboard.exe`.
+Each release also ships a `.sha256` file for the zip — check it before running if you want to verify the download.
 
-> **SmartScreen:** the build is unsigned, so Windows will warn. Click **More info → Run anyway**. Build it yourself from source if you prefer.
+### About the SmartScreen warning
 
-### From source
+The exe is **not code-signed**, so Windows SmartScreen will show a "Windows protected your PC" warning on first run. This is expected for an unsigned open-source build — reputation takes time and real certificates cost money. Click **More info → Run anyway**, verify the SHA256, or [build from source](#build-from-source) if you prefer not to trust a binary.
 
-Requirements: Python 3.10+, Node 20+, Microsoft Edge WebView2 (preinstalled on Windows 10/11).
+### Build from source
+
+Requirements: Python 3.10+, Node 20+, Microsoft Edge WebView2 Runtime (preinstalled on Windows 10/11; needed for the windowed mode only).
 
 ```bash
 pip install -r requirements.txt
@@ -47,9 +53,16 @@ Headless / remote:
 python dashboard.py --web   # UI + API at http://127.0.0.1:4850
 ```
 
-## Configuration
+## Quick start
 
-Config files live in the data directory and are plain JSON — edit by hand or via the UI. Deleting a service in the UI removes it from `services_config.json`.
+1. **First launch** opens the onboarding dialog: point it at your project folders and it suggests projects found by the project scanner.
+2. **Or add a service manually** — a name plus one way to detect it is enough: a port, a process name (`proc`), or a command-line substring (`match`). Add a `start` command if you want the dashboard to run it for you; leave it out for `monitor_only` watching.
+3. **Wire dependencies** — set `depends_on` and a `health_url` so a service starts only after its dependencies are ready.
+4. **Turn on `autorestart`** for anything that should stay up.
+
+Config files are plain JSON in the [data directory](#data-location) — edit by hand or through the UI. First run starts empty: there are no bundled services, what you see is yours.
+
+## Configuration
 
 ### `services_config.json` — array of service specs
 
@@ -58,7 +71,7 @@ Config files live in the data directory and are plain JSON — edit by hand or v
 | `name` | string | **Required.** Display name, also the primary key |
 | `sub` | string | Secondary label shown under the name |
 | `ports` | int[] | Ports the service listens on; `ports[0]` drives the chip and the TCP readiness check |
-| `proc` | string | Process name to match when probing (e.g. `syncthing.exe`) |
+| `proc` | string | Process name to match when probing (e.g. `postgres.exe`) |
 | `match` | string | Substring match against the process command line |
 | `url` | string | "Open" link for the service |
 | `start` | string | Command used to start the service |
@@ -78,7 +91,7 @@ Config files live in the data directory and are plain JSON — edit by hand or v
 | `zt_token` | string | ZeroTier authtoken override (default: read from the service's authtoken file) |
 | `supabase` | bool | HTTP probe variant: sends `apikey` + `Authorization: Bearer` from `env_key`/`env_file` |
 | `path` | string | Project path — enables the "open folder" affordance |
-| `note` | string | Shown when a docker monitor finds no container |
+| `note` | string | Custom "off" reason (docker: shown when no container is found) |
 
 ### `projects_config.json` — array of project specs
 
@@ -103,6 +116,8 @@ Config files live in the data directory and are plain JSON — edit by hand or v
 | `port_hidden` | `[]` | Process names hidden from the ports view |
 | `lang` | `"auto"` | `auto` = OS language (non-Russian falls back to English) |
 
+Deleting a service in the UI removes it from `services_config.json`.
+
 ### Data location
 
 | Case | Path |
@@ -110,14 +125,30 @@ Config files live in the data directory and are plain JSON — edit by hand or v
 | Windows | `%LOCALAPPDATA%\DevDashboard` |
 | Linux | `~/.config/dev-dashboard` (or `$XDG_CONFIG_HOME/dev-dashboard`) |
 | macOS | `~/Library/Application Support/DevDashboard` |
-| Portable | If `services_config.json`/`projects_config.json`/`settings.json`/`state.db` already exists next to the exe/script, that folder is used |
+| Portable | If any of `services_config.json`, `projects_config.json`, `settings.json`, `state.db` already exists next to the exe/script, that folder is used |
 | Override | `DEVDASH_DATA_DIR` env var always wins |
 
 Secrets are never written to `state.db`.
 
+## Web mode
+
+`python dashboard.py --web` runs without the desktop window — the same UI and API are served at `http://127.0.0.1:4850`. This is the supported way to run on macOS and Linux (the pywebview window is untested on POSIX), and it works for a headless box you reach through a browser. The API binds to `127.0.0.1` only; POST endpoints are behind a CSRF Origin check and a Host allowlist.
+
 ## MCP server
 
 `mcp_server.py` is a zero-dependency stdio MCP server that proxies the local HTTP API — lets AI agents see service state, logs, issues, and start/stop services. Setup: [README_MCP.md](README_MCP.md).
+
+## Platform support
+
+| Platform | Status |
+|---|---|
+| Windows 10/11 | ✅ Supported — native window, tray, Job Objects, autorun, exe build |
+| macOS | ⚠️ Untested — the POSIX code path exists and CI builds pass, but it has never been run on a real machine. `--web` mode should work; please report issues |
+| Linux | ⚠️ Untested — same POSIX path, same caveat: `--web` mode should work; please report issues |
+
+## Privacy
+
+No telemetry, no analytics, no network calls except the probes you configure. The API binds to `127.0.0.1` only — do not expose it; it can start and stop processes (see [SECURITY.md](SECURITY.md)).
 
 ## Development
 
@@ -129,19 +160,7 @@ cd frontend && npx tsc --noEmit          # frontend typecheck
 pyinstaller DevDashboard.spec            # build the exe
 ```
 
-Backend logic lives in `backend.py` (Qt/web-free), the API + probe loop in `core.py`, platform branches in `platform_impl.py`. See `AGENTS.md` for the architecture notes.
-
-## Platform support
-
-| Platform | Status |
-|---|---|
-| Windows 10/11 | Full — window, tray, Job Objects, autorun |
-| Linux | Experimental — `--web` mode |
-| macOS | Experimental — `--web` mode |
-
-## Privacy
-
-No telemetry, no analytics, no network calls except the probes you configure. The API binds to `127.0.0.1` only.
+Backend logic lives in `backend.py` (Qt/web-free), the API + probe loop in `core.py`, platform branches in `platform_impl.py`. See `AGENTS.md` for the architecture notes and [CONTRIBUTING.md](CONTRIBUTING.md) for the house rules.
 
 ## License
 

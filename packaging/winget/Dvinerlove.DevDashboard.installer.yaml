@@ -1,0 +1,13 @@
+PackageIdentifier: Dvinerlove.DevDashboard
+PackageVersion: 0.9.0
+InstallerType: zip
+NestedInstallerType: portable
+NestedInstallerFiles:
+  - RelativeFilePath: DevDashboard.exe
+    PortableCommandAlias: devdash
+Installers:
+  - Architecture: x64
+    InstallerUrl: https://github.com/dvinerlove/dev-dashboard/releases/download/v0.9.0/DevDashboard-windows-x64.zip
+    InstallerSha256: <SHA256>
+ManifestType: installer
+ManifestVersion: 1.9.0

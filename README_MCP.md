@@ -1,13 +1,13 @@
-# MCP-сервер Dev Dashboard
+# Dev Dashboard MCP server
 
-Лёгкий stdio MCP-сервер поверх локального HTTP API (`127.0.0.1:4850`).
-Никаких внешних зависимостей — только stdlib Python.
+A lightweight stdio MCP server on top of the local HTTP API (`127.0.0.1:4850`).
+No external dependencies — Python stdlib only.
 
-Дашборд должен быть запущен (`python dashboard.py`).
+The dashboard must be running (`python dashboard.py` or `DevDashboard.exe`).
 
-## Подключение
+## Setup
 
-**Cursor** (`~/.cursor/mcp.json` или `.cursor/mcp.json` в проекте):
+**Cursor** (`~/.cursor/mcp.json` or `.cursor/mcp.json` in a project):
 
 ```json
 {
@@ -20,24 +20,25 @@
 }
 ```
 
-**Cline / Codex** — то же: `command=python`, `args=["C:\\path\\to\\dev-dashboard\\mcp_server.py"]`,
-транспорт stdio.
+**Cline** — same: `command=python`, `args=["C:\\path\\to\\dev-dashboard\\mcp_server.py"]`,
+stdio transport. **Codex** uses TOML (`[mcp_servers.*]`) instead of the JSON above.
 
-> Порт API по умолчанию — `4850`. Если дашборд слушает другой порт,
-> задайте `DEVDASH_PORT` в `env` подключения:
+> The API port defaults to `4850`. If the dashboard fell back to another port,
+> the server picks it up from the `api.port` marker automatically; otherwise
+> set `DEVDASH_PORT` in the connection's `env`:
 > `"env": {"DEVDASH_PORT": "4851"}`.
 
-## Инструменты
+## Tools
 
-| Tool | Что делает |
+| Tool | What it does |
 |---|---|
-| `list_services` | Сервисы и проекты: состояние, порт/IP, метрики |
-| `get_service_logs(name, lines=100)` | Последние N строк лога |
-| `get_issues` | Активные события (crash, port, deps_timeout, crash_loop, log_error) |
-| `get_runs(name)` | История запусков |
-| `start_service(name)` / `stop_service(name)` / `restart_service(name)` | Управление сервисами |
+| `list_services` | Services and projects: state, port/IP, metrics |
+| `get_service_logs(name, lines=100)` | Last N log lines |
+| `get_issues` | Active issues (crash, port, deps_timeout, crash_loop, log_error) |
+| `get_runs(name)` | Run history |
+| `start_service(name)` / `stop_service(name)` / `restart_service(name)` | Service control |
 
-## Smoke-тест
+## Smoke test
 
 ```bash
 echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | python mcp_server.py

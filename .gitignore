@@ -20,7 +20,7 @@ nul
 
 # --- Local dev/audit tooling ---
 audit/
-_t/
+_t/*
 !_t/i18n_check.py
 _legacy_qml/
 shots/
