@@ -9,6 +9,7 @@ import time
 
 import psutil
 
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # изолированная DATA_DIR до импорта backend/core — тесты не трогают
 # реальные конфиги и state.db пользователя
