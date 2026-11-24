@@ -125,6 +125,10 @@ def test3_deps_healthcheck():
     d.services_data = [svc_a, svc_b, svc_a2, svc_b2]
     d._last_services = {}
     d._dep_timeout = 1.2
+    # _force_probe после _do_start может пометить t-a2 "up" (процесс жив —
+    # легальный fallback готовности) → гонка с окном ожидания; стаб дела
+    # timeout-ветку детерминированной, реальную готовность проверяет ветка A/B.
+    d._wait_ready = lambda spec, timeout: False
     d._start_service(svc_b2)
     # ждём issue поллингом — спавн процесса на Windows может быть медленным
     deadline = time.time() + d._dep_timeout + 3
