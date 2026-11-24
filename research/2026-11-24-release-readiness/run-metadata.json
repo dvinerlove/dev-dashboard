@@ -1,0 +1,16 @@
+{
+ "mode": "deep",
+ "started": "2026-11-24",
+ "phase": "done",
+ "wave": 1,
+ "workers": [
+  "W1",
+  "W2"
+ ],
+ "spawn_retries": 0,
+ "stop_reason": "coverage-complete",
+ "reuses": [
+  "research/2026-11-24-dev-dashboard-competitors (verified facts)",
+  "audit/final_report.md"
+ ]
+}

@@ -1,0 +1,342 @@
+Title: QAbstractScrollArea Class | Qt Widgets
+
+URL Source: https://doc.qt.io/qt-6/qabstractscrollarea.html
+
+Markdown Content:
+The QAbstractScrollArea widget provides a scrolling area with on-demand scroll bars. [More...](https://doc.qt.io/qt-6/qabstractscrollarea.html#details)
+
+## Detailed Description[](https://doc.qt.io/qt-6/qabstractscrollarea.html#details "Direct link to this headline")
+
+QAbstractScrollArea is a low-level abstraction of a scrolling area. The area provides a central widget called the viewport, in which the contents of the area is to be scrolled (i.e, the visible parts of the contents are rendered in the viewport).
+
+Next to the viewport is a vertical scroll bar, and below is a horizontal scroll bar. When all of the area contents fits in the viewport, each scroll bar can be either visible or hidden depending on the scroll bar's [Qt::ScrollBarPolicy](https://doc.qt.io/qt-6/qt.html#ScrollBarPolicy-enum). When a scroll bar is hidden, the viewport expands in order to cover all available space. When a scroll bar becomes visible again, the viewport shrinks in order to make room for the scroll bar.
+
+It is possible to reserve a margin area around the viewport, see [setViewportMargins](https://doc.qt.io/qt-6/qabstractscrollarea.html#setViewportMargins)(). The feature is mostly used to place a [QHeaderView](https://doc.qt.io/qt-6/qheaderview.html) widget above or beside the scrolling area. Subclasses of QAbstractScrollArea should implement margins.
+
+When inheriting QAbstractScrollArea, you need to do the following:
+
+*   Control the scroll bars by setting their range, value, page step, and tracking their movements.
+*   Draw the contents of the area in the viewport according to the values of the scroll bars.
+*   Handle events received by the viewport in [viewportEvent](https://doc.qt.io/qt-6/qabstractscrollarea.html#viewportEvent)() - notably resize events.
+*   Use `viewport->update()` to update the contents of the viewport instead of [update](https://doc.qt.io/qt-6/qwidget.html#update)() as all painting operations take place on the viewport.
+
+With a scroll bar policy of [Qt::ScrollBarAsNeeded](https://doc.qt.io/qt-6/qt.html#ScrollBarPolicy-enum) (the default), QAbstractScrollArea shows scroll bars when they provide a non-zero scrolling range, and hides them otherwise.
+
+The scroll bars and viewport should be updated whenever the viewport receives a resize event or the size of the contents changes. The viewport also needs to be updated when the scroll bars values change. The initial values of the scroll bars are often set when the area receives new contents.
+
+We give a simple example, in which we have implemented a scroll area that can scroll any [QWidget](https://doc.qt.io/qt-6/qwidget.html). We make the widget a child of the viewport; this way, we do not have to calculate which part of the widget to draw but can simply move the widget with [QWidget::move](https://doc.qt.io/qt-6/qwidget.html#pos-prop)(). When the area contents or the viewport size changes, we do the following:
+
+```
+QSize areaSize = viewport()->size();
+QSize  widgetSize = widget->size();
+
+verticalScrollBar()->setPageStep(areaSize.height());
+horizontalScrollBar()->setPageStep(areaSize.width());
+verticalScrollBar()->setRange(0, widgetSize.height() - areaSize.height());
+horizontalScrollBar()->setRange(0, widgetSize.width() - areaSize.width());
+updateWidgetPosition();
+```
+
+When the scroll bars change value, we need to update the widget position, i.e., find the part of the widget that is to be drawn in the viewport:
+
+```
+int hvalue = horizontalScrollBar()->value();
+int vvalue = verticalScrollBar()->value();
+QPoint topLeft = viewport()->rect().topLeft();
+
+widget->move(topLeft.x() - hvalue, topLeft.y() - vvalue);
+```
+
+In order to track scroll bar movements, reimplement the virtual function [scrollContentsBy](https://doc.qt.io/qt-6/qabstractscrollarea.html#scrollContentsBy)(). In order to fine-tune scrolling behavior, connect to a scroll bar's [QAbstractSlider::actionTriggered](https://doc.qt.io/qt-6/qabstractslider.html#actionTriggered)() signal and adjust the [QAbstractSlider::sliderPosition](https://doc.qt.io/qt-6/qabstractslider.html#sliderPosition-prop) as you wish.
+
+For convenience, QAbstractScrollArea makes all viewport events available in the virtual [viewportEvent](https://doc.qt.io/qt-6/qabstractscrollarea.html#viewportEvent)() handler. [QWidget](https://doc.qt.io/qt-6/qwidget.html)'s specialized handlers are remapped to viewport events in the cases where this makes sense. The remapped specialized handlers are: [paintEvent](https://doc.qt.io/qt-6/qabstractscrollarea.html#paintEvent)(), [mousePressEvent](https://doc.qt.io/qt-6/qabstractscrollarea.html#mousePressEvent)(), [mouseReleaseEvent](https://doc.qt.io/qt-6/qabstractscrollarea.html#mouseReleaseEvent)(), [mouseDoubleClickEvent](https://doc.qt.io/qt-6/qabstractscrollarea.html#mouseDoubleClickEvent)(), [mouseMoveEvent](https://doc.qt.io/qt-6/qabstractscrollarea.html#mouseMoveEvent)(), [wheelEvent](https://doc.qt.io/qt-6/qabstractscrollarea.html#wheelEvent)(), [dragEnterEvent](https://doc.qt.io/qt-6/qabstractscrollarea.html#dragEnterEvent)(), [dragMoveEvent](https://doc.qt.io/qt-6/qabstractscrollarea.html#dragMoveEvent)(), [dragLeaveEvent](https://doc.qt.io/qt-6/qabstractscrollarea.html#dragLeaveEvent)(), [dropEvent](https://doc.qt.io/qt-6/qabstractscrollarea.html#dropEvent)(), [contextMenuEvent](https://doc.qt.io/qt-6/qabstractscrollarea.html#contextMenuEvent)(), and [resizeEvent](https://doc.qt.io/qt-6/qabstractscrollarea.html#resizeEvent)().
+
+[QScrollArea](https://doc.qt.io/qt-6/qscrollarea.html), which inherits QAbstractScrollArea, provides smooth scrolling for any [QWidget](https://doc.qt.io/qt-6/qwidget.html) (i.e., the widget is scrolled pixel by pixel). You only need to subclass QAbstractScrollArea if you need more specialized behavior. This is, for instance, true if the entire contents of the area is not suitable for being drawn on a [QWidget](https://doc.qt.io/qt-6/qwidget.html) or if you do not want smooth scrolling.
+
+## Member Function Documentation
+
+### `[explicit]` QAbstractScrollArea::QAbstractScrollArea([QWidget](https://doc.qt.io/qt-6/qwidget.html) *_parent_ = nullptr)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qabstractscrollarea.h?h=6.12#n31 "View declaration of this function")[](https://doc.qt.io/qt-6/qabstractscrollarea.html#QAbstractScrollArea "Direct link to this headline")
+
+Constructs a viewport.
+
+The _parent_ argument is sent to the [QWidget](https://doc.qt.io/qt-6/qwidget.html) constructor.
+
+### `[virtual noexcept]` QAbstractScrollArea::~QAbstractScrollArea()[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qabstractscrollarea.h?h=6.12#n32 "View declaration of this function")[](https://doc.qt.io/qt-6/qabstractscrollarea.html#dtor.QAbstractScrollArea "Direct link to this headline")
+
+Destroys the viewport.
+
+### void QAbstractScrollArea::addScrollBarWidget([QWidget](https://doc.qt.io/qt-6/qwidget.html) *_widget_, [Qt::Alignment](https://doc.qt.io/qt-6/qt.html#AlignmentFlag-enum)_alignment_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qabstractscrollarea.h?h=6.12#n54 "View declaration of this function")[](https://doc.qt.io/qt-6/qabstractscrollarea.html#addScrollBarWidget "Direct link to this headline")
+
+Adds _widget_ as a scroll bar widget in the location specified by _alignment_.
+
+Scroll bar widgets are shown next to the horizontal or vertical scroll bar, and can be placed on either side of it. If you want the scroll bar widgets to be always visible, set the scrollBarPolicy for the corresponding scroll bar to `AlwaysOn`.
+
+_alignment_ must be one of Qt::Alignleft and [Qt::AlignRight](https://doc.qt.io/qt-6/qt.html#AlignmentFlag-enum), which maps to the horizontal scroll bar, or [Qt::AlignTop](https://doc.qt.io/qt-6/qt.html#AlignmentFlag-enum) and [Qt::AlignBottom](https://doc.qt.io/qt-6/qt.html#AlignmentFlag-enum), which maps to the vertical scroll bar.
+
+A scroll bar widget can be removed by either re-parenting the widget or deleting it. It's also possible to hide a widget with [QWidget::hide](https://doc.qt.io/qt-6/qwidget.html#hide)()
+
+The scroll bar widget will be resized to fit the scroll bar geometry for the current style. The following describes the case for scroll bar widgets on the horizontal scroll bar:
+
+The height of the widget will be set to match the height of the scroll bar. To control the width of the widget, use [QWidget::setMinimumWidth](https://doc.qt.io/qt-6/qwidget.html#minimumWidth-prop) and [QWidget::setMaximumWidth](https://doc.qt.io/qt-6/qwidget.html#maximumWidth-prop), or implement [QWidget::sizeHint](https://doc.qt.io/qt-6/qwidget.html#sizeHint-prop)() and set a horizontal size policy. If you want a square widget, call [QStyle::pixelMetric](https://doc.qt.io/qt-6/qstyle.html#pixelMetric)([QStyle::PM_ScrollBarExtent](https://doc.qt.io/qt-6/qstyle.html#PixelMetric-enum)) and set the width to this value.
+
+**See also**[scrollBarWidgets](https://doc.qt.io/qt-6/qabstractscrollarea.html#scrollBarWidgets)().
+
+### `[override virtual protected]`void QAbstractScrollArea::contextMenuEvent([QContextMenuEvent](https://doc.qt.io/qt-6/qcontextmenuevent.html) *_e_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qabstractscrollarea.h?h=6.12#n90 "View declaration of this function")[](https://doc.qt.io/qt-6/qabstractscrollarea.html#contextMenuEvent "Direct link to this headline")
+
+Reimplements: [QWidget::contextMenuEvent](https://doc.qt.io/qt-6/qwidget.html#contextMenuEvent)(QContextMenuEvent *event).
+
+This event handler can be reimplemented in a subclass to receive context menu events for the [viewport](https://doc.qt.io/qt-6/qabstractscrollarea.html#viewport)() widget. The event is passed in _e_.
+
+**See also**[QWidget::contextMenuEvent](https://doc.qt.io/qt-6/qwidget.html#contextMenuEvent)().
+
+### [QWidget](https://doc.qt.io/qt-6/qwidget.html) *QAbstractScrollArea::cornerWidget() const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qabstractscrollarea.h?h=6.12#n51 "View declaration of this function")[](https://doc.qt.io/qt-6/qabstractscrollarea.html#cornerWidget "Direct link to this headline")
+
+Returns the widget in the corner between the two scroll bars.
+
+By default, no corner widget is present.
+
+**See also**[setCornerWidget](https://doc.qt.io/qt-6/qabstractscrollarea.html#setCornerWidget)().
+
+### `[override virtual protected]`void QAbstractScrollArea::dragEnterEvent([QDragEnterEvent](https://doc.qt.io/qt-6/qdragenterevent.html) *_event_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qabstractscrollarea.h?h=6.12#n93 "View declaration of this function")[](https://doc.qt.io/qt-6/qabstractscrollarea.html#dragEnterEvent "Direct link to this headline")
+
+Reimplements: [QWidget::dragEnterEvent](https://doc.qt.io/qt-6/qwidget.html#dragEnterEvent)(QDragEnterEvent *event).
+
+This event handler can be reimplemented in a subclass to receive drag enter events (passed in _event_), for the [viewport](https://doc.qt.io/qt-6/qabstractscrollarea.html#viewport)() widget.
+
+**See also**[QWidget::dragEnterEvent](https://doc.qt.io/qt-6/qwidget.html#dragEnterEvent)().
+
+### `[override virtual protected]`void QAbstractScrollArea::dragLeaveEvent([QDragLeaveEvent](https://doc.qt.io/qt-6/qdragleaveevent.html) *_event_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qabstractscrollarea.h?h=6.12#n95 "View declaration of this function")[](https://doc.qt.io/qt-6/qabstractscrollarea.html#dragLeaveEvent "Direct link to this headline")
+
+Reimplements: [QWidget::dragLeaveEvent](https://doc.qt.io/qt-6/qwidget.html#dragLeaveEvent)(QDragLeaveEvent *event).
+
+This event handler can be reimplemented in a subclass to receive drag leave events (passed in _event_), for the [viewport](https://doc.qt.io/qt-6/qabstractscrollarea.html#viewport)() widget.
+
+**See also**[QWidget::dragLeaveEvent](https://doc.qt.io/qt-6/qwidget.html#dragLeaveEvent)().
+
+### `[override virtual protected]`void QAbstractScrollArea::dragMoveEvent([QDragMoveEvent](https://doc.qt.io/qt-6/qdragmoveevent.html) *_event_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qabstractscrollarea.h?h=6.12#n94 "View declaration of this function")[](https://doc.qt.io/qt-6/qabstractscrollarea.html#dragMoveEvent "Direct link to this headline")
+
+Reimplements: [QWidget::dragMoveEvent](https://doc.qt.io/qt-6/qwidget.html#dragMoveEvent)(QDragMoveEvent *event).
+
+This event handler can be reimplemented in a subclass to receive drag move events (passed in _event_), for the [viewport](https://doc.qt.io/qt-6/qabstractscrollarea.html#viewport)() widget.
+
+**See also**[QWidget::dragMoveEvent](https://doc.qt.io/qt-6/qwidget.html#dragMoveEvent)().
+
+### `[override virtual protected]`void QAbstractScrollArea::dropEvent([QDropEvent](https://doc.qt.io/qt-6/qdropevent.html) *_event_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qabstractscrollarea.h?h=6.12#n96 "View declaration of this function")[](https://doc.qt.io/qt-6/qabstractscrollarea.html#dropEvent "Direct link to this headline")
+
+Reimplements: [QWidget::dropEvent](https://doc.qt.io/qt-6/qwidget.html#dropEvent)(QDropEvent *event).
+
+This event handler can be reimplemented in a subclass to receive drop events (passed in _event_), for the [viewport](https://doc.qt.io/qt-6/qabstractscrollarea.html#viewport)() widget.
+
+**See also**[QWidget::dropEvent](https://doc.qt.io/qt-6/qwidget.html#dropEvent)().
+
+### `[override virtual protected]`bool QAbstractScrollArea::event([QEvent](https://doc.qt.io/qt-6/qevent.html) *_event_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qabstractscrollarea.h?h=6.12#n77 "View declaration of this function")[](https://doc.qt.io/qt-6/qabstractscrollarea.html#event "Direct link to this headline")
+
+Reimplements: [QFrame::event](https://doc.qt.io/qt-6/qframe.html#event)(QEvent *e).
+
+This is the main event handler for the [QAbstractScrollArea](https://doc.qt.io/qt-6/qabstractscrollarea.html) widget (_not_ the scrolling area [viewport](https://doc.qt.io/qt-6/qabstractscrollarea.html#viewport)()). The specified _event_ is a general event object that may need to be cast to the appropriate class depending on its type.
+
+**See also**[QEvent::type](https://doc.qt.io/qt-6/qevent.html#type)().
+
+### [QScrollBar](https://doc.qt.io/qt-6/qscrollbar.html) *QAbstractScrollArea::horizontalScrollBar() const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qabstractscrollarea.h?h=6.12#n48 "View declaration of this function")[](https://doc.qt.io/qt-6/qabstractscrollarea.html#horizontalScrollBar "Direct link to this headline")
+
+Returns the horizontal scroll bar.
+
+**See also**[setHorizontalScrollBar](https://doc.qt.io/qt-6/qabstractscrollarea.html#setHorizontalScrollBar)(), [horizontalScrollBarPolicy](https://doc.qt.io/qt-6/qabstractscrollarea.html#horizontalScrollBarPolicy-prop), and [verticalScrollBar](https://doc.qt.io/qt-6/qabstractscrollarea.html#verticalScrollBar)().
+
+### `[override virtual protected]`void QAbstractScrollArea::keyPressEvent([QKeyEvent](https://doc.qt.io/qt-6/qkeyevent.html) *_e_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qabstractscrollarea.h?h=6.12#n99 "View declaration of this function")[](https://doc.qt.io/qt-6/qabstractscrollarea.html#keyPressEvent "Direct link to this headline")
+
+Reimplements: [QWidget::keyPressEvent](https://doc.qt.io/qt-6/qwidget.html#keyPressEvent)(QKeyEvent *event).
+
+This function is called with key event _e_ when key presses occur. It handles PageUp, PageDown, Up, Down, Left, and Right, and ignores all other key presses.
+
+### [QSize](https://doc.qt.io/qt-6/qsize.html) QAbstractScrollArea::maximumViewportSize() const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qabstractscrollarea.h?h=6.12#n59 "View declaration of this function")[](https://doc.qt.io/qt-6/qabstractscrollarea.html#maximumViewportSize "Direct link to this headline")
+
+Returns the size of the viewport as if the scroll bars had no valid scrolling range.
+
+### `[override virtual]`[QSize](https://doc.qt.io/qt-6/qsize.html) QAbstractScrollArea::minimumSizeHint() const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qabstractscrollarea.h?h=6.12#n61 "View declaration of this function")[](https://doc.qt.io/qt-6/qabstractscrollarea.html#minimumSizeHint "Direct link to this headline")
+
+Reimplements an access function for property: [QWidget::minimumSizeHint](https://doc.qt.io/qt-6/qwidget.html#minimumSizeHint-prop).
+
+### `[override virtual protected]`void QAbstractScrollArea::mouseDoubleClickEvent([QMouseEvent](https://doc.qt.io/qt-6/qmouseevent.html) *_e_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qabstractscrollarea.h?h=6.12#n84 "View declaration of this function")[](https://doc.qt.io/qt-6/qabstractscrollarea.html#mouseDoubleClickEvent "Direct link to this headline")
+
+Reimplements: [QWidget::mouseDoubleClickEvent](https://doc.qt.io/qt-6/qwidget.html#mouseDoubleClickEvent)(QMouseEvent *event).
+
+This event handler can be reimplemented in a subclass to receive mouse double click events for the [viewport](https://doc.qt.io/qt-6/qabstractscrollarea.html#viewport)() widget. The event is passed in _e_.
+
+**See also**[QWidget::mouseDoubleClickEvent](https://doc.qt.io/qt-6/qwidget.html#mouseDoubleClickEvent)().
+
+### `[override virtual protected]`void QAbstractScrollArea::mouseMoveEvent([QMouseEvent](https://doc.qt.io/qt-6/qmouseevent.html) *_e_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qabstractscrollarea.h?h=6.12#n85 "View declaration of this function")[](https://doc.qt.io/qt-6/qabstractscrollarea.html#mouseMoveEvent "Direct link to this headline")
+
+Reimplements: [QWidget::mouseMoveEvent](https://doc.qt.io/qt-6/qwidget.html#mouseMoveEvent)(QMouseEvent *event).
+
+This event handler can be reimplemented in a subclass to receive mouse move events for the [viewport](https://doc.qt.io/qt-6/qabstractscrollarea.html#viewport)() widget. The event is passed in _e_.
+
+**See also**[QWidget::mouseMoveEvent](https://doc.qt.io/qt-6/qwidget.html#mouseMoveEvent)().
+
+### `[override virtual protected]`void QAbstractScrollArea::mousePressEvent([QMouseEvent](https://doc.qt.io/qt-6/qmouseevent.html) *_e_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qabstractscrollarea.h?h=6.12#n82 "View declaration of this function")[](https://doc.qt.io/qt-6/qabstractscrollarea.html#mousePressEvent "Direct link to this headline")
+
+Reimplements: [QWidget::mousePressEvent](https://doc.qt.io/qt-6/qwidget.html#mousePressEvent)(QMouseEvent *event).
+
+This event handler can be reimplemented in a subclass to receive mouse press events for the [viewport](https://doc.qt.io/qt-6/qabstractscrollarea.html#viewport)() widget. The event is passed in _e_.
+
+The default implementation calls [QWidget::mousePressEvent](https://doc.qt.io/qt-6/qwidget.html#mousePressEvent)() for default popup handling.
+
+**See also**[QWidget::mousePressEvent](https://doc.qt.io/qt-6/qwidget.html#mousePressEvent)().
+
+### `[override virtual protected]`void QAbstractScrollArea::mouseReleaseEvent([QMouseEvent](https://doc.qt.io/qt-6/qmouseevent.html) *_e_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qabstractscrollarea.h?h=6.12#n83 "View declaration of this function")[](https://doc.qt.io/qt-6/qabstractscrollarea.html#mouseReleaseEvent "Direct link to this headline")
+
+Reimplements: [QWidget::mouseReleaseEvent](https://doc.qt.io/qt-6/qwidget.html#mouseReleaseEvent)(QMouseEvent *event).
+
+This event handler can be reimplemented in a subclass to receive mouse release events for the [viewport](https://doc.qt.io/qt-6/qabstractscrollarea.html#viewport)() widget. The event is passed in _e_.
+
+**See also**[QWidget::mouseReleaseEvent](https://doc.qt.io/qt-6/qwidget.html#mouseReleaseEvent)().
+
+### `[override virtual protected]`void QAbstractScrollArea::paintEvent([QPaintEvent](https://doc.qt.io/qt-6/qpaintevent.html) *_event_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qabstractscrollarea.h?h=6.12#n81 "View declaration of this function")[](https://doc.qt.io/qt-6/qabstractscrollarea.html#paintEvent "Direct link to this headline")
+
+Reimplements: [QFrame::paintEvent](https://doc.qt.io/qt-6/qframe.html#paintEvent)(QPaintEvent *).
+
+This event handler can be reimplemented in a subclass to receive paint events (passed in _event_), for the [viewport](https://doc.qt.io/qt-6/qabstractscrollarea.html#viewport)() widget.
+
+**Note:**If you create a [QPainter](https://doc.qt.io/qt-6/qpainter.html), it must operate on the [viewport](https://doc.qt.io/qt-6/qabstractscrollarea.html#viewport)().
+
+**See also**[QWidget::paintEvent](https://doc.qt.io/qt-6/qwidget.html#paintEvent)().
+
+### `[override virtual protected]`void QAbstractScrollArea::resizeEvent([QResizeEvent](https://doc.qt.io/qt-6/qresizeevent.html) *_event_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qabstractscrollarea.h?h=6.12#n80 "View declaration of this function")[](https://doc.qt.io/qt-6/qabstractscrollarea.html#resizeEvent "Direct link to this headline")
+
+Reimplements: [QWidget::resizeEvent](https://doc.qt.io/qt-6/qwidget.html#resizeEvent)(QResizeEvent *event).
+
+This event handler can be reimplemented in a subclass to receive resize events (passed in _event_), for the [viewport](https://doc.qt.io/qt-6/qabstractscrollarea.html#viewport)() widget.
+
+When resizeEvent() is called, the viewport already has its new geometry: Its new size is accessible through the [QResizeEvent::size](https://doc.qt.io/qt-6/qresizeevent.html#size)() function, and the old size through [QResizeEvent::oldSize](https://doc.qt.io/qt-6/qresizeevent.html#oldSize)().
+
+**See also**[QWidget::resizeEvent](https://doc.qt.io/qt-6/qwidget.html#resizeEvent)().
+
+### QWidgetList QAbstractScrollArea::scrollBarWidgets([Qt::Alignment](https://doc.qt.io/qt-6/qt.html#AlignmentFlag-enum)_alignment_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qabstractscrollarea.h?h=6.12#n55 "View declaration of this function")[](https://doc.qt.io/qt-6/qabstractscrollarea.html#scrollBarWidgets "Direct link to this headline")
+
+Returns a list of the currently set scroll bar widgets. _alignment_ can be any combination of the four location flags.
+
+**See also**[addScrollBarWidget](https://doc.qt.io/qt-6/qabstractscrollarea.html#addScrollBarWidget)().
+
+### `[virtual protected]`void QAbstractScrollArea::scrollContentsBy(int _dx_, int _dy_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qabstractscrollarea.h?h=6.12#n101 "View declaration of this function")[](https://doc.qt.io/qt-6/qabstractscrollarea.html#scrollContentsBy "Direct link to this headline")
+
+This virtual handler is called when the scroll bars are moved by _dx_, _dy_, and consequently the viewport's contents should be scrolled accordingly.
+
+The default implementation simply calls [update](https://doc.qt.io/qt-6/qwidget.html#update)() on the entire [viewport](https://doc.qt.io/qt-6/qabstractscrollarea.html#viewport)(), subclasses can reimplement this handler for optimization purposes, or - like [QScrollArea](https://doc.qt.io/qt-6/qscrollarea.html) - to move a contents widget. The parameters _dx_ and _dy_ are there for convenience, so that the class knows how much should be scrolled (useful e.g. when doing pixel-shifts). You may just as well ignore these values and scroll directly to the position the scroll bars indicate.
+
+Calling this function in order to scroll programmatically is an error, use the scroll bars instead (e.g. by calling [QScrollBar::setValue](https://doc.qt.io/qt-6/qabstractslider.html#value-prop)() directly).
+
+### void QAbstractScrollArea::setCornerWidget([QWidget](https://doc.qt.io/qt-6/qwidget.html) *_widget_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qabstractscrollarea.h?h=6.12#n52 "View declaration of this function")[](https://doc.qt.io/qt-6/qabstractscrollarea.html#setCornerWidget "Direct link to this headline")
+
+Sets the widget in the corner between the two scroll bars to be _widget_.
+
+You will probably also want to set at least one of the scroll bar modes to `AlwaysOn`.
+
+Passing `nullptr` shows no widget in the corner.
+
+Any previous corner widget is hidden.
+
+You may call setCornerWidget() with the same widget at different times.
+
+All widgets set here will be deleted by the scroll area when it is destroyed unless you separately reparent the widget after setting some other corner widget (or `nullptr`).
+
+Any _newly_ set widget should have no current parent.
+
+By default, no corner widget is present.
+
+**See also**[cornerWidget](https://doc.qt.io/qt-6/qabstractscrollarea.html#cornerWidget)() and [horizontalScrollBarPolicy](https://doc.qt.io/qt-6/qabstractscrollarea.html#horizontalScrollBarPolicy-prop).
+
+### void QAbstractScrollArea::setHorizontalScrollBar([QScrollBar](https://doc.qt.io/qt-6/qscrollbar.html) *_scrollBar_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qabstractscrollarea.h?h=6.12#n49 "View declaration of this function")[](https://doc.qt.io/qt-6/qabstractscrollarea.html#setHorizontalScrollBar "Direct link to this headline")
+
+Replaces the existing horizontal scroll bar with _scrollBar_, and sets all the former scroll bar's slider properties on the new scroll bar. The former scroll bar is then deleted.
+
+[QAbstractScrollArea](https://doc.qt.io/qt-6/qabstractscrollarea.html) already provides horizontal and vertical scroll bars by default. You can call this function to replace the default horizontal scroll bar with your own custom scroll bar.
+
+**See also**[horizontalScrollBar](https://doc.qt.io/qt-6/qabstractscrollarea.html#horizontalScrollBar)() and [setVerticalScrollBar](https://doc.qt.io/qt-6/qabstractscrollarea.html#setVerticalScrollBar)().
+
+### void QAbstractScrollArea::setVerticalScrollBar([QScrollBar](https://doc.qt.io/qt-6/qscrollbar.html) *_scrollBar_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qabstractscrollarea.h?h=6.12#n44 "View declaration of this function")[](https://doc.qt.io/qt-6/qabstractscrollarea.html#setVerticalScrollBar "Direct link to this headline")
+
+Replaces the existing vertical scroll bar with _scrollBar_, and sets all the former scroll bar's slider properties on the new scroll bar. The former scroll bar is then deleted.
+
+[QAbstractScrollArea](https://doc.qt.io/qt-6/qabstractscrollarea.html) already provides vertical and horizontal scroll bars by default. You can call this function to replace the default vertical scroll bar with your own custom scroll bar.
+
+**See also**[verticalScrollBar](https://doc.qt.io/qt-6/qabstractscrollarea.html#verticalScrollBar)() and [setHorizontalScrollBar](https://doc.qt.io/qt-6/qabstractscrollarea.html#setHorizontalScrollBar)().
+
+### void QAbstractScrollArea::setViewport([QWidget](https://doc.qt.io/qt-6/qwidget.html) *_widget_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qabstractscrollarea.h?h=6.12#n58 "View declaration of this function")[](https://doc.qt.io/qt-6/qabstractscrollarea.html#setViewport "Direct link to this headline")
+
+Sets the viewport to be the given _widget_. The [QAbstractScrollArea](https://doc.qt.io/qt-6/qabstractscrollarea.html) will take ownership of the given _widget_.
+
+If _widget_ is `nullptr`, [QAbstractScrollArea](https://doc.qt.io/qt-6/qabstractscrollarea.html) will assign a new [QWidget](https://doc.qt.io/qt-6/qwidget.html) instance for the viewport.
+
+**See also**[viewport](https://doc.qt.io/qt-6/qabstractscrollarea.html#viewport)().
+
+### `[protected]`void QAbstractScrollArea::setViewportMargins(const [QMargins](https://doc.qt.io/qt-6/qmargins.html)&_margins_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qabstractscrollarea.h?h=6.12#n73 "View declaration of this function")[](https://doc.qt.io/qt-6/qabstractscrollarea.html#setViewportMargins "Direct link to this headline")
+
+Sets _margins_ around the scrolling area. This is useful for applications such as spreadsheets with "locked" rows and columns. The marginal space is is left blank; put widgets in the unused area.
+
+By default all margins are zero.
+
+**See also**[viewportMargins](https://doc.qt.io/qt-6/qabstractscrollarea.html#viewportMargins)().
+
+### `[protected]`void QAbstractScrollArea::setViewportMargins(int _left_, int _top_, int _right_, int _bottom_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qabstractscrollarea.h?h=6.12#n72 "View declaration of this function")[](https://doc.qt.io/qt-6/qabstractscrollarea.html#setViewportMargins-1 "Direct link to this headline")
+
+Sets the margins around the scrolling area to _left_, _top_, _right_ and _bottom_. This is useful for applications such as spreadsheets with "locked" rows and columns. The marginal space is left blank; put widgets in the unused area.
+
+Note that this function is frequently called by [QTreeView](https://doc.qt.io/qt-6/qtreeview.html) and [QTableView](https://doc.qt.io/qt-6/qtableview.html), so margins must be implemented by [QAbstractScrollArea](https://doc.qt.io/qt-6/qabstractscrollarea.html) subclasses. Also, if the subclasses are to be used in item views, they should not call this function.
+
+By default all margins are zero.
+
+**See also**[viewportMargins](https://doc.qt.io/qt-6/qabstractscrollarea.html#viewportMargins)().
+
+### `[virtual]`void QAbstractScrollArea::setupViewport([QWidget](https://doc.qt.io/qt-6/qwidget.html) *_viewport_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qabstractscrollarea.h?h=6.12#n65 "View declaration of this function")[](https://doc.qt.io/qt-6/qabstractscrollarea.html#setupViewport "Direct link to this headline")
+
+This slot is called by [QAbstractScrollArea](https://doc.qt.io/qt-6/qabstractscrollarea.html) after [setViewport](https://doc.qt.io/qt-6/qabstractscrollarea.html#setViewport)(_viewport_) has been called. Reimplement this function in a subclass of [QAbstractScrollArea](https://doc.qt.io/qt-6/qabstractscrollarea.html) to initialize the new _viewport_ before it is used.
+
+**See also**[setViewport](https://doc.qt.io/qt-6/qabstractscrollarea.html#setViewport)().
+
+### `[override virtual]`[QSize](https://doc.qt.io/qt-6/qsize.html) QAbstractScrollArea::sizeHint() const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qabstractscrollarea.h?h=6.12#n63 "View declaration of this function")[](https://doc.qt.io/qt-6/qabstractscrollarea.html#sizeHint "Direct link to this headline")
+
+Reimplements: [QFrame::sizeHint](https://doc.qt.io/qt-6/qframe.html#sizeHint)() const.
+
+Returns the sizeHint property of the scroll area. The size is determined by using [viewportSizeHint](https://doc.qt.io/qt-6/qabstractscrollarea.html#viewportSizeHint)() plus some extra space for scroll bars, if needed.
+
+### [QScrollBar](https://doc.qt.io/qt-6/qscrollbar.html) *QAbstractScrollArea::verticalScrollBar() const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qabstractscrollarea.h?h=6.12#n43 "View declaration of this function")[](https://doc.qt.io/qt-6/qabstractscrollarea.html#verticalScrollBar "Direct link to this headline")
+
+Returns the vertical scroll bar.
+
+**See also**[setVerticalScrollBar](https://doc.qt.io/qt-6/qabstractscrollarea.html#setVerticalScrollBar)(), [verticalScrollBarPolicy](https://doc.qt.io/qt-6/qabstractscrollarea.html#verticalScrollBarPolicy-prop), and [horizontalScrollBar](https://doc.qt.io/qt-6/qabstractscrollarea.html#horizontalScrollBar)().
+
+### [QWidget](https://doc.qt.io/qt-6/qwidget.html) *QAbstractScrollArea::viewport() const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qabstractscrollarea.h?h=6.12#n57 "View declaration of this function")[](https://doc.qt.io/qt-6/qabstractscrollarea.html#viewport "Direct link to this headline")
+
+Returns the viewport widget.
+
+Use the [QScrollArea::widget](https://doc.qt.io/qt-6/qscrollarea.html#widget)() function to retrieve the contents of the viewport widget.
+
+**See also**[setViewport](https://doc.qt.io/qt-6/qabstractscrollarea.html#setViewport)() and [QScrollArea::widget](https://doc.qt.io/qt-6/qscrollarea.html#widget)().
+
+### `[virtual protected]`bool QAbstractScrollArea::viewportEvent([QEvent](https://doc.qt.io/qt-6/qevent.html) *_event_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qabstractscrollarea.h?h=6.12#n78 "View declaration of this function")[](https://doc.qt.io/qt-6/qabstractscrollarea.html#viewportEvent "Direct link to this headline")
+
+The main event handler for the scrolling area (the [viewport](https://doc.qt.io/qt-6/qabstractscrollarea.html#viewport)() widget). It handles the _event_ specified, and can be called by subclasses to provide reasonable default behavior.
+
+Returns `true` to indicate to the event system that the event has been handled, and needs no further processing; otherwise returns `false` to indicate that the event should be propagated further.
+
+You can reimplement this function in a subclass, but we recommend using one of the specialized event handlers instead.
+
+Specialized handlers for viewport events are: [paintEvent](https://doc.qt.io/qt-6/qabstractscrollarea.html#paintEvent)(), [mousePressEvent](https://doc.qt.io/qt-6/qabstractscrollarea.html#mousePressEvent)(), [mouseReleaseEvent](https://doc.qt.io/qt-6/qabstractscrollarea.html#mouseReleaseEvent)(), [mouseDoubleClickEvent](https://doc.qt.io/qt-6/qabstractscrollarea.html#mouseDoubleClickEvent)(), [mouseMoveEvent](https://doc.qt.io/qt-6/qabstractscrollarea.html#mouseMoveEvent)(), [wheelEvent](https://doc.qt.io/qt-6/qabstractscrollarea.html#wheelEvent)(), [dragEnterEvent](https://doc.qt.io/qt-6/qabstractscrollarea.html#dragEnterEvent)(), [dragMoveEvent](https://doc.qt.io/qt-6/qabstractscrollarea.html#dragMoveEvent)(), [dragLeaveEvent](https://doc.qt.io/qt-6/qabstractscrollarea.html#dragLeaveEvent)(), [dropEvent](https://doc.qt.io/qt-6/qabstractscrollarea.html#dropEvent)(), [contextMenuEvent](https://doc.qt.io/qt-6/qabstractscrollarea.html#contextMenuEvent)(), and [resizeEvent](https://doc.qt.io/qt-6/qabstractscrollarea.html#resizeEvent)().
+
+### `[protected]`[QMargins](https://doc.qt.io/qt-6/qmargins.html) QAbstractScrollArea::viewportMargins() const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qabstractscrollarea.h?h=6.12#n74 "View declaration of this function")[](https://doc.qt.io/qt-6/qabstractscrollarea.html#viewportMargins "Direct link to this headline")
+
+Returns the margins around the scrolling area. By default all the margins are zero.
+
+**See also**[setViewportMargins](https://doc.qt.io/qt-6/qabstractscrollarea.html#setViewportMargins)().
+
+### `[virtual protected]`[QSize](https://doc.qt.io/qt-6/qsize.html) QAbstractScrollArea::viewportSizeHint() const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qabstractscrollarea.h?h=6.12#n103 "View declaration of this function")[](https://doc.qt.io/qt-6/qabstractscrollarea.html#viewportSizeHint "Direct link to this headline")
+
+Returns the recommended size for the viewport. The default implementation returns [viewport](https://doc.qt.io/qt-6/qabstractscrollarea.html#viewport)()->[sizeHint](https://doc.qt.io/qt-6/qabstractscrollarea.html#sizeHint)(). Note that the size is just the viewport's size, without any scroll bars visible.
+
+### `[override virtual protected]`void QAbstractScrollArea::wheelEvent([QWheelEvent](https://doc.qt.io/qt-6/qwheelevent.html) *_e_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qabstractscrollarea.h?h=6.12#n87 "View declaration of this function")[](https://doc.qt.io/qt-6/qabstractscrollarea.html#wheelEvent "Direct link to this headline")
+
+Reimplements: [QWidget::wheelEvent](https://doc.qt.io/qt-6/qwidget.html#wheelEvent)(QWheelEvent *event).
+
+This event handler can be reimplemented in a subclass to receive wheel events for the [viewport](https://doc.qt.io/qt-6/qabstractscrollarea.html#viewport)() widget. The event is passed in _e_.
+
+**See also**[QWidget::wheelEvent](https://doc.qt.io/qt-6/qwidget.html#wheelEvent)().

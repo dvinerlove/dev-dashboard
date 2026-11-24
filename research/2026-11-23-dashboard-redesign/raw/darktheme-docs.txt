@@ -1,0 +1,42 @@
+Title: PyQtDarkTheme documentation — PyQtDarkTheme 2.1.0 documentation
+
+URL Source: https://pyqtdarktheme.readthedocs.io/en/latest/
+
+Markdown Content:
+PyQtDarkTheme applies a flat dark theme to QtWidgets application(PySide and PyQt). There’s a light theme too. Color and style balanced from a dark theme for easy viewing in daylight.
+
+Dark
+
+![Image 1: _images/widget_gallery_dark.png](https://pyqtdarktheme.readthedocs.io/en/latest/_images/widget_gallery_dark.png)
+
+Light
+
+![Image 2: _images/widget_gallery_light.png](https://pyqtdarktheme.readthedocs.io/en/latest/_images/widget_gallery_light.png)
+
+Sync with OS’s theme
+
+![Image 3: _images/sync_with_os_theme.gif](https://pyqtdarktheme.readthedocs.io/en/latest/_images/sync_with_os_theme.gif)
+
+**Features:**
+
+*   A flat dark/light theme
+
+*   Support PySide, PyQt and PyInstaller
+
+*   Sync with OS’s theme and accent (Mac, Windows, Linux)
+
+*   Resolve the style differences between Qt versions
+
+*   Provide dark/light theme QPalette
+
+*   [Override Qt old standard icons](https://pyqtdarktheme.readthedocs.io/en/latest/how_to_use.html#use-overridden-qt-default-icons).
+
+* * *
+
+Installation guide
+
+How to use
+
+API reference
+
+Contributing

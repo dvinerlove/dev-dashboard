@@ -1,0 +1,355 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: "Geist";
+  src: url("/fonts/Geist-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Geist Mono";
+  src: url("/fonts/GeistMono-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root,
+:root[data-theme="graphite"] {
+  color-scheme: dark;
+  --bg-base: #0B0D11;
+  --bg-canvas: #101318;
+  --bg-surface: #161A22;
+  --bg-hover: #1C212B;
+  --bg-selected: #1F2636;
+  --border-hairline: rgba(255, 255, 255, 0.06);
+  --border-strong: #313848;
+  --text-primary: #ECEFF4;
+  --text-secondary: #8E97A8;
+  --text-muted: #8D94A7;
+  --accent: #5E81F4;
+  --accent-deep: #4A6BE0;
+  --accent-text: #8AADFF;
+  --status-green: #22C55E;
+  --status-amber: #F59E0B;
+  --status-red: #EF4444;
+  --status-gray: #6B7280;
+  --text-on-accent: #FFFFFF;
+  --bg-scrim: rgba(0, 0, 0, 0.55);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --scroll: rgba(255, 255, 255, 0.13);
+  --scroll-hover: rgba(255, 255, 255, 0.2);
+  --inset-hl: rgba(255, 255, 255, 0.06);
+  --elev-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.55);
+}
+
+/* Консоль — фосфорный терминал: моноширинная типографика, острые углы,
+   инспектор-док снизу, рейл иконок слева (задаётся в App/Sidebar) */
+:root[data-theme="console"] {
+  color-scheme: dark;
+  --bg-base: #050905;
+  --bg-canvas: #070D07;
+  --bg-surface: #0B150B;
+  --bg-hover: #102010;
+  --bg-selected: #14281A;
+  --border-hairline: rgba(74, 222, 128, 0.14);
+  --border-strong: #1F3D24;
+  --text-primary: #D9F2DC;
+  --text-secondary: #7FA98A;
+  --text-muted: #6B9577;
+  --accent: #4ADE80;
+  --accent-deep: #22C55E;
+  --accent-text: #7FF0A8;
+  --status-green: #4ADE80;
+  --status-amber: #FBBF24;
+  --status-red: #F87171;
+  --status-gray: #4B6353;
+  --text-on-accent: #05210F;
+  --bg-scrim: rgba(0, 0, 0, 0.62);
+  --scroll: rgba(74, 222, 128, 0.16);
+  --scroll-hover: rgba(74, 222, 128, 0.28);
+  --inset-hl: rgba(74, 222, 128, 0.08);
+  --elev-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.7);
+  --radius-sm: 0px;
+  --radius-md: 2px;
+  --radius-lg: 3px;
+  --radius-xl: 4px;
+}
+
+/* Бумага — светлая «блокнотная» тема: тёплый фон, реальные рамки,
+   глубина мягкими тенями вместо свечения */
+:root[data-theme="paper"] {
+  color-scheme: light;
+  --bg-base: #EDEBE5;
+  --bg-canvas: #F7F6F2;
+  --bg-surface: #FFFFFF;
+  --bg-hover: #EFEDE6;
+  --bg-selected: #E4E7F6;
+  --border-hairline: rgba(28, 30, 40, 0.1);
+  --border-strong: #D8D5CA;
+  --text-primary: #20242D;
+  --text-secondary: #565D6B;
+  --text-muted: #5F6673;
+  --accent: #4F46E5;
+  --accent-deep: #4338CA;
+  --accent-text: #4F46E5;
+  --status-green: #16A34A;
+  --status-amber: #B45309;
+  --status-red: #DC2626;
+  --status-gray: #9CA3AF;
+  --text-on-accent: #FFFFFF;
+  --bg-scrim: rgba(35, 35, 50, 0.32);
+  --scroll: rgba(28, 30, 40, 0.16);
+  --scroll-hover: rgba(28, 30, 40, 0.26);
+  --inset-hl: rgba(255, 255, 255, 0.75);
+  --elev-shadow: 0 18px 44px -14px rgba(40, 38, 60, 0.25);
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+}
+
+/* бумажная тема чуть просторнее по типографике */
+:root[data-theme="paper"] body {
+  font-size: 13.5px;
+}
+
+/* Бумага дарк 1 — тёмная версия «бумаги»: те же тёплые тауп-нейтралы
+   (не инверсия светлой рампы), индиго-акцент осветлён под тёмный фон */
+:root[data-theme="paperdark1"] {
+  color-scheme: dark;
+  --bg-base: #171512;
+  --bg-canvas: #1C1A16;
+  --bg-surface: #24211B;
+  --bg-hover: #2C2922;
+  --bg-selected: #2A2C3D;
+  --border-hairline: rgba(240, 235, 220, 0.08);
+  --border-strong: #3B372D;
+  --text-primary: #EBE7DB;
+  --text-secondary: #A6A296;
+  --text-muted: #9C978B;
+  --accent: #6C63F0;
+  --accent-deep: #5750D8;
+  --accent-text: #A49DF6;
+  --status-green: #22C55E;
+  --status-amber: #F59E0B;
+  --status-red: #EF4444;
+  --status-gray: #6B7280;
+  --text-on-accent: #FFFFFF;
+  --bg-scrim: rgba(10, 9, 7, 0.5);
+  --scroll: rgba(240, 235, 220, 0.14);
+  --scroll-hover: rgba(240, 235, 220, 0.24);
+  --inset-hl: rgba(255, 250, 235, 0.06);
+  --elev-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.6);
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+}
+:root[data-theme="paperdark1"] body {
+  font-size: 13.5px;
+}
+
+/* Бумага дарк 2 — эспрессо: глубже и контрастнее, та же тёплая гамма */
+:root[data-theme="paperdark2"] {
+  color-scheme: dark;
+  --bg-base: #100E0B;
+  --bg-canvas: #14110D;
+  --bg-surface: #1C1813;
+  --bg-hover: #262119;
+  --bg-selected: #282544;
+  --border-hairline: rgba(240, 230, 210, 0.07);
+  --border-strong: #332C20;
+  --text-primary: #EFE9DC;
+  --text-secondary: #9E9789;
+  --text-muted: #9B9282;
+  --accent: #7A72F5;
+  --accent-deep: #5D55E2;
+  --accent-text: #ADA6FA;
+  --status-green: #22C55E;
+  --status-amber: #F59E0B;
+  --status-red: #EF4444;
+  --status-gray: #6B7280;
+  --text-on-accent: #FFFFFF;
+  --bg-scrim: rgba(8, 7, 5, 0.55);
+  --scroll: rgba(240, 230, 210, 0.13);
+  --scroll-hover: rgba(240, 230, 210, 0.22);
+  --inset-hl: rgba(255, 248, 230, 0.05);
+  --elev-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.7);
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+}
+:root[data-theme="paperdark2"] body {
+  font-size: 13.5px;
+}
+
+/* Ретро — Windows 95: серый фон, Tahoma, нулевые радиусы,
+   тёмно-синий акцент, жёсткие тени вместо свечения */
+:root[data-theme="retro"] {
+  color-scheme: light;
+  --bg-base: #C0C0C0;
+  --bg-canvas: #D4D4D4;
+  --bg-surface: #FFFFFF;
+  --bg-hover: #E4E4E4;
+  --bg-selected: #B0C4DE;
+  --border-hairline: rgba(0, 0, 0, 0.28);
+  --border-strong: #808080;
+  --text-primary: #000000;
+  --text-secondary: #3F3F3F;
+  --text-muted: #484848;
+  --accent: #000080;
+  --accent-deep: #000060;
+  --accent-text: #0000CC;
+  --status-green: #008000;
+  --status-amber: #8B6F00;
+  --status-red: #C00000;
+  --status-gray: #808080;
+  --text-on-accent: #FFFFFF;
+  --bg-scrim: rgba(0, 0, 0, 0.4);
+  --scroll: rgba(0, 0, 0, 0.25);
+  --scroll-hover: rgba(0, 0, 0, 0.4);
+  --inset-hl: rgba(255, 255, 255, 0.85);
+  --elev-shadow: 3px 3px 0 rgba(0, 0, 0, 0.3);
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+}
+:root[data-theme="retro"] body {
+  font-family: Tahoma, "MS Sans Serif", sans-serif;
+  font-size: 12px;
+}
+:root[data-theme="retro"] .kbd {
+  box-shadow: 1px 1px 0 #808080;
+}
+
+html, body, #root {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: "Geist", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  font-size: 13px;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  touch-action: manipulation;               /* без 300ms-задержки dbl-tap zoom */
+  -webkit-tap-highlight-color: transparent; /* без серого флеша по тапу */
+}
+
+/* в консольной теме весь интерфейс — моноширинный, как терминал */
+:root[data-theme="console"] body {
+  font-family: "Geist Mono", "Cascadia Code", monospace;
+  font-size: 12.5px;
+}
+
+/* текст выделяется по умолчанию; select-none только там, где выделение мешает */
+button, nav, label, [data-slot="switch"], [cmdk-item] { user-select: none; }
+
+.font-mono, code, pre {
+  font-family: "Geist Mono", "JetBrains Mono", "Cascadia Code", "Cascadia Mono", monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.tnum { font-variant-numeric: tabular-nums; }
+
+/* длинные списки логов: браузер пропускает offscreen-рендер */
+.cv-auto { content-visibility: auto; contain-intrinsic-size: auto 18px; }
+
+/* единая кривая и длительность — snappy, как в Linear */
+*, *::before, *::after {
+  transition-duration: 140ms;
+  transition-timing-function: var(--ease-out);
+}
+
+/* kbd в стиле Raycast: моноширинный, тонкий бордер, верхний блик */
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border-hairline);
+  border-radius: 4px;
+  background: var(--bg-canvas);
+  padding: 0 5px;
+  font-family: "JetBrains Mono", "Cascadia Code", monospace;
+  font-size: 10.5px;
+  line-height: 1.52;
+  color: var(--text-muted);
+  box-shadow: inset 0 1px 0 var(--inset-hl);
+}
+
+/* едва заметный верхний световой край поверхностей (Linear/Raycast depth) */
+.elev {
+  box-shadow: inset 0 1px 0 var(--inset-hl), var(--elev-shadow);
+}
+
+/* тонкие полупрозрачные скроллбары */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll) transparent;
+}
+*::-webkit-scrollbar { width: 6px; height: 6px; }
+*::-webkit-scrollbar-thumb {
+  background: var(--scroll);
+  border-radius: 3px;
+}
+*::-webkit-scrollbar-thumb:hover { background: var(--scroll-hover); }
+*::-webkit-scrollbar-track { background: transparent; }
+
+/* скролл не сдвигает контент */
+main, .scroll-stable { scrollbar-gutter: stable; }
+
+/* чёткий клавиатурный фокус, без мышиных рамок;
+   не рисуем второй индикатор там, где контрол задал свой */
+:focus-visible:not(.outline-none) {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+  border-radius: 4px;
+}
+
+/* логи можно выделять */
+.selectable { user-select: text; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* cmdk */
+[cmdk-root] { width: 100%; }
+[cmdk-item][data-selected="true"] { background: var(--bg-hover); color: var(--text-primary); }
+/* список палитры: тонкий скроллбар без системных стрелок WebView2 */
+[cmdk-list] { scrollbar-width: thin; scrollbar-color: var(--scroll) transparent; }
+[cmdk-list]::-webkit-scrollbar { width: 6px; }
+[cmdk-list]::-webkit-scrollbar-thumb { background: var(--scroll); border-radius: 3px; }
+[cmdk-list]::-webkit-scrollbar-track, [cmdk-list]::-webkit-scrollbar-button { background: transparent; width: 0; height: 0; }
+
+/* layout-свойства не анимируем: drag resizer и popper-позиционирование — мгновенно */
+[data-panel], [data-radix-popper-content-wrapper] { transition-property: none; }
+
+/* короткий fade для overlay-слоёв (диалоги) */
+@keyframes overlay-in { from { opacity: 0; } }
+
+/* скрим диалога: dim + blur «приезжают» вместе — материал, а не fade.
+   Стационарные значения — классами на оверлее (blur 14px / saturate 150%) */
+@keyframes scrim-in {
+  from { opacity: 0; backdrop-filter: blur(0px) saturate(100%); }
+}
+@keyframes scrim-out {
+  to { opacity: 0; backdrop-filter: blur(0px) saturate(100%); }
+}
+/* контент диалога: лёгкая материализация scale+fade (translate — классами) */
+@keyframes dialog-in {
+  from { opacity: 0; scale: 0.97; }
+}
+@keyframes dialog-out {
+  to { opacity: 0; scale: 0.98; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .scrim { backdrop-filter: none !important; }
+}

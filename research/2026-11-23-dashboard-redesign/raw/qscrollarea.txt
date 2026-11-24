@@ -1,0 +1,182 @@
+Title: QScrollArea Class | Qt Widgets
+
+URL Source: https://doc.qt.io/qt-6/qscrollarea.html
+
+Markdown Content:
+The QScrollArea class provides a scrolling view onto another widget. [More...](https://doc.qt.io/qt-6/qscrollarea.html#details)
+
+Header:`#include <QScrollArea>`
+CMake:`find_package(Qt6 REQUIRED COMPONENTS Widgets)`  
+`target_link_libraries(mytarget PRIVATE Qt6::Widgets)`
+qmake:`QT += widgets`
+Inherits:[QAbstractScrollArea](https://doc.qt.io/qt-6/qabstractscrollarea.html)
+
+*   [List of all members, including inherited members](https://doc.qt.io/qt-6/qscrollarea-members.html)
+
+## Properties[](https://doc.qt.io/qt-6/qscrollarea.html#properties "Direct link to this headline")
+
+*   **[alignment](https://doc.qt.io/qt-6/qscrollarea.html#alignment-prop)** : Qt::Alignment
+*   **[widgetResizable](https://doc.qt.io/qt-6/qscrollarea.html#widgetResizable-prop)** : bool
+
+## Public Functions[](https://doc.qt.io/qt-6/qscrollarea.html#public-functions "Direct link to this headline")
+
+**[QScrollArea](https://doc.qt.io/qt-6/qscrollarea.html#QScrollArea)**(QWidget *_parent_ = nullptr)
+virtual**[~QScrollArea](https://doc.qt.io/qt-6/qscrollarea.html#dtor.QScrollArea)**()
+Qt::Alignment**[alignment](https://doc.qt.io/qt-6/qscrollarea.html#alignment-prop)**() const
+void**[ensureVisible](https://doc.qt.io/qt-6/qscrollarea.html#ensureVisible)**(int _x_, int _y_, int _xmargin_ = 50, int _ymargin_ = 50)
+void**[ensureWidgetVisible](https://doc.qt.io/qt-6/qscrollarea.html#ensureWidgetVisible)**(QWidget *_childWidget_, int _xmargin_ = 50, int _ymargin_ = 50)
+void**[setAlignment](https://doc.qt.io/qt-6/qscrollarea.html#alignment-prop)**(Qt::Alignment)
+void**[setWidget](https://doc.qt.io/qt-6/qscrollarea.html#setWidget)**(QWidget *_widget_)
+void**[setWidgetResizable](https://doc.qt.io/qt-6/qscrollarea.html#widgetResizable-prop)**(bool _resizable_)
+QWidget ***[takeWidget](https://doc.qt.io/qt-6/qscrollarea.html#takeWidget)**()
+QWidget ***[widget](https://doc.qt.io/qt-6/qscrollarea.html#widget)**() const
+bool**[widgetResizable](https://doc.qt.io/qt-6/qscrollarea.html#widgetResizable-prop)**() const
+
+## Reimplemented Public Functions[](https://doc.qt.io/qt-6/qscrollarea.html#reimplemented-public-functions "Direct link to this headline")
+
+## Reimplemented Protected Functions[](https://doc.qt.io/qt-6/qscrollarea.html#reimplemented-protected-functions "Direct link to this headline")
+
+## Detailed Description[](https://doc.qt.io/qt-6/qscrollarea.html#details "Direct link to this headline")
+
+A scroll area is used to display the contents of a child widget within a frame. If the widget exceeds the size of the frame, the view can provide scroll bars so that the entire area of the child widget can be viewed. The child widget must be specified with [setWidget](https://doc.qt.io/qt-6/qscrollarea.html#setWidget)(). For example:
+
+```
+QLabel *imageLabel = new QLabel;
+QImage image("happyguy.png");
+imageLabel->setPixmap(QPixmap::fromImage(image));
+
+scrollArea = new QScrollArea;
+scrollArea->setBackgroundRole(QPalette::Dark);
+scrollArea->setWidget(imageLabel);
+```
+
+The code above creates a scroll area (shown in the images below) containing an image label. When scaling the image, the scroll area can provide the necessary scroll bars:
+
+The scroll bars appearance depends on the currently set [scroll bar policies](https://doc.qt.io/qt-6/qt.html#ScrollBarPolicy-enum). You can control the appearance of the scroll bars using the inherited functionality from [QAbstractScrollArea](https://doc.qt.io/qt-6/qabstractscrollarea.html).
+
+For example, you can set the [QAbstractScrollArea::horizontalScrollBarPolicy](https://doc.qt.io/qt-6/qabstractscrollarea.html#horizontalScrollBarPolicy-prop) and [QAbstractScrollArea::verticalScrollBarPolicy](https://doc.qt.io/qt-6/qabstractscrollarea.html#verticalScrollBarPolicy-prop) properties. Or if you want the scroll bars to adjust dynamically when the contents of the scroll area changes, you can use the [horizontalScrollBar](https://doc.qt.io/qt-6/qabstractscrollarea.html#horizontalScrollBar)() and [verticalScrollBar](https://doc.qt.io/qt-6/qabstractscrollarea.html#verticalScrollBar)() functions (which enable you to access the scroll bars) and set the scroll bars' values whenever the scroll area's contents change, using the [QScrollBar::setValue](https://doc.qt.io/qt-6/qabstractslider.html#value-prop)() function.
+
+You can retrieve the child widget using the [widget](https://doc.qt.io/qt-6/qscrollarea.html#widget)() function. The view can be made to be resizable with the [setWidgetResizable](https://doc.qt.io/qt-6/qscrollarea.html#widgetResizable-prop)() function. The alignment of the widget can be specified with [setAlignment](https://doc.qt.io/qt-6/qscrollarea.html#alignment-prop)().
+
+Two convenience functions [ensureVisible](https://doc.qt.io/qt-6/qscrollarea.html#ensureVisible)() and [ensureWidgetVisible](https://doc.qt.io/qt-6/qscrollarea.html#ensureWidgetVisible)() ensure a certain region of the contents is visible inside the viewport, by scrolling the contents if necessary.
+
+### Size Hints and Layouts[](https://doc.qt.io/qt-6/qscrollarea.html#size-hints-and-layouts "Direct link to this headline")
+
+When using a scroll area to display the contents of a custom widget, it is important to ensure that the [size hint](https://doc.qt.io/qt-6/qwidget.html#sizeHint-prop) of the child widget is set to a suitable value. If a standard [QWidget](https://doc.qt.io/qt-6/qwidget.html) is used for the child widget, it may be necessary to call [QWidget::setMinimumSize](https://doc.qt.io/qt-6/qwidget.html#minimumSize-prop)() to ensure that the contents of the widget are shown correctly within the scroll area.
+
+If a scroll area is used to display the contents of a widget that contains child widgets arranged in a layout, it is important to realize that the size policy of the layout will also determine the size of the widget. This is especially useful to know if you intend to dynamically change the contents of the layout. In such cases, setting the layout's [size constraint](https://doc.qt.io/qt-6/qlayout.html#sizeConstraint-prop) property to one which provides constraints on the minimum and/or maximum size of the layout (e.g., [QLayout::SetMinAndMaxSize](https://doc.qt.io/qt-6/qlayout.html#SizeConstraint-enum)) will cause the size of the scroll area to be updated whenever the contents of the layout changes.
+
+**See also**[QAbstractScrollArea](https://doc.qt.io/qt-6/qabstractscrollarea.html) and [QScrollBar](https://doc.qt.io/qt-6/qscrollbar.html).
+
+## Property Documentation
+
+### alignment : [Qt::Alignment](https://doc.qt.io/qt-6/qt.html#AlignmentFlag-enum)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qscrollarea.h?h=6.12#n21 "View declaration of this property")[](https://doc.qt.io/qt-6/qscrollarea.html#alignment-prop "Direct link to this headline")
+
+This property holds the alignment of the scroll area's widget
+
+A valid alignment is a combination of the following flags:
+
+*   `Qt::AlignLeft`
+*   `Qt::AlignHCenter`
+*   `Qt::AlignRight`
+*   `Qt::AlignTop`
+*   `Qt::AlignVCenter`
+*   `Qt::AlignBottom`
+
+By default, the widget stays rooted to the top-left corner of the scroll area.
+
+**Access functions:**
+
+Qt::Alignment**alignment**() const
+void**setAlignment**(Qt::Alignment)
+
+### widgetResizable : bool[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qscrollarea.h?h=6.12#n20 "View declaration of this property")[](https://doc.qt.io/qt-6/qscrollarea.html#widgetResizable-prop "Direct link to this headline")
+
+This property holds whether the scroll area should resize the view widget
+
+If this property is set to false (the default), the scroll area honors the size of its widget. Regardless of this property, you can programmatically resize the widget using [widget](https://doc.qt.io/qt-6/qscrollarea.html#widget)()->[resize](https://doc.qt.io/qt-6/qwidget.html#size-prop)(), and the scroll area will automatically adjust itself to the new size.
+
+If this property is set to true, the scroll area will automatically resize the widget in order to avoid scroll bars where they can be avoided, or to take advantage of extra space.
+
+**Access functions:**
+
+bool**widgetResizable**() const
+void**setWidgetResizable**(bool _resizable_)
+
+## Member Function Documentation
+
+### `[explicit]` QScrollArea::QScrollArea([QWidget](https://doc.qt.io/qt-6/qwidget.html) *_parent_ = nullptr)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qscrollarea.h?h=6.12#n24 "View declaration of this function")[](https://doc.qt.io/qt-6/qscrollarea.html#QScrollArea "Direct link to this headline")
+
+Constructs an empty scroll area with the given _parent_.
+
+**See also**[setWidget](https://doc.qt.io/qt-6/qscrollarea.html#setWidget)().
+
+### `[virtual noexcept]` QScrollArea::~QScrollArea()[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qscrollarea.h?h=6.12#n25 "View declaration of this function")[](https://doc.qt.io/qt-6/qscrollarea.html#dtor.QScrollArea "Direct link to this headline")
+
+Destroys the scroll area and its child widget.
+
+**See also**[setWidget](https://doc.qt.io/qt-6/qscrollarea.html#setWidget)().
+
+### void QScrollArea::ensureVisible(int _x_, int _y_, int _xmargin_ = 50, int _ymargin_ = 50)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qscrollarea.h?h=6.12#n41 "View declaration of this function")[](https://doc.qt.io/qt-6/qscrollarea.html#ensureVisible "Direct link to this headline")
+
+Scrolls the contents of the scroll area so that the point (_x_, _y_) is visible inside the region of the viewport with margins specified in pixels by _xmargin_ and _ymargin_. If the specified point cannot be reached, the contents are scrolled to the nearest valid position. The default value for both margins is 50 pixels.
+
+### void QScrollArea::ensureWidgetVisible([QWidget](https://doc.qt.io/qt-6/qwidget.html) *_childWidget_, int _xmargin_ = 50, int _ymargin_ = 50)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qscrollarea.h?h=6.12#n42 "View declaration of this function")[](https://doc.qt.io/qt-6/qscrollarea.html#ensureWidgetVisible "Direct link to this headline")
+
+Scrolls the contents of the scroll area so that the _childWidget_ of [QScrollArea::widget](https://doc.qt.io/qt-6/qscrollarea.html#widget)() is visible inside the viewport with margins specified in pixels by _xmargin_ and _ymargin_. If the specified point cannot be reached, the contents are scrolled to the nearest valid position. The default value for both margins is 50 pixels.
+
+### `[override virtual protected]`bool QScrollArea::event([QEvent](https://doc.qt.io/qt-6/qevent.html) *_e_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qscrollarea.h?h=6.12#n46 "View declaration of this function")[](https://doc.qt.io/qt-6/qscrollarea.html#event "Direct link to this headline")
+
+Reimplements: [QAbstractScrollArea::event](https://doc.qt.io/qt-6/qabstractscrollarea.html#event)(QEvent *event).
+
+### `[override virtual protected]`bool QScrollArea::eventFilter([QObject](https://doc.qt.io/qt-6/qobject.html) *_o_, [QEvent](https://doc.qt.io/qt-6/qevent.html) *_e_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qscrollarea.h?h=6.12#n47 "View declaration of this function")[](https://doc.qt.io/qt-6/qscrollarea.html#eventFilter "Direct link to this headline")
+
+Reimplements: [QObject::eventFilter](https://doc.qt.io/qt-6/qobject.html#eventFilter)(QObject *watched, QEvent *event).
+
+### `[override virtual]`bool QScrollArea::focusNextPrevChild(bool _next_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qscrollarea.h?h=6.12#n36 "View declaration of this function")[](https://doc.qt.io/qt-6/qscrollarea.html#focusNextPrevChild "Direct link to this headline")
+
+Reimplements: [QWidget::focusNextPrevChild](https://doc.qt.io/qt-6/qwidget.html#focusNextPrevChild)(bool next).
+
+### `[override virtual protected]`void QScrollArea::resizeEvent([QResizeEvent](https://doc.qt.io/qt-6/qresizeevent.html) *)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qscrollarea.h?h=6.12#n48 "View declaration of this function")[](https://doc.qt.io/qt-6/qscrollarea.html#resizeEvent "Direct link to this headline")
+
+Reimplements: [QAbstractScrollArea::resizeEvent](https://doc.qt.io/qt-6/qabstractscrollarea.html#resizeEvent)(QResizeEvent *event).
+
+### `[override virtual protected]`void QScrollArea::scrollContentsBy(int _dx_, int _dy_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qscrollarea.h?h=6.12#n49 "View declaration of this function")[](https://doc.qt.io/qt-6/qscrollarea.html#scrollContentsBy "Direct link to this headline")
+
+Reimplements: [QAbstractScrollArea::scrollContentsBy](https://doc.qt.io/qt-6/qabstractscrollarea.html#scrollContentsBy)(int dx, int dy).
+
+### void QScrollArea::setWidget([QWidget](https://doc.qt.io/qt-6/qwidget.html) *_widget_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qscrollarea.h?h=6.12#n28 "View declaration of this function")[](https://doc.qt.io/qt-6/qscrollarea.html#setWidget "Direct link to this headline")
+
+Sets the scroll area's _widget_.
+
+The _widget_ becomes a child of the scroll area, and will be destroyed when the scroll area is deleted or when a new widget is set.
+
+The widget's [autoFillBackground](https://doc.qt.io/qt-6/qwidget.html#autoFillBackground-prop) property will be set to `true`.
+
+If the scroll area is visible when the _widget_ is added, you must [show](https://doc.qt.io/qt-6/qwidget.html#show)() it explicitly.
+
+Note that You must add the layout of _widget_ before you call this function; if you add it later, the _widget_ will not be visible - regardless of when you [show](https://doc.qt.io/qt-6/qwidget.html#show)() the scroll area. In this case, you can also not [show](https://doc.qt.io/qt-6/qwidget.html#show)() the _widget_ later.
+
+**See also**[widget](https://doc.qt.io/qt-6/qscrollarea.html#widget)().
+
+### `[override virtual]`[QSize](https://doc.qt.io/qt-6/qsize.html) QScrollArea::sizeHint() const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qscrollarea.h?h=6.12#n34 "View declaration of this function")[](https://doc.qt.io/qt-6/qscrollarea.html#sizeHint "Direct link to this headline")
+
+Reimplements: [QAbstractScrollArea::sizeHint](https://doc.qt.io/qt-6/qabstractscrollarea.html#sizeHint)() const.
+
+### [QWidget](https://doc.qt.io/qt-6/qwidget.html) *QScrollArea::takeWidget()[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qscrollarea.h?h=6.12#n29 "View declaration of this function")[](https://doc.qt.io/qt-6/qscrollarea.html#takeWidget "Direct link to this headline")
+
+Removes the scroll area's widget, and passes ownership of the widget to the caller.
+
+**See also**[widget](https://doc.qt.io/qt-6/qscrollarea.html#widget)().
+
+### `[override virtual protected]`[QSize](https://doc.qt.io/qt-6/qsize.html) QScrollArea::viewportSizeHint() const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qscrollarea.h?h=6.12#n51 "View declaration of this function")[](https://doc.qt.io/qt-6/qscrollarea.html#viewportSizeHint "Direct link to this headline")
+
+Reimplements: [QAbstractScrollArea::viewportSizeHint](https://doc.qt.io/qt-6/qabstractscrollarea.html#viewportSizeHint)() const.
+
+### [QWidget](https://doc.qt.io/qt-6/qwidget.html) *QScrollArea::widget() const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/widgets/widgets/qscrollarea.h?h=6.12#n27 "View declaration of this function")[](https://doc.qt.io/qt-6/qscrollarea.html#widget "Direct link to this headline")
+
+Returns the scroll area's widget, or `nullptr` if there is none.
+
+**See also**[setWidget](https://doc.qt.io/qt-6/qscrollarea.html#setWidget)().
+
+© 2026 The Qt Company Ltd. Documentation contributions included herein are the copyrights of their respective owners. The documentation provided herein is licensed under the terms of the [GNU Free Documentation License version 1.3](http://www.gnu.org/licenses/fdl.html) as published by the Free Software Foundation. Qt and respective logos are [trademarks](https://doc.qt.io/qt/trademarks.html) of The Qt Company Ltd. in Finland and/or other countries worldwide. All other trademarks are property of their respective owners.

@@ -1,0 +1,55 @@
+# --- Runtime state & user config (never commit real data) ---
+state.db
+state.db-*
+services_config.json
+projects_config.json
+settings.json
+.env
+*.corrupt-*
+
+# --- Logs ---
+logs/
+*.log
+dashboard*.log
+
+# --- Root-level scratch dumps only ---
+/*.txt
+nul
+
+# --- Local dev/audit tooling ---
+audit/
+_t/
+_legacy_qml/
+shots/
+AGENT_PROMPT.md
+.agents/
+.claude/
+.omx/
+.playwright-cli/
+skills-lock.json
+
+# --- Build artifacts ---
+build/
+dist/
+*.exe
+*.spec.bak
+
+# --- Python ---
+__pycache__/
+*.pyc
+*.tmp
+
+# --- Frontend ---
+frontend/node_modules/
+frontend/dist/
+frontend/tsconfig.tsbuildinfo
+
+# --- Research: keep reports, drop fetch junk ---
+research/**/_verify/
+research/**/verify/
+research/**/.raw/
+research/**/.work/
+research/**/nul
+
+# research screenshots may contain private topology
+research/**/*.png

@@ -1,0 +1,120 @@
+Title: Qt Widgets | Qt 6.12.0
+
+URL Source: https://doc.qt.io/qt-6/qtwidgets-index.html
+
+Published Time: Wed, 30 Sep 2026 06:37:38 GMT
+
+Markdown Content:
+The [Qt Widgets Module](https://doc.qt.io/qt-6/qtwidgets-module.html) provides a set of UI elements to create classic desktop-style user interfaces. See the [User Interfaces](https://doc.qt.io/qt-6/topics-ui.html) overview for more information on using widgets.
+
+Widgets are the primary elements for creating user interfaces in Qt. [Widgets](https://doc.qt.io/qt-6/widget-classes.html#the-widget-classes) can display data and status information, receive user input, and provide a container for other widgets that should be grouped together. A widget that is not embedded in a parent widget is called a [window](https://doc.qt.io/qt-6/application-windows.html).
+
+![Image 1: Parent widget containing various child widgets](https://doc.qt.io/qt-6/images/parent-child-widgets.png)
+
+The [QWidget](https://doc.qt.io/qt-6/qwidget.html) class provides the basic capability to render to the screen and to handle user input events. All UI elements that Qt provides are either subclasses of [QWidget](https://doc.qt.io/qt-6/qwidget.html) or are used in connection with a [QWidget](https://doc.qt.io/qt-6/qwidget.html) subclass. To create custom widgets, subclass [QWidget](https://doc.qt.io/qt-6/qwidget.html) or a suitable subclass and reimplement the virtual event handlers.
+
+*   [Window and Dialog Widgets](https://doc.qt.io/qt-6/application-windows.html)
+*   [Application Main Window](https://doc.qt.io/qt-6/mainwindow.html)
+*   [Dialog Windows](https://doc.qt.io/qt-6/dialogs.html)
+*   [Keyboard Focus in Widgets](https://doc.qt.io/qt-6/focus.html)
+
+## Styles[](https://doc.qt.io/qt-6/qtwidgets-index.html#styles "Direct link to this headline")
+
+[Styles](https://doc.qt.io/qt-6/style-reference.html) draw on behalf of widgets and encapsulate the look and feel of a GUI. Qt's built-in widgets use the [QStyle](https://doc.qt.io/qt-6/qstyle.html) class to perform nearly all of their drawing, ensuring that they look exactly like the equivalent native widgets.
+
+![Image 2: Windows style tab widgets](https://doc.qt.io/qt-6/images/windowsvista-tabwidget.png)![Image 3: Fusion desktop style tab widgets](https://doc.qt.io/qt-6/images/fusion-tabwidget.png)![Image 4: macOS style tab widgets](https://doc.qt.io/qt-6/images/macos-tabwidget.png)
+
+[Qt Style Sheets](https://doc.qt.io/qt-6/stylesheet.html) customize the appearance of widgets with CSS-like rules. [Styling Approaches for Qt Widgets](https://doc.qt.io/qt-6/qtwidgets-styling-approaches.html) explains when to use a style, [StyleKit](https://doc.qt.io/qt-6/qtlabsstylekit-index.html), or a style sheet.
+
+## Layouts[](https://doc.qt.io/qt-6/qtwidgets-index.html#layouts "Direct link to this headline")
+
+[Layouts](https://doc.qt.io/qt-6/layout.html) are an elegant and flexible way to automatically arrange child widgets within their container. Each widget reports its size requirements to the layout through the [sizeHint](https://doc.qt.io/qt-6/qwidget.html#sizeHint-prop) and [sizePolicy](https://doc.qt.io/qt-6/qwidget.html#sizePolicy-prop) properties, and the layout distributes the available space accordingly.
+
+![Image 5: 5-children layout](https://doc.qt.io/qt-6/images/qgridlayout-with-5-children.png)![Image 6: 6-children layout](https://doc.qt.io/qt-6/images/qformlayout-with-6-children.png)
+
+[Qt Widgets Designer](https://doc.qt.io/qt-6/qtdesigner-manual.html) is a powerful tool for interactively creating and arranging widgets in layouts.
+
+## Model/View Classes[](https://doc.qt.io/qt-6/qtwidgets-index.html#model-view-classes "Direct link to this headline")
+
+The [model/view](https://doc.qt.io/qt-6/model-view-programming.html) architecture provides classes that manage the way data is presented to the user. Data-driven applications which use lists and tables are structured to separate the data and view using models, views, and delegates.
+
+![Image 7: File directory using a tree view](https://doc.qt.io/qt-6/images/fusion-treeview.png)
+
+## Graphics View[](https://doc.qt.io/qt-6/qtwidgets-index.html#graphics-view "Direct link to this headline")
+
+The [Graphics View Framework](https://doc.qt.io/qt-6/graphicsview.html) is for managing and interacting with a large number of custom-made 2D graphical items, and a view widget for visualizing the items, with support for zooming and rotation.
+
+![Image 8: Various shapes and graphics on a grid](https://doc.qt.io/qt-6/images/graphicsview-items.png)
+
+## Using the Module[](https://doc.qt.io/qt-6/qtwidgets-index.html#using-the-module "Direct link to this headline")
+
+Using a Qt module's C++ API requires linking against the module library, either directly or through other dependencies. Several build tools have dedicated support for this, including [CMake](https://cmake.org/cmake/help/latest/) and [qmake](https://doc.qt.io/qt-6/qmake-manual.html).
+
+### Building with CMake[](https://doc.qt.io/qt-6/qtwidgets-index.html#building-with-cmake "Direct link to this headline")
+
+Use the `find_package()` command to locate the needed module component in the `Qt6` package:
+
+```
+find_package(Qt6 REQUIRED COMPONENTS Widgets)
+target_link_libraries(mytarget PRIVATE Qt6::Widgets)
+```
+
+For more details, see the [Build with CMake](https://doc.qt.io/qt-6/cmake-manual.html) overview.
+
+### Building with qmake[](https://doc.qt.io/qt-6/qtwidgets-index.html#building-with-qmake "Direct link to this headline")
+
+To configure the module for building with qmake, add the module as a value of the `QT` variable in the project's .pro file:
+
+`QT += widgets`
+
+## Security Considerations[](https://doc.qt.io/qt-6/qtwidgets-index.html#security-considerations "Direct link to this headline")
+
+Several Qt Widgets classes deserialize or parse data that an application can supply from any source, and Qt cannot verify its provenance. Give particular consideration to the following:
+
+*   [QHeaderView::restoreState()](https://doc.qt.io/qt-6/qheaderview.html#security-considerations) deserializes a versioned binary state blob.
+*   [QFileDialog::restoreState()](https://doc.qt.io/qt-6/qfiledialog.html#security-considerations) likewise deserializes a binary state blob, which embeds a [QHeaderView](https://doc.qt.io/qt-6/qheaderview.html) state blob.
+*   [QMainWindow::restoreState()](https://doc.qt.io/qt-6/qmainwindow.html#security-considerations) deserializes a binary state blob describing a recursively nested toolbar and dock widget layout.
+*   [QSplitter::restoreState()](https://doc.qt.io/qt-6/qsplitter.html#security-considerations) deserializes a binary state blob describing splitter sizes and orientation.
+*   [Qt Style Sheets](https://doc.qt.io/qt-6/stylesheet.html#security-considerations) can reference and load arbitrary local files through the `url()` function.
+
+Only pass such APIs data that your application previously produced and persisted itself (typically via [QSettings](https://doc.qt.io/qt-6/qsettings.html)), or that is otherwise fully under your application's control.
+
+## Articles and Guides[](https://doc.qt.io/qt-6/qtwidgets-index.html#articles-and-guides "Direct link to this headline")
+
+*   [Widgets Tutorial](https://doc.qt.io/qt-6/widgets-tutorial.html)
+*   [Getting Started Programming with Qt Widgets](https://doc.qt.io/qt-6/widgets-getting-started.html)
+*   [Qt Creator: Tutorial: Qt Widgets application](https://doc.qt.io/qtcreator/creator-writing-program.html)
+*   [Qt Extension for Visual Studio Code: Tutorial: Qt Widgets application](https://doc.qt.io/vscodeext/vscodeext-tutorials-qt-widgets.html)
+*   [Model/View Tutorial](https://doc.qt.io/qt-6/modelview.html)
+*   [Styling Approaches for Qt Widgets](https://doc.qt.io/qt-6/qtwidgets-styling-approaches.html)
+
+## Examples[](https://doc.qt.io/qt-6/qtwidgets-index.html#examples "Direct link to this headline")
+
+*   [Qt Widgets Examples](https://doc.qt.io/qt-6/examples-widgets.html)
+*   [Layout Examples](https://doc.qt.io/qt-6/layout.html#layout-examples)
+*   [Widget Tools Examples](https://doc.qt.io/qt-6/examples-widgets-tools.html)
+
+## API Reference[](https://doc.qt.io/qt-6/qtwidgets-index.html#api-reference "Direct link to this headline")
+
+*   [Qt Widgets C++ Classes](https://doc.qt.io/qt-6/qtwidgets-module.html)
+    *   [Basic Widget Classes](https://doc.qt.io/qt-6/widget-classes.html#basic-widget-classes)
+    *   [Advanced Widget Classes](https://doc.qt.io/qt-6/widget-classes.html#advanced-widget-classes)
+    *   [Abstract Widget Classes](https://doc.qt.io/qt-6/widget-classes.html#abstract-widget-classes)
+    *   [Organizer Widget Classes](https://doc.qt.io/qt-6/widget-classes.html#organizer-widget-classes)
+    *   [Graphics View Classes](https://doc.qt.io/qt-6/widget-classes.html#graphics-view-classes)
+    *   [Model/View Classes](https://doc.qt.io/qt-6/model-view-programming.html#the-model-view-classes)
+    *   [Main Window and Related Classes](https://doc.qt.io/qt-6/widget-classes.html#main-window-and-related-classes)
+    *   [Widget Appearance and Style Related Classes](https://doc.qt.io/qt-6/widget-classes.html#widget-appearance-and-style-related-classes)
+    *   [Layout Classes](https://doc.qt.io/qt-6/widget-classes.html#layout-classes)
+
+*   [Qt Style Sheets Reference](https://doc.qt.io/qt-6/stylesheet-reference.html)
+
+## Module Evolution[](https://doc.qt.io/qt-6/qtwidgets-index.html#module-evolution "Direct link to this headline")
+
+[Changes to Qt Widgets](https://doc.qt.io/qt-6/widgets-changes-qt6.html) lists important changes in the module API and functionality that were done for the Qt 6 series of Qt.
+
+## Licenses[](https://doc.qt.io/qt-6/qtwidgets-index.html#licenses "Direct link to this headline")
+
+The Qt Widgets module is available under commercial licenses from [The Qt Company](https://www.qt.io/about-us/). In addition, it is available under free software licenses: The [GNU Lesser General Public License, version 3](https://www.gnu.org/licenses/lgpl-3.0.html), or the [GNU General Public License, version 2](https://www.gnu.org/licenses/old-licenses/gpl-2.0.html). See [Qt Licensing](https://doc.qt.io/qt-6/licensing.html) for further details.
+
+© 2026 The Qt Company Ltd. Documentation contributions included herein are the copyrights of their respective owners. The documentation provided herein is licensed under the terms of the [GNU Free Documentation License version 1.3](http://www.gnu.org/licenses/fdl.html) as published by the Free Software Foundation. Qt and respective logos are [trademarks](https://doc.qt.io/qt/trademarks.html) of The Qt Company Ltd. in Finland and/or other countries worldwide. All other trademarks are property of their respective owners.

@@ -1,0 +1,656 @@
+Title: QFont Class | Qt GUI
+
+URL Source: https://doc.qt.io/qt-6/qfont.html
+
+Markdown Content:
+## Member Function Documentation
+
+### QFont::QFont()[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n140 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#QFont "Direct link to this headline")
+
+Constructs a font object that uses the application's default font.
+
+**See also**[QGuiApplication::setFont](https://doc.qt.io/qt-6/qguiapplication.html#setFont)() and [QGuiApplication::font](https://doc.qt.io/qt-6/qguiapplication.html#font)().
+
+### QFont::QFont(const [QFont](https://doc.qt.io/qt-6/qfont.html)&_font_, const [QPaintDevice](https://doc.qt.io/qt-6/qpaintdevice.html) *_pd_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n144 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#QFont-3 "Direct link to this headline")
+
+Constructs a font from _font_ for use on the paint device _pd_.
+
+### QFont::QFont(const [QString](https://doc.qt.io/qt-6/qstring.html)&_family_, int _pointSize_ = -1, int _weight_ = -1, bool _italic_ = false)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n142 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#QFont-4 "Direct link to this headline")
+
+Constructs a font object with the specified _family_, _pointSize_, _weight_ and _italic_ settings.
+
+If _pointSize_ is zero or negative, the point size of the font is set to a system-dependent default value. Generally, this is 12 points.
+
+The _family_ name may optionally also include a foundry name, e.g. "Helvetica [Cronyx]". If the _family_ is available from more than one foundry and the foundry isn't specified, an arbitrary foundry is chosen. If the family isn't available a family will be set using the [font matching](https://doc.qt.io/qt-6/qfont.html) algorithm.
+
+This will split the family string on a comma and call [setFamilies](https://doc.qt.io/qt-6/qfont.html#setFamilies)() with the resulting list. To preserve a font that uses a comma in its name, use the constructor that takes a [QStringList](https://doc.qt.io/qt-6/qstringlist.html).
+
+**See also**[Weight](https://doc.qt.io/qt-6/qfont.html#Weight-enum), [setFamily](https://doc.qt.io/qt-6/qfont.html#setFamily)(), [setPointSize](https://doc.qt.io/qt-6/qfont.html#setPointSize)(), [setWeight](https://doc.qt.io/qt-6/qfont.html#setWeight)(), [setItalic](https://doc.qt.io/qt-6/qfont.html#setItalic)(), [setStyleHint](https://doc.qt.io/qt-6/qfont.html#setStyleHint)(), [setFamilies](https://doc.qt.io/qt-6/qfont.html#setFamilies)(), and [QGuiApplication::font](https://doc.qt.io/qt-6/qguiapplication.html#font)().
+
+### `[explicit]` QFont::QFont(const [QStringList](https://doc.qt.io/qt-6/qstringlist.html)&_families_, int _pointSize_ = -1, int _weight_ = -1, bool _italic_ = false)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n143 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#QFont-5 "Direct link to this headline")
+
+Constructs a font object with the specified _families_, _pointSize_, _weight_ and _italic_ settings.
+
+If _pointSize_ is zero or negative, the point size of the font is set to a system-dependent default value. Generally, this is 12 points.
+
+Each family name entry in _families_ may optionally also include a foundry name, e.g. "Helvetica [Cronyx]". If the family is available from more than one foundry and the foundry isn't specified, an arbitrary foundry is chosen. If the family isn't available a family will be set using the [font matching](https://doc.qt.io/qt-6/qfont.html) algorithm.
+
+**See also**[Weight](https://doc.qt.io/qt-6/qfont.html#Weight-enum), [setPointSize](https://doc.qt.io/qt-6/qfont.html#setPointSize)(), [setWeight](https://doc.qt.io/qt-6/qfont.html#setWeight)(), [setItalic](https://doc.qt.io/qt-6/qfont.html#setItalic)(), [setStyleHint](https://doc.qt.io/qt-6/qfont.html#setStyleHint)(), [setFamilies](https://doc.qt.io/qt-6/qfont.html#setFamilies)(), and [QGuiApplication::font](https://doc.qt.io/qt-6/qguiapplication.html#font)().
+
+### QFont::QFont(const [QFont](https://doc.qt.io/qt-6/qfont.html)&_font_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n145 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#QFont-2 "Direct link to this headline")
+
+Constructs a font that is a copy of _font_.
+
+### `[constexpr noexcept default]` QFont::QFont([QFont](https://doc.qt.io/qt-6/qfont.html)&&)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n146 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#QFont-1 "Direct link to this headline")
+
+Move-constructs an instance of QFont.
+
+### `[noexcept]` QFont::~QFont()[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n147 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#dtor.QFont "Direct link to this headline")
+
+Destroys the font object and frees all allocated resources.
+
+### bool QFont::bold() const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n172 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#bold "Direct link to this headline")
+
+Returns `true` if [weight](https://doc.qt.io/qt-6/qfont.html#weight)() is a value greater than [QFont::Medium](https://doc.qt.io/qt-6/qfont.html#Weight-enum); otherwise returns `false`.
+
+**See also**[weight](https://doc.qt.io/qt-6/qfont.html#weight)(), [setBold](https://doc.qt.io/qt-6/qfont.html#setBold)(), and [QFontInfo::bold](https://doc.qt.io/qt-6/qfontinfo.html#bold)().
+
+### [QFont::Capitalization](https://doc.qt.io/qt-6/qfont.html#Capitalization-enum) QFont::capitalization() const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n212 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#capitalization "Direct link to this headline")
+
+Returns the current capitalization type of the font.
+
+**See also**[setCapitalization](https://doc.qt.io/qt-6/qfont.html#setCapitalization)().
+
+### `[since 6.7]`void QFont::clearFeatures()[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n277 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#clearFeatures "Direct link to this headline")
+
+Clears any previously set features on the [QFont](https://doc.qt.io/qt-6/qfont.html).
+
+See [setFeature](https://doc.qt.io/qt-6/qfont.html#setFeature)() for more details on font features.
+
+This function was introduced in Qt 6.7.
+
+**See also**[QFont::Tag](https://doc.qt.io/qt-6/qfont-tag.html), [setFeature](https://doc.qt.io/qt-6/qfont.html#setFeature)(), [unsetFeature](https://doc.qt.io/qt-6/qfont.html#unsetFeature)(), [featureTags](https://doc.qt.io/qt-6/qfont.html#featureTags)(), and [featureValue](https://doc.qt.io/qt-6/qfont.html#featureValue)().
+
+### `[since 6.7]`void QFont::clearVariableAxes()[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n283 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#clearVariableAxes "Direct link to this headline")
+
+Clears any previously set variable axis values on the [QFont](https://doc.qt.io/qt-6/qfont.html).
+
+See [setVariableAxis](https://doc.qt.io/qt-6/qfont.html#setVariableAxis)() for more details on variable axes.
+
+This function was introduced in Qt 6.7.
+
+**See also**[QFont::Tag](https://doc.qt.io/qt-6/qfont-tag.html), [setVariableAxis](https://doc.qt.io/qt-6/qfont.html#setVariableAxis)(), [unsetVariableAxis](https://doc.qt.io/qt-6/qfont.html#unsetVariableAxis)(), [isVariableAxisSet](https://doc.qt.io/qt-6/qfont.html#isVariableAxisSet)(), and [variableAxisValue](https://doc.qt.io/qt-6/qfont.html#variableAxisValue)().
+
+### [QString](https://doc.qt.io/qt-6/qstring.html) QFont::defaultFamily() const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n312 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#defaultFamily "Direct link to this headline")
+
+Returns the family name that corresponds to the current style hint.
+
+**See also**[StyleHint](https://doc.qt.io/qt-6/qfont.html#StyleHint-enum), [styleHint](https://doc.qt.io/qt-6/qfont.html#styleHint)(), and [setStyleHint](https://doc.qt.io/qt-6/qfont.html#setStyleHint)().
+
+### bool QFont::exactMatch() const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n287 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#exactMatch "Direct link to this headline")
+
+Returns `true` if a window system font exactly matching the settings of this font is available.
+
+**See also**[QFontInfo](https://doc.qt.io/qt-6/qfontinfo.html).
+
+### [QStringList](https://doc.qt.io/qt-6/qstringlist.html) QFont::families() const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n155 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#families "Direct link to this headline")
+
+Returns the requested font family names, i.e. the names set in the last [setFamilies](https://doc.qt.io/qt-6/qfont.html#setFamilies)() call or via the constructor. Otherwise it returns an empty list.
+
+**See also**[setFamily](https://doc.qt.io/qt-6/qfont.html#setFamily)(), [setFamilies](https://doc.qt.io/qt-6/qfont.html#setFamilies)(), [family](https://doc.qt.io/qt-6/qfont.html#family)(), [substitutes](https://doc.qt.io/qt-6/qfont.html#substitutes)(), and [substitute](https://doc.qt.io/qt-6/qfont.html#substitute)().
+
+### [QString](https://doc.qt.io/qt-6/qstring.html) QFont::family() const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n152 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#family "Direct link to this headline")
+
+Returns the requested font family name. This will always be the same as the first entry in the [families](https://doc.qt.io/qt-6/qfont.html#families)() call.
+
+**See also**[setFamily](https://doc.qt.io/qt-6/qfont.html#setFamily)(), [substitutes](https://doc.qt.io/qt-6/qfont.html#substitutes)(), [substitute](https://doc.qt.io/qt-6/qfont.html#substitute)(), [setFamilies](https://doc.qt.io/qt-6/qfont.html#setFamilies)(), and [families](https://doc.qt.io/qt-6/qfont.html#families)().
+
+### `[since 6.7]`[QList](https://doc.qt.io/qt-6/qlist.html)<[QFont::Tag](https://doc.qt.io/qt-6/qfont-tag.html)> QFont::featureTags() const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n276 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#featureTags "Direct link to this headline")
+
+Returns a list of tags for all font features currently set on this [QFont](https://doc.qt.io/qt-6/qfont.html).
+
+See [setFeature](https://doc.qt.io/qt-6/qfont.html#setFeature)() for more details on font features.
+
+This function was introduced in Qt 6.7.
+
+**See also**[QFont::Tag](https://doc.qt.io/qt-6/qfont-tag.html), [setFeature](https://doc.qt.io/qt-6/qfont.html#setFeature)(), [unsetFeature](https://doc.qt.io/qt-6/qfont.html#unsetFeature)(), [isFeatureSet](https://doc.qt.io/qt-6/qfont.html#isFeatureSet)(), and [clearFeatures](https://doc.qt.io/qt-6/qfont.html#clearFeatures)().
+
+### `[since 6.7]`[quint32](https://doc.qt.io/qt-6/qttypes.html#quint32-typedef) QFont::featureValue([QFont::Tag](https://doc.qt.io/qt-6/qfont-tag.html)_tag_) const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n274 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#featureValue "Direct link to this headline")
+
+Returns the value set for a specific feature _tag_. If the tag has not been set, 0 will be returned instead.
+
+See [setFeature](https://doc.qt.io/qt-6/qfont.html#setFeature)() for more details on font features.
+
+This function was introduced in Qt 6.7.
+
+**See also**[QFont::Tag](https://doc.qt.io/qt-6/qfont-tag.html), [setFeature](https://doc.qt.io/qt-6/qfont.html#setFeature)(), [unsetFeature](https://doc.qt.io/qt-6/qfont.html#unsetFeature)(), [featureTags](https://doc.qt.io/qt-6/qfont.html#featureTags)(), and [isFeatureSet](https://doc.qt.io/qt-6/qfont.html#isFeatureSet)().
+
+### bool QFont::fixedPitch() const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n190 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#fixedPitch "Direct link to this headline")
+
+Returns `true` if fixed pitch has been set; otherwise returns `false`.
+
+**See also**[setFixedPitch](https://doc.qt.io/qt-6/qfont.html#setFixedPitch)() and [QFontInfo::fixedPitch](https://doc.qt.io/qt-6/qfontinfo.html#fixedPitch)().
+
+### bool QFont::fromString(const [QString](https://doc.qt.io/qt-6/qstring.html)&_descrip_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n300 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#fromString "Direct link to this headline")
+
+Sets this font to match the description _descrip_. The description is a comma-separated list of the font attributes, as returned by [toString](https://doc.qt.io/qt-6/qfont.html#toString)().
+
+**See also**[toString](https://doc.qt.io/qt-6/qfont.html#toString)().
+
+### [QFont::HintingPreference](https://doc.qt.io/qt-6/qfont.html#HintingPreference-enum) QFont::hintingPreference() const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n215 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#hintingPreference "Direct link to this headline")
+
+Returns the currently preferred hinting level for glyphs rendered with this font.
+
+**See also**[setHintingPreference](https://doc.qt.io/qt-6/qfont.html#setHintingPreference)().
+
+### `[static]`void QFont::insertSubstitution(const [QString](https://doc.qt.io/qt-6/qstring.html)&_familyName_, const [QString](https://doc.qt.io/qt-6/qstring.html)&_substituteName_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n305 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#insertSubstitution "Direct link to this headline")
+
+Inserts _substituteName_ into the substitution table for the family _familyName_.
+
+After substituting a font, trigger the updating of the font by destroying and re-creating all [QFont](https://doc.qt.io/qt-6/qfont.html) objects.
+
+**See also**[insertSubstitutions](https://doc.qt.io/qt-6/qfont.html#insertSubstitutions)(), [removeSubstitutions](https://doc.qt.io/qt-6/qfont.html#removeSubstitutions)(), [substitutions](https://doc.qt.io/qt-6/qfont.html#substitutions)(), [substitute](https://doc.qt.io/qt-6/qfont.html#substitute)(), and [substitutes](https://doc.qt.io/qt-6/qfont.html#substitutes)().
+
+### `[static]`void QFont::insertSubstitutions(const [QString](https://doc.qt.io/qt-6/qstring.html)&_familyName_, const [QStringList](https://doc.qt.io/qt-6/qstringlist.html)&_substituteNames_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n306 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#insertSubstitutions "Direct link to this headline")
+
+Inserts the list of families _substituteNames_ into the substitution list for _familyName_.
+
+After substituting a font, trigger the updating of the font by destroying and re-creating all [QFont](https://doc.qt.io/qt-6/qfont.html) objects.
+
+**See also**[insertSubstitution](https://doc.qt.io/qt-6/qfont.html#insertSubstitution)(), [removeSubstitutions](https://doc.qt.io/qt-6/qfont.html#removeSubstitutions)(), [substitutions](https://doc.qt.io/qt-6/qfont.html#substitutions)(), and [substitute](https://doc.qt.io/qt-6/qfont.html#substitute)().
+
+### bool QFont::isCopyOf(const [QFont](https://doc.qt.io/qt-6/qfont.html)&_f_) const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n294 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#isCopyOf "Direct link to this headline")
+
+Returns `true` if this font and _f_ are copies of each other, i.e. one of them was created as a copy of the other and neither has been modified since. This is much stricter than equality.
+
+**See also**[operator=](https://doc.qt.io/qt-6/qfont.html#operator-eq)() and [operator==](https://doc.qt.io/qt-6/qfont.html#operator-eq-eq)().
+
+### `[since 6.7]`bool QFont::isFeatureSet([QFont::Tag](https://doc.qt.io/qt-6/qfont-tag.html)_tag_) const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n275 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#isFeatureSet "Direct link to this headline")
+
+Returns true if a value for the feature given by _tag_ has been set on the [QFont](https://doc.qt.io/qt-6/qfont.html), otherwise returns false.
+
+See [setFeature](https://doc.qt.io/qt-6/qfont.html#setFeature)() for more details on font features.
+
+This function was introduced in Qt 6.7.
+
+**See also**[QFont::Tag](https://doc.qt.io/qt-6/qfont-tag.html), [setFeature](https://doc.qt.io/qt-6/qfont.html#setFeature)(), [unsetFeature](https://doc.qt.io/qt-6/qfont.html#unsetFeature)(), [featureTags](https://doc.qt.io/qt-6/qfont.html#featureTags)(), and [featureValue](https://doc.qt.io/qt-6/qfont.html#featureValue)().
+
+### `[since 6.7]`bool QFont::isVariableAxisSet([QFont::Tag](https://doc.qt.io/qt-6/qfont-tag.html)_tag_) const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n281 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#isVariableAxisSet "Direct link to this headline")
+
+Returns true if a value for the variable axis given by _tag_ has been set on the [QFont](https://doc.qt.io/qt-6/qfont.html), otherwise returns false.
+
+See [setVariableAxis](https://doc.qt.io/qt-6/qfont.html#setVariableAxis)() for more details on font variable axes.
+
+This function was introduced in Qt 6.7.
+
+**See also**[QFont::Tag](https://doc.qt.io/qt-6/qfont-tag.html), [setVariableAxis](https://doc.qt.io/qt-6/qfont.html#setVariableAxis)(), [unsetVariableAxis](https://doc.qt.io/qt-6/qfont.html#unsetVariableAxis)(), [variableAxisValue](https://doc.qt.io/qt-6/qfont.html#variableAxisValue)(), and [clearVariableAxes](https://doc.qt.io/qt-6/qfont.html#clearVariableAxes)().
+
+### bool QFont::italic() const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n178 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#italic "Direct link to this headline")
+
+Returns `true` if the [style](https://doc.qt.io/qt-6/qfont.html#style)() of the font is not [QFont::StyleNormal](https://doc.qt.io/qt-6/qfont.html#Style-enum)
+
+**See also**[setItalic](https://doc.qt.io/qt-6/qfont.html#setItalic)() and [style](https://doc.qt.io/qt-6/qfont.html#style)().
+
+### bool QFont::kerning() const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n193 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#kerning "Direct link to this headline")
+
+Returns `true` if kerning should be used when drawing text with this font.
+
+**See also**[setKerning](https://doc.qt.io/qt-6/qfont.html#setKerning)().
+
+### [QString](https://doc.qt.io/qt-6/qstring.html) QFont::key() const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n297 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#key "Direct link to this headline")
+
+Returns the font's key, a textual representation of a font. It is typically used as the key for a cache or dictionary of fonts.
+
+**See also**[QMap](https://doc.qt.io/qt-6/qmap.html).
+
+### [qreal](https://doc.qt.io/qt-6/qttypes.html#qreal-typedef) QFont::letterSpacing() const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n204 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#letterSpacing "Direct link to this headline")
+
+Returns the letter spacing for the font.
+
+**See also**[setLetterSpacing](https://doc.qt.io/qt-6/qfont.html#setLetterSpacing)(), [letterSpacingType](https://doc.qt.io/qt-6/qfont.html#letterSpacingType)(), and [setWordSpacing](https://doc.qt.io/qt-6/qfont.html#setWordSpacing)().
+
+### [QFont::SpacingType](https://doc.qt.io/qt-6/qfont.html#SpacingType-enum) QFont::letterSpacingType() const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n205 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#letterSpacingType "Direct link to this headline")
+
+Returns the spacing type used for letter spacing.
+
+**See also**[letterSpacing](https://doc.qt.io/qt-6/qfont.html#letterSpacing)(), [setLetterSpacing](https://doc.qt.io/qt-6/qfont.html#setLetterSpacing)(), and [setWordSpacing](https://doc.qt.io/qt-6/qfont.html#setWordSpacing)().
+
+### bool QFont::overline() const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n184 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#overline "Direct link to this headline")
+
+Returns `true` if overline has been set; otherwise returns `false`.
+
+**See also**[setOverline](https://doc.qt.io/qt-6/qfont.html#setOverline)().
+
+### int QFont::pixelSize() const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n166 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#pixelSize "Direct link to this headline")
+
+Returns the pixel size of the font if it was set with [setPixelSize](https://doc.qt.io/qt-6/qfont.html#setPixelSize)(). Returns -1 if the size was set with [setPointSize](https://doc.qt.io/qt-6/qfont.html#setPointSize)() or [setPointSizeF](https://doc.qt.io/qt-6/qfont.html#setPointSizeF)().
+
+**See also**[setPixelSize](https://doc.qt.io/qt-6/qfont.html#setPixelSize)(), [pointSize](https://doc.qt.io/qt-6/qfont.html#pointSize)(), [QFontInfo::pointSize](https://doc.qt.io/qt-6/qfontinfo.html#pointSize)(), and [QFontInfo::pixelSize](https://doc.qt.io/qt-6/qfontinfo.html#pixelSize)().
+
+### int QFont::pointSize() const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n161 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#pointSize "Direct link to this headline")
+
+Returns the point size of the font. Returns -1 if the font size was specified in pixels.
+
+**See also**[setPointSize](https://doc.qt.io/qt-6/qfont.html#setPointSize)() and [pointSizeF](https://doc.qt.io/qt-6/qfont.html#pointSizeF)().
+
+### [qreal](https://doc.qt.io/qt-6/qttypes.html#qreal-typedef) QFont::pointSizeF() const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n163 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#pointSizeF "Direct link to this headline")
+
+Returns the point size of the font. Returns -1 if the font size was specified in pixels.
+
+**See also**[pointSize](https://doc.qt.io/qt-6/qfont.html#pointSize)(), [setPointSizeF](https://doc.qt.io/qt-6/qfont.html#setPointSizeF)(), [pixelSize](https://doc.qt.io/qt-6/qfont.html#pixelSize)(), [QFontInfo::pointSize](https://doc.qt.io/qt-6/qfontinfo.html#pointSize)(), and [QFontInfo::pixelSize](https://doc.qt.io/qt-6/qfontinfo.html#pixelSize)().
+
+### `[static]`void QFont::removeSubstitutions(const [QString](https://doc.qt.io/qt-6/qstring.html)&_familyName_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n307 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#removeSubstitutions "Direct link to this headline")
+
+Removes all the substitutions for _familyName_.
+
+**See also**[insertSubstitutions](https://doc.qt.io/qt-6/qfont.html#insertSubstitutions)(), [insertSubstitution](https://doc.qt.io/qt-6/qfont.html#insertSubstitution)(), [substitutions](https://doc.qt.io/qt-6/qfont.html#substitutions)(), and [substitute](https://doc.qt.io/qt-6/qfont.html#substitute)().
+
+### [QFont](https://doc.qt.io/qt-6/qfont.html) QFont::resolve(const [QFont](https://doc.qt.io/qt-6/qfont.html)&_other_) const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n314 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#resolve "Direct link to this headline")
+
+Returns a new [QFont](https://doc.qt.io/qt-6/qfont.html) that has attributes copied from _other_ that have not been previously set on this font.
+
+### void QFont::setBold(bool _enable_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n173 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#setBold "Direct link to this headline")
+
+If _enable_ is true sets the font's weight to [QFont::Bold](https://doc.qt.io/qt-6/qfont.html#Weight-enum); otherwise sets the weight to [QFont::Normal](https://doc.qt.io/qt-6/qfont.html#Weight-enum).
+
+For finer boldness control use [setWeight](https://doc.qt.io/qt-6/qfont.html#setWeight)().
+
+**Note:**If [styleName](https://doc.qt.io/qt-6/qfont.html#styleName)() is set, this value may be ignored, or if supported on the platform, the font artificially embolded.
+
+**See also**[bold](https://doc.qt.io/qt-6/qfont.html#bold)() and [setWeight](https://doc.qt.io/qt-6/qfont.html#setWeight)().
+
+### void QFont::setCapitalization([QFont::Capitalization](https://doc.qt.io/qt-6/qfont.html#Capitalization-enum)_caps_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n211 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#setCapitalization "Direct link to this headline")
+
+Sets the capitalization of the text in this font to _caps_.
+
+A font's capitalization makes the text appear in the selected capitalization mode.
+
+**See also**[capitalization](https://doc.qt.io/qt-6/qfont.html#capitalization)().
+
+### void QFont::setFamilies(const [QStringList](https://doc.qt.io/qt-6/qstringlist.html)&_families_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n156 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#setFamilies "Direct link to this headline")
+
+Sets the list of family names for the font. The names are case insensitive and may include a foundry name. The first family in _families_ will be set as the main family for the font.
+
+Each family name entry in _families_ may optionally also include a foundry name, e.g. "Helvetica [Cronyx]". If the family is available from more than one foundry and the foundry isn't specified, an arbitrary foundry is chosen. If the family isn't available a family will be set using the [font matching](https://doc.qt.io/qt-6/qfont.html) algorithm.
+
+**See also**[family](https://doc.qt.io/qt-6/qfont.html#family)(), [families](https://doc.qt.io/qt-6/qfont.html#families)(), [setFamily](https://doc.qt.io/qt-6/qfont.html#setFamily)(), [setStyleHint](https://doc.qt.io/qt-6/qfont.html#setStyleHint)(), and [QFontInfo](https://doc.qt.io/qt-6/qfontinfo.html).
+
+### void QFont::setFamily(const [QString](https://doc.qt.io/qt-6/qstring.html)&_family_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n153 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#setFamily "Direct link to this headline")
+
+Sets the family name of the font. The name is case insensitive and may include a foundry name.
+
+The _family_ name may optionally also include a foundry name, e.g. "Helvetica [Cronyx]". If the _family_ is available from more than one foundry and the foundry isn't specified, an arbitrary foundry is chosen. If the family isn't available a family will be set using the [font matching](https://doc.qt.io/qt-6/qfont.html) algorithm.
+
+**See also**[family](https://doc.qt.io/qt-6/qfont.html#family)(), [setStyleHint](https://doc.qt.io/qt-6/qfont.html#setStyleHint)(), [setFamilies](https://doc.qt.io/qt-6/qfont.html#setFamilies)(), [families](https://doc.qt.io/qt-6/qfont.html#families)(), and [QFontInfo](https://doc.qt.io/qt-6/qfontinfo.html).
+
+### `[since 6.7]`void QFont::setFeature([QFont::Tag](https://doc.qt.io/qt-6/qfont-tag.html)_tag_, [quint32](https://doc.qt.io/qt-6/qttypes.html#quint32-typedef)_value_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n272 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#setFeature "Direct link to this headline")
+
+Applies an integer value to the typographical feature specified by _tag_ when shaping the text. This provides advanced access to the font shaping process, and can be used to support font features that are otherwise not covered in the API.
+
+The feature is specified by a [tag](https://doc.qt.io/qt-6/qfont-tag.html), which is typically encoded from the four-character feature name in the font feature map.
+
+This integer _value_ passed along with the tag in most cases represents a boolean value: A zero value means the feature is disabled, and a non-zero value means it is enabled. For certain font features, however, it may have other interpretations. For example, when applied to the `salt` feature, the value is an index that specifies the stylistic alternative to use.
+
+For example, the `frac` font feature will convert diagonal fractions separated with a slash (such as `1/2`) with a different representation. Typically this will involve baking the full fraction into a single character width (such as `½`).
+
+If a font supports the `frac` feature, then it can be enabled in the shaper by setting `features["frac"] = 1` in the font feature map.
+
+**Note:**By default, Qt will enable and disable certain font features based on other font properties. In particular, the `kern` feature will be enabled/disabled depending on the [kerning](https://doc.qt.io/qt-6/qfont.html#kerning)() property of the [QFont](https://doc.qt.io/qt-6/qfont.html). In addition, all ligature features (`liga`, `clig`, `dlig`, `hlig`) will be disabled if a [letterSpacing](https://doc.qt.io/qt-6/qfont.html#letterSpacing)() is applied, but only for writing systems where the use of ligature is cosmetic. For writing systems where ligatures are required, the features will remain in their default state. The values set using setFeature() and related functions will override the default behavior. If, for instance, the feature "kern" is set to 1, then kerning will always be enabled, regardless of whether the kerning property is set to false. Similarly, if it is set to 0, then it will always be disabled. To reset a font feature to its default behavior, you can unset it using [unsetFeature](https://doc.qt.io/qt-6/qfont.html#unsetFeature)().
+
+This function was introduced in Qt 6.7.
+
+**See also**[QFont::Tag](https://doc.qt.io/qt-6/qfont-tag.html), [clearFeatures](https://doc.qt.io/qt-6/qfont.html#clearFeatures)(), [unsetFeature](https://doc.qt.io/qt-6/qfont.html#unsetFeature)(), and [featureTags](https://doc.qt.io/qt-6/qfont.html#featureTags)().
+
+### void QFont::setFixedPitch(bool _enable_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n191 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#setFixedPitch "Direct link to this headline")
+
+If _enable_ is true, sets fixed pitch on; otherwise sets fixed pitch off.
+
+**See also**[fixedPitch](https://doc.qt.io/qt-6/qfont.html#fixedPitch)() and [QFontInfo](https://doc.qt.io/qt-6/qfontinfo.html).
+
+### void QFont::setHintingPreference([QFont::HintingPreference](https://doc.qt.io/qt-6/qfont.html#HintingPreference-enum)_hintingPreference_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n214 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#setHintingPreference "Direct link to this headline")
+
+Set the preference for the hinting level of the glyphs to _hintingPreference_. This is a hint to the underlying font rendering system to use a certain level of hinting, and has varying support across platforms. See the table in the documentation for [QFont::HintingPreference](https://doc.qt.io/qt-6/qfont.html#HintingPreference-enum) for more details.
+
+The default hinting preference is [QFont::PreferDefaultHinting](https://doc.qt.io/qt-6/qfont.html#HintingPreference-enum).
+
+**See also**[hintingPreference](https://doc.qt.io/qt-6/qfont.html#hintingPreference)().
+
+### void QFont::setItalic(bool _enable_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n179 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#setItalic "Direct link to this headline")
+
+Sets the [style](https://doc.qt.io/qt-6/qfont.html#style)() of the font to [QFont::StyleItalic](https://doc.qt.io/qt-6/qfont.html#Style-enum) if _enable_ is true; otherwise the style is set to [QFont::StyleNormal](https://doc.qt.io/qt-6/qfont.html#Style-enum).
+
+**Note:**If [styleName](https://doc.qt.io/qt-6/qfont.html#styleName)() is set, this value may be ignored, or if supported on the platform, the font may be rendered tilted instead of picking a designed italic font-variant.
+
+**See also**[italic](https://doc.qt.io/qt-6/qfont.html#italic)() and [QFontInfo](https://doc.qt.io/qt-6/qfontinfo.html).
+
+### void QFont::setKerning(bool _enable_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n194 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#setKerning "Direct link to this headline")
+
+Enables kerning for this font if _enable_ is true; otherwise disables it. By default, kerning is enabled.
+
+When kerning is enabled, glyph metrics do not add up anymore, even for Latin text. In other words, the assumption that width('a') + width('b') is equal to width("ab") is not necessarily true.
+
+**See also**[kerning](https://doc.qt.io/qt-6/qfont.html#kerning)() and [QFontMetrics](https://doc.qt.io/qt-6/qfontmetrics.html).
+
+### void QFont::setLetterSpacing([QFont::SpacingType](https://doc.qt.io/qt-6/qfont.html#SpacingType-enum)_type_, [qreal](https://doc.qt.io/qt-6/qttypes.html#qreal-typedef)_spacing_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n206 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#setLetterSpacing "Direct link to this headline")
+
+Sets the letter spacing for the font to _spacing_ and the type of spacing to _type_.
+
+Letter spacing changes the default spacing between individual letters in the font. The spacing between the letters can be made smaller as well as larger either in percentage of the character width or in pixels, depending on the selected spacing type.
+
+**See also**[letterSpacing](https://doc.qt.io/qt-6/qfont.html#letterSpacing)(), [letterSpacingType](https://doc.qt.io/qt-6/qfont.html#letterSpacingType)(), and [setWordSpacing](https://doc.qt.io/qt-6/qfont.html#setWordSpacing)().
+
+### void QFont::setOverline(bool _enable_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n185 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#setOverline "Direct link to this headline")
+
+If _enable_ is true, sets overline on; otherwise sets overline off.
+
+**See also**[overline](https://doc.qt.io/qt-6/qfont.html#overline)() and [QFontInfo](https://doc.qt.io/qt-6/qfontinfo.html).
+
+### void QFont::setPixelSize(int _pixelSize_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n167 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#setPixelSize "Direct link to this headline")
+
+Sets the font size to _pixelSize_ pixels, with a maxiumum size of an unsigned 16-bit integer.
+
+Using this function makes the font device dependent. Use [setPointSize](https://doc.qt.io/qt-6/qfont.html#setPointSize)() or [setPointSizeF](https://doc.qt.io/qt-6/qfont.html#setPointSizeF)() to set the size of the font in a device independent manner.
+
+**See also**[pixelSize](https://doc.qt.io/qt-6/qfont.html#pixelSize)().
+
+### void QFont::setPointSize(int _pointSize_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n162 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#setPointSize "Direct link to this headline")
+
+Sets the point size to _pointSize_. The point size must be greater than zero.
+
+**See also**[pointSize](https://doc.qt.io/qt-6/qfont.html#pointSize)() and [setPointSizeF](https://doc.qt.io/qt-6/qfont.html#setPointSizeF)().
+
+### void QFont::setPointSizeF([qreal](https://doc.qt.io/qt-6/qttypes.html#qreal-typedef)_pointSize_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n164 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#setPointSizeF "Direct link to this headline")
+
+Sets the point size to _pointSize_. The point size must be greater than zero. The requested precision may not be achieved on all platforms.
+
+**See also**[pointSizeF](https://doc.qt.io/qt-6/qfont.html#pointSizeF)(), [setPointSize](https://doc.qt.io/qt-6/qfont.html#setPointSize)(), and [setPixelSize](https://doc.qt.io/qt-6/qfont.html#setPixelSize)().
+
+### void QFont::setStretch(int _factor_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n202 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#setStretch "Direct link to this headline")
+
+Sets the stretch factor for the font.
+
+The stretch factor matches a condensed or expanded version of the font or applies a stretch transform that changes the width of all characters in the font by _factor_ percent. For example, setting _factor_ to 150 results in all characters in the font being 1.5 times (ie. 150%) wider. The minimum stretch factor is 1, and the maximum stretch factor is 4000. The default stretch factor is `AnyStretch`, which will accept any stretch factor and not apply any transform on the font.
+
+The stretch factor is only applied to outline fonts. The stretch factor is ignored for bitmap fonts.
+
+**Note:**When matching a font with a native non-default stretch factor, requesting a stretch of 100 will stretch it back to a medium width font.
+
+**See also**[stretch](https://doc.qt.io/qt-6/qfont.html#stretch)() and [QFont::Stretch](https://doc.qt.io/qt-6/qfont.html#Stretch-enum).
+
+### void QFont::setStrikeOut(bool _enable_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n188 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#setStrikeOut "Direct link to this headline")
+
+If _enable_ is true, sets strikeout on; otherwise sets strikeout off.
+
+**See also**[strikeOut](https://doc.qt.io/qt-6/qfont.html#strikeOut)() and [QFontInfo](https://doc.qt.io/qt-6/qfontinfo.html).
+
+### void QFont::setStyle([QFont::Style](https://doc.qt.io/qt-6/qfont.html#Style-enum)_style_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n175 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#setStyle "Direct link to this headline")
+
+Sets the style of the font to _style_.
+
+**See also**[style](https://doc.qt.io/qt-6/qfont.html#style)(), [italic](https://doc.qt.io/qt-6/qfont.html#italic)(), and [QFontInfo](https://doc.qt.io/qt-6/qfontinfo.html).
+
+### void QFont::setStyleHint([QFont::StyleHint](https://doc.qt.io/qt-6/qfont.html#StyleHint-enum)_hint_, [QFont::StyleStrategy](https://doc.qt.io/qt-6/qfont.html#StyleStrategy-enum)_strategy_ = PreferDefault)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n198 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#setStyleHint "Direct link to this headline")
+
+Sets the style hint and strategy to _hint_ and _strategy_, respectively.
+
+If these aren't set explicitly the style hint will default to `AnyStyle` and the style strategy to `PreferDefault`.
+
+Qt does not support style hints on X11 since this information is not provided by the window system.
+
+**See also**[StyleHint](https://doc.qt.io/qt-6/qfont.html#StyleHint-enum), [styleHint](https://doc.qt.io/qt-6/qfont.html#styleHint)(), [StyleStrategy](https://doc.qt.io/qt-6/qfont.html#StyleStrategy-enum), [styleStrategy](https://doc.qt.io/qt-6/qfont.html#styleStrategy)(), and [QFontInfo](https://doc.qt.io/qt-6/qfontinfo.html).
+
+### void QFont::setStyleName(const [QString](https://doc.qt.io/qt-6/qstring.html)&_styleName_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n159 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#setStyleName "Direct link to this headline")
+
+Sets the style name of the font to _styleName_. When set, other style properties like [style](https://doc.qt.io/qt-6/qfont.html#style)() and [weight](https://doc.qt.io/qt-6/qfont.html#weight)() will be ignored for font matching, though they may be simulated afterwards if supported by the platform's font engine.
+
+Due to the lower quality of artificially simulated styles, and the lack of full cross platform support, it is not recommended to use matching by style name together with matching by style properties
+
+**See also**[styleName](https://doc.qt.io/qt-6/qfont.html#styleName)().
+
+### void QFont::setStyleStrategy([QFont::StyleStrategy](https://doc.qt.io/qt-6/qfont.html#StyleStrategy-enum)_s_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n199 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#setStyleStrategy "Direct link to this headline")
+
+Sets the style strategy for the font to _s_.
+
+**See also**[styleStrategy](https://doc.qt.io/qt-6/qfont.html#styleStrategy)() and [QFont::StyleStrategy](https://doc.qt.io/qt-6/qfont.html#StyleStrategy-enum).
+
+### void QFont::setUnderline(bool _enable_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n182 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#setUnderline "Direct link to this headline")
+
+If _enable_ is true, sets underline on; otherwise sets underline off.
+
+**See also**[underline](https://doc.qt.io/qt-6/qfont.html#underline)() and [QFontInfo](https://doc.qt.io/qt-6/qfontinfo.html).
+
+### `[since 6.7]`void QFont::setVariableAxis([QFont::Tag](https://doc.qt.io/qt-6/qfont-tag.html)_tag_, float _value_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n279 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#setVariableAxis "Direct link to this headline")
+
+Applies a _value_ to the variable axis corresponding to _tag_.
+
+Variable fonts provide a way to store multiple variations (with different weights, widths or styles) in the same font file. The variations are given as floating point values for a pre-defined set of parameters, called "variable axes". Specific instances are typically given names by the font designer, and, in Qt, these can be selected using [setStyleName](https://doc.qt.io/qt-6/qfont.html#setStyleName)() just like traditional sub-families.
+
+In some cases, it is also useful to provide arbitrary values for the different axes. For instance, if a font has a Regular and Bold sub-family, you may want a weight in-between these. You could then manually request this by supplying a custom value for the "wght" axis in the font.
+
+```
+QFont font;
+font.setVariableAxis("wght", (QFont::Normal + QFont::Bold) / 2.0f);
+```
+
+If the "wght" axis is supported by the font and the given value is within its defined range, a font corresponding to the weight 550.0 will be provided.
+
+There are a few standard axes than many fonts provide, such as "wght" (weight), "wdth" (width), "ital" (italic) and "opsz" (optical size). They each have indivdual ranges defined in the font itself. For instance, "wght" may span from 100 to 900 ([QFont::Thin](https://doc.qt.io/qt-6/qfont.html#Weight-enum) to [QFont::Black](https://doc.qt.io/qt-6/qfont.html#Weight-enum)) whereas "ital" can span from 0 to 1 (from not italic to fully italic).
+
+A font may also choose to define custom axes; the only limitation is that the name has to meet the requirements for a [QFont::Tag](https://doc.qt.io/qt-6/qfont-tag.html) (sequence of four latin-1 characters.)
+
+By default, no variable axes are set.
+
+**Note:**On Windows, variable axes are not supported if the optional GDI font backend is in use.
+
+This function was introduced in Qt 6.7.
+
+**See also**[unsetVariableAxis](https://doc.qt.io/qt-6/qfont.html#unsetVariableAxis).
+
+### void QFont::setWeight([QFont::Weight](https://doc.qt.io/qt-6/qfont.html#Weight-enum)_weight_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n170 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#setWeight "Direct link to this headline")
+
+Sets the weight of the font to _weight_, using the scale defined by [QFont::Weight](https://doc.qt.io/qt-6/qfont.html#Weight-enum) enumeration.
+
+**Note:**If [styleName](https://doc.qt.io/qt-6/qfont.html#styleName)() is set, this value may be ignored for font selection.
+
+**See also**[weight](https://doc.qt.io/qt-6/qfont.html#weight)() and [QFontInfo](https://doc.qt.io/qt-6/qfontinfo.html).
+
+### void QFont::setWordSpacing([qreal](https://doc.qt.io/qt-6/qttypes.html#qreal-typedef)_spacing_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n209 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#setWordSpacing "Direct link to this headline")
+
+Sets the word spacing for the font to _spacing_.
+
+Word spacing changes the default spacing between individual words. A positive value increases the word spacing by a corresponding amount of pixels, while a negative value decreases the inter-word spacing accordingly.
+
+Word spacing will not apply to writing systems, where indiviaul words are not separated by white space.
+
+**See also**[wordSpacing](https://doc.qt.io/qt-6/qfont.html#wordSpacing)() and [setLetterSpacing](https://doc.qt.io/qt-6/qfont.html#setLetterSpacing)().
+
+### int QFont::stretch() const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n201 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#stretch "Direct link to this headline")
+
+Returns the stretch factor for the font.
+
+**See also**[setStretch](https://doc.qt.io/qt-6/qfont.html#setStretch)().
+
+### bool QFont::strikeOut() const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n187 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#strikeOut "Direct link to this headline")
+
+Returns `true` if strikeout has been set; otherwise returns `false`.
+
+**See also**[setStrikeOut](https://doc.qt.io/qt-6/qfont.html#setStrikeOut)().
+
+### [QFont::Style](https://doc.qt.io/qt-6/qfont.html#Style-enum) QFont::style() const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n176 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#style "Direct link to this headline")
+
+Returns the style of the font.
+
+**See also**[setStyle](https://doc.qt.io/qt-6/qfont.html#setStyle)().
+
+### [QFont::StyleHint](https://doc.qt.io/qt-6/qfont.html#StyleHint-enum) QFont::styleHint() const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n196 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#styleHint "Direct link to this headline")
+
+Returns the [StyleHint](https://doc.qt.io/qt-6/qfont.html#StyleHint-enum).
+
+The style hint affects the [font matching algorithm](https://doc.qt.io/qt-6/qfont.html#fontmatching). See [QFont::StyleHint](https://doc.qt.io/qt-6/qfont.html#StyleHint-enum) for the list of available hints.
+
+**See also**[setStyleHint](https://doc.qt.io/qt-6/qfont.html#setStyleHint)(), [QFont::StyleStrategy](https://doc.qt.io/qt-6/qfont.html#StyleStrategy-enum), and [QFontInfo::styleHint](https://doc.qt.io/qt-6/qfontinfo.html#styleHint)().
+
+### [QString](https://doc.qt.io/qt-6/qstring.html) QFont::styleName() const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n158 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#styleName "Direct link to this headline")
+
+Returns the requested font style name. This can be used to match the font with irregular styles (that can't be normalized in other style properties).
+
+**See also**[setStyleName](https://doc.qt.io/qt-6/qfont.html#setStyleName)(), [setFamily](https://doc.qt.io/qt-6/qfont.html#setFamily)(), and [setStyle](https://doc.qt.io/qt-6/qfont.html#setStyle)().
+
+### [QFont::StyleStrategy](https://doc.qt.io/qt-6/qfont.html#StyleStrategy-enum) QFont::styleStrategy() const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n197 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#styleStrategy "Direct link to this headline")
+
+Returns the [StyleStrategy](https://doc.qt.io/qt-6/qfont.html#StyleStrategy-enum).
+
+The style strategy affects the [font matching](https://doc.qt.io/qt-6/qfont.html) algorithm. See [QFont::StyleStrategy](https://doc.qt.io/qt-6/qfont.html#StyleStrategy-enum) for the list of available strategies.
+
+**See also**[setStyleStrategy](https://doc.qt.io/qt-6/qfont.html#setStyleStrategy)(), [setStyleHint](https://doc.qt.io/qt-6/qfont.html#setStyleHint)(), and [QFont::StyleHint](https://doc.qt.io/qt-6/qfont.html#StyleHint-enum).
+
+### `[static]`[QString](https://doc.qt.io/qt-6/qstring.html) QFont::substitute(const [QString](https://doc.qt.io/qt-6/qstring.html)&_familyName_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n302 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#substitute "Direct link to this headline")
+
+Returns the first family name to be used whenever _familyName_ is specified. The lookup is case insensitive.
+
+If there is no substitution for _familyName_, _familyName_ is returned.
+
+To obtain a list of substitutions use [substitutes](https://doc.qt.io/qt-6/qfont.html#substitutes)().
+
+**See also**[setFamily](https://doc.qt.io/qt-6/qfont.html#setFamily)(), [insertSubstitutions](https://doc.qt.io/qt-6/qfont.html#insertSubstitutions)(), [insertSubstitution](https://doc.qt.io/qt-6/qfont.html#insertSubstitution)(), and [removeSubstitutions](https://doc.qt.io/qt-6/qfont.html#removeSubstitutions)().
+
+### `[static]`[QStringList](https://doc.qt.io/qt-6/qstringlist.html) QFont::substitutes(const [QString](https://doc.qt.io/qt-6/qstring.html)&_familyName_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n303 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#substitutes "Direct link to this headline")
+
+Returns a list of family names to be used whenever _familyName_ is specified. The lookup is case insensitive.
+
+If there is no substitution for _familyName_, an empty list is returned.
+
+**See also**[substitute](https://doc.qt.io/qt-6/qfont.html#substitute)(), [insertSubstitutions](https://doc.qt.io/qt-6/qfont.html#insertSubstitutions)(), [insertSubstitution](https://doc.qt.io/qt-6/qfont.html#insertSubstitution)(), and [removeSubstitutions](https://doc.qt.io/qt-6/qfont.html#removeSubstitutions)().
+
+### `[static]`[QStringList](https://doc.qt.io/qt-6/qstringlist.html) QFont::substitutions()[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n304 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#substitutions "Direct link to this headline")
+
+Returns a sorted list of substituted family names.
+
+**See also**[insertSubstitution](https://doc.qt.io/qt-6/qfont.html#insertSubstitution)(), [removeSubstitutions](https://doc.qt.io/qt-6/qfont.html#removeSubstitutions)(), and [substitute](https://doc.qt.io/qt-6/qfont.html#substitute)().
+
+### `[noexcept]`void QFont::swap([QFont](https://doc.qt.io/qt-6/qfont.html)&_other_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n149 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#swap "Direct link to this headline")
+
+Swaps this font instance with _other_. This operation is very fast and never fails.
+
+### [QString](https://doc.qt.io/qt-6/qstring.html) QFont::toString() const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n299 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#toString "Direct link to this headline")
+
+Returns a description of the font. The description is a comma-separated list of the attributes, perfectly suited for use in [QSettings](https://doc.qt.io/qt-6/qsettings.html), and consists of the following:
+
+*   Font family
+*   Point size
+*   Pixel size
+*   Style hint
+*   Font weight
+*   Font style
+*   Underline
+*   Strike out
+*   Fixed pitch
+*   Always _0_
+*   Capitalization
+*   Letter spacing
+*   Word spacing
+*   Stretch
+*   Style strategy
+*   Font style
+*   Font features
+*   Variable axes
+
+**See also**[fromString](https://doc.qt.io/qt-6/qfont.html#fromString)().
+
+### bool QFont::underline() const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n181 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#underline "Direct link to this headline")
+
+Returns `true` if underline has been set; otherwise returns `false`.
+
+**See also**[setUnderline](https://doc.qt.io/qt-6/qfont.html#setUnderline)().
+
+### `[since 6.7]`void QFont::unsetFeature([QFont::Tag](https://doc.qt.io/qt-6/qfont-tag.html)_tag_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n273 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#unsetFeature "Direct link to this headline")
+
+Unsets the _tag_ from the map of explicitly enabled/disabled features.
+
+**Note:**Even if the feature has not previously been added, this will mark the font features map as modified in this [QFont](https://doc.qt.io/qt-6/qfont.html), so that it will take precedence when resolving against other fonts.
+
+Unsetting an existing feature on the [QFont](https://doc.qt.io/qt-6/qfont.html) reverts behavior to the default.
+
+See [setFeature](https://doc.qt.io/qt-6/qfont.html#setFeature)() for more details on font features.
+
+This function was introduced in Qt 6.7.
+
+**See also**[QFont::Tag](https://doc.qt.io/qt-6/qfont-tag.html), [clearFeatures](https://doc.qt.io/qt-6/qfont.html#clearFeatures)(), [setFeature](https://doc.qt.io/qt-6/qfont.html#setFeature)(), [featureTags](https://doc.qt.io/qt-6/qfont.html#featureTags)(), and [featureValue](https://doc.qt.io/qt-6/qfont.html#featureValue)().
+
+### `[since 6.7]`void QFont::unsetVariableAxis([QFont::Tag](https://doc.qt.io/qt-6/qfont-tag.html)_tag_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n280 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#unsetVariableAxis "Direct link to this headline")
+
+Unsets a previously set variable axis value given by _tag_.
+
+**Note:**If no value has previously been given for this tag, the [QFont](https://doc.qt.io/qt-6/qfont.html) will still consider its variable axes as set when resolving against other [QFont](https://doc.qt.io/qt-6/qfont.html) values.
+
+This function was introduced in Qt 6.7.
+
+**See also**[setVariableAxis](https://doc.qt.io/qt-6/qfont.html#setVariableAxis).
+
+### `[since 6.7]`[QList](https://doc.qt.io/qt-6/qlist.html)<[QFont::Tag](https://doc.qt.io/qt-6/qfont-tag.html)> QFont::variableAxisTags() const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n284 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#variableAxisTags "Direct link to this headline")
+
+Returns a list of tags for all variable axes currently set on this [QFont](https://doc.qt.io/qt-6/qfont.html).
+
+See [setVariableAxis](https://doc.qt.io/qt-6/qfont.html#setVariableAxis)() for more details on variable axes.
+
+This function was introduced in Qt 6.7.
+
+**See also**[QFont::Tag](https://doc.qt.io/qt-6/qfont-tag.html), [setVariableAxis](https://doc.qt.io/qt-6/qfont.html#setVariableAxis)(), [unsetVariableAxis](https://doc.qt.io/qt-6/qfont.html#unsetVariableAxis)(), [isVariableAxisSet](https://doc.qt.io/qt-6/qfont.html#isVariableAxisSet)(), and [clearVariableAxes](https://doc.qt.io/qt-6/qfont.html#clearVariableAxes)().
+
+### `[since 6.7]`float QFont::variableAxisValue([QFont::Tag](https://doc.qt.io/qt-6/qfont-tag.html)_tag_) const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n282 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#variableAxisValue "Direct link to this headline")
+
+Returns the value set for a specific variable axis _tag_. If the tag has not been set, 0.0 will be returned instead.
+
+See [setVariableAxis](https://doc.qt.io/qt-6/qfont.html#setVariableAxis)() for more details on variable axes.
+
+This function was introduced in Qt 6.7.
+
+**See also**[QFont::Tag](https://doc.qt.io/qt-6/qfont-tag.html), [setVariableAxis](https://doc.qt.io/qt-6/qfont.html#setVariableAxis)(), [unsetVariableAxis](https://doc.qt.io/qt-6/qfont.html#unsetVariableAxis)(), [isVariableAxisSet](https://doc.qt.io/qt-6/qfont.html#isVariableAxisSet)(), and [clearVariableAxes](https://doc.qt.io/qt-6/qfont.html#clearVariableAxes)().
+
+### [QFont::Weight](https://doc.qt.io/qt-6/qfont.html#Weight-enum) QFont::weight() const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n169 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#weight "Direct link to this headline")
+
+Returns the weight of the font, using the same scale as the [QFont::Weight](https://doc.qt.io/qt-6/qfont.html#Weight-enum) enumeration.
+
+**See also**[setWeight](https://doc.qt.io/qt-6/qfont.html#setWeight)(), [Weight](https://doc.qt.io/qt-6/qfont.html#Weight-enum), and [QFontInfo](https://doc.qt.io/qt-6/qfontinfo.html).
+
+### [qreal](https://doc.qt.io/qt-6/qttypes.html#qreal-typedef) QFont::wordSpacing() const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n208 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#wordSpacing "Direct link to this headline")
+
+Returns the word spacing for the font.
+
+**See also**[setWordSpacing](https://doc.qt.io/qt-6/qfont.html#setWordSpacing)() and [setLetterSpacing](https://doc.qt.io/qt-6/qfont.html#setLetterSpacing)().
+
+### QFont::operator QVariant() const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n293 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#operator-QVariant "Direct link to this headline")
+
+Returns the font as a [QVariant](https://doc.qt.io/qt-6/qvariant.html)
+
+### bool QFont::operator!=(const [QFont](https://doc.qt.io/qt-6/qfont.html)&_f_) const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n291 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#operator-not-eq "Direct link to this headline")
+
+Returns `true` if this font is different from _f_; otherwise returns `false`.
+
+Two QFonts are considered to be different if their font attributes are different.
+
+**See also**[operator==](https://doc.qt.io/qt-6/qfont.html#operator-eq-eq)().
+
+### bool QFont::operator<(const [QFont](https://doc.qt.io/qt-6/qfont.html)&_f_) const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n292 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#operator-lt "Direct link to this headline")
+
+Provides an arbitrary comparison of this font and font _f_. All that is guaranteed is that the operator returns `false` if both fonts are equal and that (f1 < f2) == !(f2 < f1) if the fonts are not equal.
+
+This function is useful in some circumstances, for example if you want to use [QFont](https://doc.qt.io/qt-6/qfont.html) objects as keys in a [QMap](https://doc.qt.io/qt-6/qmap.html).
+
+**See also**[operator==](https://doc.qt.io/qt-6/qfont.html#operator-eq-eq)(), [operator!=](https://doc.qt.io/qt-6/qfont.html#operator-not-eq)(), and [isCopyOf](https://doc.qt.io/qt-6/qfont.html#isCopyOf)().
+
+### `[noexcept]`[QFont](https://doc.qt.io/qt-6/qfont.html)&QFont::operator=([QFont](https://doc.qt.io/qt-6/qfont.html)&&_other_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n295 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#operator-eq "Direct link to this headline")
+
+Move-assigns _other_ to this [QFont](https://doc.qt.io/qt-6/qfont.html) instance.
+
+### [QFont](https://doc.qt.io/qt-6/qfont.html)&QFont::operator=(const [QFont](https://doc.qt.io/qt-6/qfont.html)&_font_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n289 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#operator-eq-1 "Direct link to this headline")
+
+Assigns _font_ to this font and returns a reference to it.
+
+### bool QFont::operator==(const [QFont](https://doc.qt.io/qt-6/qfont.html)&_f_) const[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/gui/text/qfont.h?h=6.12#n290 "View declaration of this function")[](https://doc.qt.io/qt-6/qfont.html#operator-eq-eq "Direct link to this headline")
+
+Returns `true` if this font is equal to _f_; otherwise returns false.
+
+Two QFonts are considered equal if their font attributes are equal.
+
+**See also**[operator!=](https://doc.qt.io/qt-6/qfont.html#operator-not-eq)() and [isCopyOf](https://doc.qt.io/qt-6/qfont.html#isCopyOf)().

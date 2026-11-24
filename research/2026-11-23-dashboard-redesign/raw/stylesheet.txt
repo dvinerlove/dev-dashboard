@@ -1,0 +1,43 @@
+Title: Qt Style Sheets | Qt Widgets
+
+URL Source: https://doc.qt.io/qt-6/stylesheet.html
+
+Markdown Content:
+Qt Style Sheets let you customize the appearance of widgets with textual rules, in addition to what is possible by subclassing [QStyle](https://doc.qt.io/qt-6/qstyle.html). The concepts, terminology, and syntax of Qt Style Sheets are heavily inspired by HTML [Cascading Style Sheets (CSS)](http://www.w3.org/Style/CSS/) but adapted to the world of widgets.
+
+Style sheets are a tool for prototyping and for small, local adjustments; for the production look of an application, implement a [QStyle](https://doc.qt.io/qt-6/qstyle.html) or use [StyleKit](https://doc.qt.io/qt-6/qtlabsstylekit-index.html). [Styling Approaches for Qt Widgets](https://doc.qt.io/qt-6/qtwidgets-styling-approaches.html) explains the costs of style sheets and compares the approaches.
+
+Topics:
+
+*   [Overview](https://doc.qt.io/qt-6/stylesheet.html#overview)
+*   [The Style Sheet Syntax](https://doc.qt.io/qt-6/stylesheet-syntax.html)
+*   [Qt Widgets Designer Integration](https://doc.qt.io/qt-6/stylesheet-designer.html)
+*   [Customizing Qt Widgets Using Style Sheets](https://doc.qt.io/qt-6/stylesheet-customizing.html)
+*   [Qt Style Sheets Reference](https://doc.qt.io/qt-6/stylesheet-reference.html)
+*   [Qt Style Sheets Examples](https://doc.qt.io/qt-6/stylesheet-examples.html)
+
+**Note:**If Qt Style Sheets are used on the same widget as functions that set the appearance of widgets, such as [QWidget::setFont](https://doc.qt.io/qt-6/qwidget.html#font-prop)() or [QTreeWidgetItem::setBackground](https://doc.qt.io/qt-6/qtreewidgetitem.html#setBackground)(), style sheets will take precedence if the settings conflict.
+
+## Overview[](https://doc.qt.io/qt-6/stylesheet.html#overview "Direct link to this headline")
+
+Styles sheets are textual specifications that can be set on the whole application using [QApplication::setStyleSheet](https://doc.qt.io/qt-6/qapplication.html#styleSheet-prop)() or on a specific widget (and its children) using [QWidget::setStyleSheet](https://doc.qt.io/qt-6/qwidget.html#styleSheet-prop)(). If several style sheets are set at different levels, Qt derives the effective style sheet from all of those that are set. This is called cascading.
+
+Set the application style sheet once, before the first window is shown. Changing the style sheet at runtime can lead to inconsistent results where only some parts of the previous style sheet are reverted by the new style sheet. Don't use this function to switch themes at runtime.
+
+For example, the following style sheet specifies that all [QLineEdit](https://doc.qt.io/qt-6/qlineedit.html)s should use yellow as their background color, and all [QCheckBox](https://doc.qt.io/qt-6/qcheckbox.html)es should use red as the text color:
+
+For this kind of customization, style sheets are much more powerful than [QPalette](https://doc.qt.io/qt-6/qpalette.html). For example, it might be tempting to set the [QPalette::Button](https://doc.qt.io/qt-6/qpalette.html#ColorRole-enum) role to red for a [QPushButton](https://doc.qt.io/qt-6/qpushbutton.html) to obtain a red push button. However, this wasn't guaranteed to work for all styles, because style authors are restricted by the different platforms' guidelines and (on Windows and macOS) by the native theme engine.
+
+Style sheets let you perform all kinds of customizations that are difficult or impossible to perform using [QPalette](https://doc.qt.io/qt-6/qpalette.html) alone. If you want yellow backgrounds for mandatory fields, red text for potentially destructive push buttons, or fancy check boxes, style sheets are the answer.
+
+Style sheets are applied on top of the current [widget style](https://doc.qt.io/qt-6/qstyle.html), meaning that your applications will look as native as possible, but any style sheet constraints will be taken into consideration. Unlike palette fiddling, style sheets offer guarantees: If you set the background color of a [QPushButton](https://doc.qt.io/qt-6/qpushbutton.html) to be red, you can be assured that the button will have a red background in all styles, on all platforms. In addition, Qt Widgets Designer provides style sheet integration, making it easy to view the effects of a style sheet in different [widget styles](https://doc.qt.io/qt-6/qstyle.html).
+
+Style sheets can also give a prototype a distinctive look without subclassing [QStyle](https://doc.qt.io/qt-6/qstyle.html), for example, by specifying images for radio buttons and checkboxes.
+
+When a style sheet is active, the [QStyle](https://doc.qt.io/qt-6/qstyle.html) returned by [QWidget::style](https://doc.qt.io/qt-6/qwidget.html#style)() is a wrapper "style sheet" style, _not_ the platform-specific style. The wrapper style ensures that any active style sheet is respected and otherwise forwards the drawing operations to the underlying, platform-specific style (for example, the `windows11` style on Windows, or the `macos` style on macOS; see [QStyleFactory](https://doc.qt.io/qt-6/qstylefactory.html)).
+
+## Security Considerations[](https://doc.qt.io/qt-6/stylesheet.html#security-considerations "Direct link to this headline")
+
+Style sheet text is parsed by Qt and can reference external resources: the `url()` function can point at any local file or Qt resource, which Qt will then load and render, for example as a background, border, or icon image. Applications that construct a style sheet, in whole or in part, from data that is not fully under their own control - such as a runtime-selectable theme file, a path supplied via the `-stylesheet` command-line option, or content coming from a plugin - should treat that content as they would any other file path taken from an untrusted source. A malicious style sheet can cause Qt to read and display the contents of arbitrary local files that the application process has permission to access.
+
+Style sheets that are hardcoded in the application, or embedded in a compiled-in Qt resource file, are not affected by this consideration, since their content is fully controlled by the application itself.

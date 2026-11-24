@@ -1,0 +1,641 @@
+Title: QPropertyAnimation Class | Qt Core
+
+URL Source: https://doc.qt.io/qt-6/qpropertyanimation.html
+
+Markdown Content:
+[Back to Qt.io](https://www.qt.io/)
+
+[Contact Us](https://www.qt.io/contact-us/)[Blog](https://blog.qt.io/)[Download Qt](https://www.qt.io/download/)
+
+[![Image 1: Qt documentation](https://doc.qt.io/style/qt-logo-documentation.png)](https://doc.qt.io/)
+
+*   [](https://doc.qt.io/qt-6/qpropertyanimation.html) 
+    *   [English](https://doc.qt.io/qt-6/qpropertyanimation.html)
+    *   [中文](https://doc.qt.io/qt-6/zh/qpropertyanimation.html)
+    *   [日本語](https://doc.qt.io/qt-6/ja/qpropertyanimation.html)
+    *   [한국어](https://doc.qt.io/qt-6/ko/qpropertyanimation.html)
+    *   [Deutsch](https://doc.qt.io/qt-6/de/qpropertyanimation.html)
+    *   [français](https://doc.qt.io/qt-6/fr/qpropertyanimation.html)
+    *   [italiano](https://doc.qt.io/qt-6/it/qpropertyanimation.html)
+    *   [español](https://doc.qt.io/qt-6/es/qpropertyanimation.html)
+    *   [português](https://doc.qt.io/qt-6/pt-br/qpropertyanimation.html)
+
+*   - [x]    
+*   [Qt Academy](https://www.qt.io/academy)
+*   [Archives](https://doc.qt.io/archives)
+*   [Snapshots](https://doc-snapshots.qt.io/)
+
+Filter topics 
+
+Topic not in active filter Clear
+
+*   [Reference](https://doc.qt.io/qt-6/reference-overview.html)
+*   [Getting Started](https://doc.qt.io/qt-6/gettingstarted.html)
+*   [Releases](https://doc.qt.io/qt-6/qt-releases.html)
+*   [Licensing](https://doc.qt.io/qt-6/licensing.html)
+*   [Platforms](https://doc.qt.io/qt-6/supported-platforms.html)
+*   [Overviews](https://doc.qt.io/qt-6/overviews.html)
+*   [Qt Core](https://doc.qt.io/qt-6/qtcore-index.html)
+    *   [The Meta-Object System](https://doc.qt.io/qt-6/metaobjects.html)
+    *   [The Property System](https://doc.qt.io/qt-6/properties.html)
+    *   [Object Model](https://doc.qt.io/qt-6/object.html)
+    *   [Object Trees & Ownership](https://doc.qt.io/qt-6/objecttrees.html)
+    *   [Signals & Slots](https://doc.qt.io/qt-6/signalsandslots.html)
+    *   [Qt Bindable Properties](https://doc.qt.io/qt-6/bindableproperties.html)
+    *   [The Event System](https://doc.qt.io/qt-6/eventsandfilters.html)
+    *   [Classes for string data](https://doc.qt.io/qt-6/string-processing.html)
+    *   [Implicit Sharing](https://doc.qt.io/qt-6/implicit-sharing.html)
+    *   [Timers](https://doc.qt.io/qt-6/timers.html)
+    *   [The Animation Framework](https://doc.qt.io/qt-6/animation-overview.html)
+    *   [The Qt Resource System](https://doc.qt.io/qt-6/resources.html)
+    *   [Qt Serialization](https://doc.qt.io/qt-6/qtserialization.html)
+    *   [Container Classes](https://doc.qt.io/qt-6/containers.html)
+    *   [C++20 Overview](https://doc.qt.io/qt-6/cpp20-overview.html)
+    *   [Creating Custom Qt Types](https://doc.qt.io/qt-6/custom-types.html)
+    *   [Qt's foreach Keyword](https://doc.qt.io/qt-6/foreach-keyword.html)
+    *   [Java-style Iterators in Qt](https://doc.qt.io/qt-6/java-style-iterators.html)
+    *   [File and Datastream Functions](https://doc.qt.io/qt-6/io-functions.html)
+    *   [Input/Output and Networking](https://doc.qt.io/qt-6/io.html)
+    *   [Inter-Process Communication](https://doc.qt.io/qt-6/ipc.html)
+    *   [Application Permissions](https://doc.qt.io/qt-6/permissions.html)
+    *   [Comparison types overview](https://doc.qt.io/qt-6/comparison-types.html)
+    *   [Porting QDirIterator to QDirListing](https://doc.qt.io/qt-6/qdiriterator-to-qdirlisting-porting.html)
+    *   [Upgrading from Qt 5](https://doc.qt.io/qt-6/qtcore-changes-qt6.html)
+    *   [Reference - Private C++ Classes](https://doc.qt.io/qt-6/qtcoreprivate-module.html)
+    *   [Reference - Plugin Classes](https://doc.qt.io/qt-6/plugins.html)
+    *   [Reference - CMake Commands](https://doc.qt.io/qt-6/cmake-commands-qtcore.html)
+    *   [Reference - CMake Variables](https://doc.qt.io/qt-6/cmake-variables-qtcore.html)
+    *   [Reference - CMake Target Properties](https://doc.qt.io/qt-6/cmake-target-properties-qtcore.html)
+    *   [Examples](https://doc.qt.io/qt-6/corelib-examples.html)
+    *   [C++ Classes](https://doc.qt.io/qt-6/qtcore-module.html)
+        *   [<QApplicationStatic>](https://doc.qt.io/qt-6/qapplicationstatic.html)
+        *   [<QForeach>](https://doc.qt.io/qt-6/qforeach.html)
+        *   [<QFunctionPointer>](https://doc.qt.io/qt-6/qfunctionpointer.html)
+        *   [<QOverload>](https://doc.qt.io/qt-6/qoverload.html)
+        *   [<QPair>](https://doc.qt.io/qt-6/qpair.html)
+        *   [<QTypeInfo>](https://doc.qt.io/qt-6/qtypeinfo.html)
+        *   [<QtAlgorithms> - Generic Algorithms](https://doc.qt.io/qt-6/qtalgorithms.html)
+        *   [<QtAssert>](https://doc.qt.io/qt-6/qtassert.html)
+        *   [<QtCborCommon>](https://doc.qt.io/qt-6/qtcborcommon.html)
+        *   [<QtClassHelperMacros>](https://doc.qt.io/qt-6/qtclasshelpermacros.html)
+        *   [<QtCompare> - Classes and helpers for defining comparison operators](https://doc.qt.io/qt-6/qtcompare.html)
+        *   [<QtCompilerDetection> - Compiler-specific Macro Definitions](https://doc.qt.io/qt-6/qtcompilerdetection.html)
+        *   [<QtDarwinHelpers>](https://doc.qt.io/qt-6/qtdarwinhelpers.html)
+        *   [<QtDeprecationMarkers> - Qt Deprecation Macros](https://doc.qt.io/qt-6/qtdeprecationmarkers.html)
+        *   [<QtEndian> - Endian Conversion Functions](https://doc.qt.io/qt-6/qtendian.html)
+        *   [<QtEnvironmentVariables>](https://doc.qt.io/qt-6/qtenvironmentvariables.html)
+        *   [<QtGlobal> - Global Qt Declarations](https://doc.qt.io/qt-6/qtglobal.html)
+        *   [<QtLogging> - Qt Logging Types](https://doc.qt.io/qt-6/qtlogging.html)
+        *   [<QtMath> - Generic Math Functions](https://doc.qt.io/qt-6/qtmath.html)
+        *   [<QtMinMax>](https://doc.qt.io/qt-6/qtminmax.html)
+        *   [<QtNumeric> - Qt Numeric Functions](https://doc.qt.io/qt-6/qtnumeric.html)
+        *   [<QtPlugin> - Defining Plugins](https://doc.qt.io/qt-6/qtplugin.html)
+        *   [<QtPreprocessorSupport>](https://doc.qt.io/qt-6/qtpreprocessorsupport.html)
+        *   [<QtProcessorDetection> - Architecture-specific Macro Definitions](https://doc.qt.io/qt-6/qtprocessordetection.html)
+        *   [<QtResource>](https://doc.qt.io/qt-6/qtresource.html)
+        *   [<QtSwap>](https://doc.qt.io/qt-6/qtswap.html)
+        *   [<QtSystemDetection> - Platform-specific Macro Definitions](https://doc.qt.io/qt-6/qtsystemdetection.html)
+        *   [<QtTranslation>](https://doc.qt.io/qt-6/qttranslation.html)
+        *   [<QtTypeTraits> - Qt Type Traits](https://doc.qt.io/qt-6/qttypetraits.html)
+        *   [<QtTypes> - Qt Type Declarations](https://doc.qt.io/qt-6/qttypes.html)
+        *   [<QtVersion>](https://doc.qt.io/qt-6/qtversion.html)
+        *   [<QtVersionChecks>](https://doc.qt.io/qt-6/qtversionchecks.html)
+        *   [QAbstractAnimation Class Reference](https://doc.qt.io/qt-6/qabstractanimation.html)
+        *   [QAbstractEventDispatcher Class Reference](https://doc.qt.io/qt-6/qabstracteventdispatcher.html)
+        *   [QAbstractEventDispatcherV2 Class Reference](https://doc.qt.io/qt-6/qabstracteventdispatcherv2.html)
+        *   [QAbstractItemModel Class Reference](https://doc.qt.io/qt-6/qabstractitemmodel.html)
+        *   [QAbstractListModel Class Reference](https://doc.qt.io/qt-6/qabstractlistmodel.html)
+        *   [QAbstractNativeEventFilter Class Reference](https://doc.qt.io/qt-6/qabstractnativeeventfilter.html)
+        *   [QAbstractProxyModel Class Reference](https://doc.qt.io/qt-6/qabstractproxymodel.html)
+        *   [QAbstractTableModel Class Reference](https://doc.qt.io/qt-6/qabstracttablemodel.html)
+        *   [QAndroidActivityResultReceiver Class Reference](https://doc.qt.io/qt-6/qandroidactivityresultreceiver.html)
+        *   [QAndroidBinder Class Reference](https://doc.qt.io/qt-6/qandroidbinder.html)
+        *   [QAndroidIntent Class Reference](https://doc.qt.io/qt-6/qandroidintent.html)
+        *   [QAndroidParcel Class Reference](https://doc.qt.io/qt-6/qandroidparcel.html)
+        *   [QAndroidService Class Reference](https://doc.qt.io/qt-6/qandroidservice.html)
+        *   [QAndroidServiceConnection Class Reference](https://doc.qt.io/qt-6/qandroidserviceconnection.html)
+        *   [QAnimationGroup Class Reference](https://doc.qt.io/qt-6/qanimationgroup.html)
+        *   [QAnyStringView Class Reference](https://doc.qt.io/qt-6/qanystringview.html)
+        *   [QAssociativeIterable Class Reference](https://doc.qt.io/qt-6/qassociativeiterable.html)
+        *   [QAtomicInt Class Reference](https://doc.qt.io/qt-6/qatomicint.html)
+        *   [QAtomicInteger Class Reference](https://doc.qt.io/qt-6/qatomicinteger.html)
+        *   [QAtomicPointer Class Reference](https://doc.qt.io/qt-6/qatomicpointer.html)
+        *   [QAtomicScopedValueRollback Class Reference](https://doc.qt.io/qt-6/qatomicscopedvaluerollback.html)
+        *   [QBEInteger Class Reference](https://doc.qt.io/qt-6/qbeinteger.html)
+        *   [QBaseIterator Class Reference](https://doc.qt.io/qt-6/qbaseiterator.html)
+        *   [QBasicTimer Class Reference](https://doc.qt.io/qt-6/qbasictimer.html)
+        *   [QBindable Class Reference](https://doc.qt.io/qt-6/qbindable.html)
+        *   [QBitArray Class Reference](https://doc.qt.io/qt-6/qbitarray.html)
+        *   [QBluetoothPermission Class Reference](https://doc.qt.io/qt-6/qbluetoothpermission.html)
+        *   [QBuffer Class Reference](https://doc.qt.io/qt-6/qbuffer.html)
+        *   [QByteArray Class Reference](https://doc.qt.io/qt-6/qbytearray.html)
+        *   [QByteArray::FromBase64Result Class Reference](https://doc.qt.io/qt-6/qbytearray-frombase64result.html)
+        *   [QByteArrayList Class Reference](https://doc.qt.io/qt-6/qbytearraylist.html)
+        *   [QByteArrayMatcher Class Reference](https://doc.qt.io/qt-6/qbytearraymatcher.html)
+        *   [QByteArrayView Class Reference](https://doc.qt.io/qt-6/qbytearrayview.html)
+        *   [QCache Class Reference](https://doc.qt.io/qt-6/qcache.html)
+        *   [QCalendar Class Reference](https://doc.qt.io/qt-6/qcalendar.html)
+        *   [QCalendar::SystemId Class Reference](https://doc.qt.io/qt-6/qcalendar-systemid.html)
+        *   [QCalendarPermission Class Reference](https://doc.qt.io/qt-6/qcalendarpermission.html)
+        *   [QCameraPermission Class Reference](https://doc.qt.io/qt-6/qcamerapermission.html)
+        *   [QCborArray Class Reference](https://doc.qt.io/qt-6/qcborarray.html)
+        *   [QCborArray::ConstIterator Class Reference](https://doc.qt.io/qt-6/qcborarray-constiterator.html)
+        *   [QCborArray::Iterator Class Reference](https://doc.qt.io/qt-6/qcborarray-iterator.html)
+        *   [QCborMap Class Reference](https://doc.qt.io/qt-6/qcbormap.html)
+        *   [QCborMap::ConstIterator Class Reference](https://doc.qt.io/qt-6/qcbormap-constiterator.html)
+        *   [QCborMap::Iterator Class Reference](https://doc.qt.io/qt-6/qcbormap-iterator.html)
+        *   [QCborStreamReader Class Reference](https://doc.qt.io/qt-6/qcborstreamreader.html)
+        *   [QCborStreamWriter Class Reference](https://doc.qt.io/qt-6/qcborstreamwriter.html)
+        *   [QCborValue Class Reference](https://doc.qt.io/qt-6/qcborvalue.html)
+        *   [QChar Class Reference](https://doc.qt.io/qt-6/qchar.html)
+        *   [QChildEvent Class Reference](https://doc.qt.io/qt-6/qchildevent.html)
+        *   [QChronoTimer Class Reference](https://doc.qt.io/qt-6/qchronotimer.html)
+        *   [QCollator Class Reference](https://doc.qt.io/qt-6/qcollator.html)
+        *   [QCollatorSortKey Class Reference](https://doc.qt.io/qt-6/qcollatorsortkey.html)
+        *   [QCommandLineOption Class Reference](https://doc.qt.io/qt-6/qcommandlineoption.html)
+        *   [QCommandLineParser Class Reference](https://doc.qt.io/qt-6/qcommandlineparser.html)
+        *   [QConcatenateTablesProxyModel Class Reference](https://doc.qt.io/qt-6/qconcatenatetablesproxymodel.html)
+        *   [QContactsPermission Class Reference](https://doc.qt.io/qt-6/qcontactspermission.html)
+        *   [QContiguousCache Class Reference](https://doc.qt.io/qt-6/qcontiguouscache.html)
+        *   [QCoreApplication Class Reference](https://doc.qt.io/qt-6/qcoreapplication.html)
+        *   [QCryptographicHash Class Reference](https://doc.qt.io/qt-6/qcryptographichash.html)
+        *   [QDataStream Class Reference](https://doc.qt.io/qt-6/qdatastream.html)
+        *   [QDate Class Reference](https://doc.qt.io/qt-6/qdate.html)
+        *   [QDateTime Class Reference](https://doc.qt.io/qt-6/qdatetime.html)
+        *   [QDeadlineTimer Class Reference](https://doc.qt.io/qt-6/qdeadlinetimer.html)
+        *   [QDebug Class Reference](https://doc.qt.io/qt-6/qdebug.html)
+        *   [QDebugStateSaver Class Reference](https://doc.qt.io/qt-6/qdebugstatesaver.html)
+        *   [QDir Class Reference](https://doc.qt.io/qt-6/qdir.html)
+        *   [QDirIterator Class Reference](https://doc.qt.io/qt-6/qdiriterator.html)
+        *   [QDirListing Class Reference](https://doc.qt.io/qt-6/qdirlisting.html)
+        *   [QDirListing::DirEntry Class Reference](https://doc.qt.io/qt-6/qdirlisting-direntry.html)
+        *   [QDirListing::const_iterator Class Reference](https://doc.qt.io/qt-6/qdirlisting-const-iterator.html)
+        *   [QDirListing::sentinel Class Reference](https://doc.qt.io/qt-6/qdirlisting-sentinel.html)
+        *   [QDynamicPropertyChangeEvent Class Reference](https://doc.qt.io/qt-6/qdynamicpropertychangeevent.html)
+        *   [QEasingCurve Class Reference](https://doc.qt.io/qt-6/qeasingcurve.html)
+        *   [QElapsedTimer Class Reference](https://doc.qt.io/qt-6/qelapsedtimer.html)
+        *   [QEnableSharedFromThis Class Reference](https://doc.qt.io/qt-6/qenablesharedfromthis.html)
+        *   [QEvent Class Reference](https://doc.qt.io/qt-6/qevent.html)
+        *   [QEventLoop Class Reference](https://doc.qt.io/qt-6/qeventloop.html)
+        *   [QEventLoopLocker Class Reference](https://doc.qt.io/qt-6/qeventlooplocker.html)
+        *   [QException Class Reference](https://doc.qt.io/qt-6/qexception.html)
+        *   [QExplicitlySharedDataPointer Class Reference](https://doc.qt.io/qt-6/qexplicitlyshareddatapointer.html)
+        *   [QFile Class Reference](https://doc.qt.io/qt-6/qfile.html)
+        *   [QFileDevice Class Reference](https://doc.qt.io/qt-6/qfiledevice.html)
+        *   [QFileInfo Class Reference](https://doc.qt.io/qt-6/qfileinfo.html)
+        *   [QFileSelector Class Reference](https://doc.qt.io/qt-6/qfileselector.html)
+        *   [QFileSystemWatcher Class Reference](https://doc.qt.io/qt-6/qfilesystemwatcher.html)
+        *   [QFlag Class Reference](https://doc.qt.io/qt-6/qflag.html)
+        *   [QFlags Class Reference](https://doc.qt.io/qt-6/qflags.html)
+        *   [QFuture Class Reference](https://doc.qt.io/qt-6/qfuture.html)
+        *   [QFuture::const_iterator Class Reference](https://doc.qt.io/qt-6/qfuture-const-iterator.html)
+        *   [QFutureIterator Class Reference](https://doc.qt.io/qt-6/qfutureiterator.html)
+        *   [QFutureSynchronizer Class Reference](https://doc.qt.io/qt-6/qfuturesynchronizer.html)
+        *   [QFutureWatcher Class Reference](https://doc.qt.io/qt-6/qfuturewatcher.html)
+        *   [QGenericArgument Class Reference](https://doc.qt.io/qt-6/qgenericargument.html)
+        *   [QGenericReturnArgument Class Reference](https://doc.qt.io/qt-6/qgenericreturnargument.html)
+        *   [QHash Class Reference](https://doc.qt.io/qt-6/qhash.html)
+        *   [QHash::const_iterator Class Reference](https://doc.qt.io/qt-6/qhash-const-iterator.html)
+        *   [QHash::iterator Class Reference](https://doc.qt.io/qt-6/qhash-iterator.html)
+        *   [QHash::key_iterator Class Reference](https://doc.qt.io/qt-6/qhash-key-iterator.html)
+        *   [QHashIterator Class Reference](https://doc.qt.io/qt-6/qhashiterator.html)
+        *   [QIODevice Class Reference](https://doc.qt.io/qt-6/qiodevice.html)
+        *   [QIODeviceBase Class Reference](https://doc.qt.io/qt-6/qiodevicebase.html)
+        *   [QIdentityProxyModel Class Reference](https://doc.qt.io/qt-6/qidentityproxymodel.html)
+        *   [QItemSelection Class Reference](https://doc.qt.io/qt-6/qitemselection.html)
+        *   [QItemSelectionModel Class Reference](https://doc.qt.io/qt-6/qitemselectionmodel.html)
+        *   [QItemSelectionRange Class Reference](https://doc.qt.io/qt-6/qitemselectionrange.html)
+        *   [QIterable Class Reference](https://doc.qt.io/qt-6/qiterable.html)
+        *   [QJniArray Class Reference](https://doc.qt.io/qt-6/qjniarray.html)
+        *   [QJniArrayBase Class Reference](https://doc.qt.io/qt-6/qjniarraybase.html)
+        *   [QJniEnvironment Class Reference](https://doc.qt.io/qt-6/qjnienvironment.html)
+        *   [QJniObject Class Reference](https://doc.qt.io/qt-6/qjniobject.html)
+        *   [QJsonArray Class Reference](https://doc.qt.io/qt-6/qjsonarray.html)
+        *   [QJsonArray::const_iterator Class Reference](https://doc.qt.io/qt-6/qjsonarray-const-iterator.html)
+        *   [QJsonArray::iterator Class Reference](https://doc.qt.io/qt-6/qjsonarray-iterator.html)
+        *   [QJsonDocument Class Reference](https://doc.qt.io/qt-6/qjsondocument.html)
+        *   [QJsonObject Class Reference](https://doc.qt.io/qt-6/qjsonobject.html)
+        *   [QJsonObject::const_iterator Class Reference](https://doc.qt.io/qt-6/qjsonobject-const-iterator.html)
+        *   [QJsonObject::iterator Class Reference](https://doc.qt.io/qt-6/qjsonobject-iterator.html)
+        *   [QJsonValue Class Reference](https://doc.qt.io/qt-6/qjsonvalue.html)
+        *   [QKeyCombination Class Reference](https://doc.qt.io/qt-6/qkeycombination.html)
+        *   [QKeyValueIterator Class Reference](https://doc.qt.io/qt-6/qkeyvalueiterator.html)
+        *   [QLEInteger Class Reference](https://doc.qt.io/qt-6/qleinteger.html)
+        *   [QLatin1String Class Reference](https://doc.qt.io/qt-6/qlatin1string.html)
+        *   [QLatin1StringMatcher Class Reference](https://doc.qt.io/qt-6/qlatin1stringmatcher.html)
+        *   [QLatin1StringView Class Reference](https://doc.qt.io/qt-6/qlatin1stringview.html)
+        *   [QLibrary Class Reference](https://doc.qt.io/qt-6/qlibrary.html)
+        *   [QLibraryInfo Class Reference](https://doc.qt.io/qt-6/qlibraryinfo.html)
+        *   [QLine Class Reference](https://doc.qt.io/qt-6/qline.html)
+        *   [QLineF Class Reference](https://doc.qt.io/qt-6/qlinef.html)
+        *   [QList Class Reference](https://doc.qt.io/qt-6/qlist.html)
+        *   [QList::const_iterator Class Reference](https://doc.qt.io/qt-6/qlist-const-iterator.html)
+        *   [QList::iterator Class Reference](https://doc.qt.io/qt-6/qlist-iterator.html)
+        *   [QListIterator Class Reference](https://doc.qt.io/qt-6/qlistiterator.html)
+        *   [QLocale Class Reference](https://doc.qt.io/qt-6/qlocale.html)
+        *   [QLocationPermission Class Reference](https://doc.qt.io/qt-6/qlocationpermission.html)
+        *   [QLockFile Class Reference](https://doc.qt.io/qt-6/qlockfile.html)
+        *   [QLoggingCategory Class Reference](https://doc.qt.io/qt-6/qloggingcategory.html)
+        *   [QMap Class Reference](https://doc.qt.io/qt-6/qmap.html)
+        *   [QMap::const_iterator Class Reference](https://doc.qt.io/qt-6/qmap-const-iterator.html)
+        *   [QMap::iterator Class Reference](https://doc.qt.io/qt-6/qmap-iterator.html)
+        *   [QMap::key_iterator Class Reference](https://doc.qt.io/qt-6/qmap-key-iterator.html)
+        *   [QMapIterator Class Reference](https://doc.qt.io/qt-6/qmapiterator.html)
+        *   [QMargins Class Reference](https://doc.qt.io/qt-6/qmargins.html)
+        *   [QMarginsF Class Reference](https://doc.qt.io/qt-6/qmarginsf.html)
+        *   [QMessageAuthenticationCode Class Reference](https://doc.qt.io/qt-6/qmessageauthenticationcode.html)
+        *   [QMessageLogContext Class Reference](https://doc.qt.io/qt-6/qmessagelogcontext.html)
+        *   [QMessageLogger Class Reference](https://doc.qt.io/qt-6/qmessagelogger.html)
+        *   [QMetaAssociation Class Reference](https://doc.qt.io/qt-6/qmetaassociation.html)
+        *   [QMetaAssociation::Iterable Class Reference](https://doc.qt.io/qt-6/qmetaassociation-iterable.html)
+        *   [Iterable::ConstIterator Class Reference](https://doc.qt.io/qt-6/qmetaassociation-iterable-constiterator.html)
+        *   [Iterable::Iterator Class Reference](https://doc.qt.io/qt-6/qmetaassociation-iterable-iterator.html)
+        *   [QMetaClassInfo Class Reference](https://doc.qt.io/qt-6/qmetaclassinfo.html)
+        *   [QMetaContainer Class Reference](https://doc.qt.io/qt-6/qmetacontainer.html)
+        *   [QMetaEnum Class Reference](https://doc.qt.io/qt-6/qmetaenum.html)
+        *   [QMetaMethod Class Reference](https://doc.qt.io/qt-6/qmetamethod.html)
+        *   [QMetaObject::Connection Class Reference](https://doc.qt.io/qt-6/qmetaobject-connection.html)
+        *   [QMetaProperty Class Reference](https://doc.qt.io/qt-6/qmetaproperty.html)
+        *   [QMetaSequence Class Reference](https://doc.qt.io/qt-6/qmetasequence.html)
+        *   [QMetaSequence::Iterable Class Reference](https://doc.qt.io/qt-6/qmetasequence-iterable.html)
+        *   [Iterable::ConstIterator Class Reference](https://doc.qt.io/qt-6/qmetasequence-iterable-constiterator.html)
+        *   [Iterable::Iterator Class Reference](https://doc.qt.io/qt-6/qmetasequence-iterable-iterator.html)
+        *   [QMetaType Class Reference](https://doc.qt.io/qt-6/qmetatype.html)
+        *   [QMicrophonePermission Class Reference](https://doc.qt.io/qt-6/qmicrophonepermission.html)
+        *   [QMimeData Class Reference](https://doc.qt.io/qt-6/qmimedata.html)
+        *   [QMimeDatabase Class Reference](https://doc.qt.io/qt-6/qmimedatabase.html)
+        *   [QMimeType Class Reference](https://doc.qt.io/qt-6/qmimetype.html)
+        *   [QModelIndex Class Reference](https://doc.qt.io/qt-6/qmodelindex.html)
+        *   [QModelRoleData Class Reference](https://doc.qt.io/qt-6/qmodelroledata.html)
+        *   [QModelRoleDataSpan Class Reference](https://doc.qt.io/qt-6/qmodelroledataspan.html)
+        *   [QMultiHash Class Reference](https://doc.qt.io/qt-6/qmultihash.html)
+        *   [QMultiHash::const_iterator Class Reference](https://doc.qt.io/qt-6/qmultihash-const-iterator.html)
+        *   [QMultiHash::iterator Class Reference](https://doc.qt.io/qt-6/qmultihash-iterator.html)
+        *   [QMultiHash::key_iterator Class Reference](https://doc.qt.io/qt-6/qmultihash-key-iterator.html)
+        *   [QMultiMap Class Reference](https://doc.qt.io/qt-6/qmultimap.html)
+        *   [QMultiMap::const_iterator Class Reference](https://doc.qt.io/qt-6/qmultimap-const-iterator.html)
+        *   [QMultiMap::iterator Class Reference](https://doc.qt.io/qt-6/qmultimap-iterator.html)
+        *   [QMultiMap::key_iterator Class Reference](https://doc.qt.io/qt-6/qmultimap-key-iterator.html)
+        *   [QMultiMapIterator Class Reference](https://doc.qt.io/qt-6/qmultimapiterator.html)
+        *   [QMutableHashIterator Class Reference](https://doc.qt.io/qt-6/qmutablehashiterator.html)
+        *   [QMutableListIterator Class Reference](https://doc.qt.io/qt-6/qmutablelistiterator.html)
+        *   [QMutableMapIterator Class Reference](https://doc.qt.io/qt-6/qmutablemapiterator.html)
+        *   [QMutableMultiMapIterator Class Reference](https://doc.qt.io/qt-6/qmutablemultimapiterator.html)
+        *   [QMutableSetIterator Class Reference](https://doc.qt.io/qt-6/qmutablesetiterator.html)
+        *   [QMutex Class Reference](https://doc.qt.io/qt-6/qmutex.html)
+        *   [QMutexLocker Class Reference](https://doc.qt.io/qt-6/qmutexlocker.html)
+        *   [QNativeIpcKey Class Reference](https://doc.qt.io/qt-6/qnativeipckey.html)
+        *   [QNtfsPermissionCheckGuard Class Reference](https://doc.qt.io/qt-6/qntfspermissioncheckguard.html)
+        *   [QObject Class Reference](https://doc.qt.io/qt-6/qobject.html)
+        *   [QObjectBindableProperty Class Reference](https://doc.qt.io/qt-6/qobjectbindableproperty.html)
+        *   [QObjectCleanupHandler Class Reference](https://doc.qt.io/qt-6/qobjectcleanuphandler.html)
+        *   [QObjectComputedProperty Class Reference](https://doc.qt.io/qt-6/qobjectcomputedproperty.html)
+        *   [QOperatingSystemVersion Class Reference](https://doc.qt.io/qt-6/qoperatingsystemversion.html)
+        *   [QParallelAnimationGroup Class Reference](https://doc.qt.io/qt-6/qparallelanimationgroup.html)
+        *   [QPartialOrdering Class Reference](https://doc.qt.io/qt-6/qpartialordering.html)
+        *   [QPauseAnimation Class Reference](https://doc.qt.io/qt-6/qpauseanimation.html)
+        *   [QPermission Class Reference](https://doc.qt.io/qt-6/qpermission.html)
+        *   [QPersistentModelIndex Class Reference](https://doc.qt.io/qt-6/qpersistentmodelindex.html)
+        *   [QPluginLoader Class Reference](https://doc.qt.io/qt-6/qpluginloader.html)
+        *   [QPoint Class Reference](https://doc.qt.io/qt-6/qpoint.html)
+        *   [QPointF Class Reference](https://doc.qt.io/qt-6/qpointf.html)
+        *   [QPointer Class Reference](https://doc.qt.io/qt-6/qpointer.html)
+        *   [QProcess Class Reference](https://doc.qt.io/qt-6/qprocess.html)
+        *   [QProcessEnvironment Class Reference](https://doc.qt.io/qt-6/qprocessenvironment.html)
+        *   [QPromise Class Reference](https://doc.qt.io/qt-6/qpromise.html)
+        *   [QProperty Class Reference](https://doc.qt.io/qt-6/qproperty.html)
+        *   [QPropertyAnimation Class Reference](https://doc.qt.io/qt-6/qpropertyanimation.html)
+            *   [List of all members](https://doc.qt.io/qt-6/qpropertyanimation-members.html)
+
+        *   [QPropertyBindingError Class Reference](https://doc.qt.io/qt-6/qpropertybindingerror.html)
+        *   [QPropertyChangeHandler Class Reference](https://doc.qt.io/qt-6/qpropertychangehandler.html)
+        *   [QPropertyData Class Reference](https://doc.qt.io/qt-6/qpropertydata.html)
+        *   [QPropertyNotifier Class Reference](https://doc.qt.io/qt-6/qpropertynotifier.html)
+        *   [QQueue Class Reference](https://doc.qt.io/qt-6/qqueue.html)
+        *   [QRandomGenerator Class Reference](https://doc.qt.io/qt-6/qrandomgenerator.html)
+        *   [QRandomGenerator64 Class Reference](https://doc.qt.io/qt-6/qrandomgenerator64.html)
+        *   [QRangeModel Class Reference](https://doc.qt.io/qt-6/qrangemodel.html)
+        *   [QRangeModelAdapter Class Reference](https://doc.qt.io/qt-6/qrangemodeladapter.html)
+        *   [QReadLocker Class Reference](https://doc.qt.io/qt-6/qreadlocker.html)
+        *   [QReadWriteLock Class Reference](https://doc.qt.io/qt-6/qreadwritelock.html)
+        *   [QRect Class Reference](https://doc.qt.io/qt-6/qrect.html)
+        *   [QRectF Class Reference](https://doc.qt.io/qt-6/qrectf.html)
+        *   [QRecursiveMutex Class Reference](https://doc.qt.io/qt-6/qrecursivemutex.html)
+        *   [QRegularExpression Class Reference](https://doc.qt.io/qt-6/qregularexpression.html)
+        *   [QRegularExpressionMatch Class Reference](https://doc.qt.io/qt-6/qregularexpressionmatch.html)
+        *   [QRegularExpressionMatchIterator Class Reference](https://doc.qt.io/qt-6/qregularexpressionmatchiterator.html)
+        *   [QResource Class Reference](https://doc.qt.io/qt-6/qresource.html)
+        *   [QRunnable Class Reference](https://doc.qt.io/qt-6/qrunnable.html)
+        *   [QSaveFile Class Reference](https://doc.qt.io/qt-6/qsavefile.html)
+        *   [QScopeGuard Class Reference](https://doc.qt.io/qt-6/qscopeguard.html)
+        *   [QScopedArrayPointer Class Reference](https://doc.qt.io/qt-6/qscopedarraypointer.html)
+        *   [QScopedPointer Class Reference](https://doc.qt.io/qt-6/qscopedpointer.html)
+        *   [QScopedPropertyUpdateGroup Class Reference](https://doc.qt.io/qt-6/qscopedpropertyupdategroup.html)
+        *   [QScopedValueRollback Class Reference](https://doc.qt.io/qt-6/qscopedvaluerollback.html)
+        *   [QSemaphore Class Reference](https://doc.qt.io/qt-6/qsemaphore.html)
+        *   [QSemaphoreReleaser Class Reference](https://doc.qt.io/qt-6/qsemaphorereleaser.html)
+        *   [QSequentialAnimationGroup Class Reference](https://doc.qt.io/qt-6/qsequentialanimationgroup.html)
+        *   [QSequentialIterable Class Reference](https://doc.qt.io/qt-6/qsequentialiterable.html)
+        *   [QSet Class Reference](https://doc.qt.io/qt-6/qset.html)
+        *   [QSet::const_iterator Class Reference](https://doc.qt.io/qt-6/qset-const-iterator.html)
+        *   [QSet::iterator Class Reference](https://doc.qt.io/qt-6/qset-iterator.html)
+        *   [QSetIterator Class Reference](https://doc.qt.io/qt-6/qsetiterator.html)
+        *   [QSettings Class Reference](https://doc.qt.io/qt-6/qsettings.html)
+        *   [QSharedData Class Reference](https://doc.qt.io/qt-6/qshareddata.html)
+        *   [QSharedDataPointer Class Reference](https://doc.qt.io/qt-6/qshareddatapointer.html)
+        *   [QSharedMemory Class Reference](https://doc.qt.io/qt-6/qsharedmemory.html)
+        *   [QSharedPointer Class Reference](https://doc.qt.io/qt-6/qsharedpointer.html)
+        *   [QSignalBlocker Class Reference](https://doc.qt.io/qt-6/qsignalblocker.html)
+        *   [QSignalMapper Class Reference](https://doc.qt.io/qt-6/qsignalmapper.html)
+        *   [QSize Class Reference](https://doc.qt.io/qt-6/qsize.html)
+        *   [QSizeF Class Reference](https://doc.qt.io/qt-6/qsizef.html)
+        *   [QSocketNotifier Class Reference](https://doc.qt.io/qt-6/qsocketnotifier.html)
+        *   [QSortFilterProxyModel Class Reference](https://doc.qt.io/qt-6/qsortfilterproxymodel.html)
+        *   [QSpan Class Reference](https://doc.qt.io/qt-6/qspan.html)
+        *   [QStack Class Reference](https://doc.qt.io/qt-6/qstack.html)
+        *   [QStandardPaths Class Reference](https://doc.qt.io/qt-6/qstandardpaths.html)
+        *   [QStaticByteArrayMatcher Class Reference](https://doc.qt.io/qt-6/qstaticbytearraymatcher.html)
+        *   [QStaticLatin1StringMatcher Class Reference](https://doc.qt.io/qt-6/qstaticlatin1stringmatcher.html)
+        *   [QStorageInfo Class Reference](https://doc.qt.io/qt-6/qstorageinfo.html)
+        *   [QString Class Reference](https://doc.qt.io/qt-6/qstring.html)
+        *   [QStringConverter Class Reference](https://doc.qt.io/qt-6/qstringconverter.html)
+        *   [QStringDecoder Class Reference](https://doc.qt.io/qt-6/qstringdecoder.html)
+        *   [QStringEncoder Class Reference](https://doc.qt.io/qt-6/qstringencoder.html)
+        *   [QStringList Class Reference](https://doc.qt.io/qt-6/qstringlist.html)
+        *   [QStringListModel Class Reference](https://doc.qt.io/qt-6/qstringlistmodel.html)
+        *   [QStringMatcher Class Reference](https://doc.qt.io/qt-6/qstringmatcher.html)
+        *   [QStringTokenizer Class Reference](https://doc.qt.io/qt-6/qstringtokenizer.html)
+        *   [QStringView Class Reference](https://doc.qt.io/qt-6/qstringview.html)
+        *   [QSysInfo Class Reference](https://doc.qt.io/qt-6/qsysinfo.html)
+        *   [QSystemSemaphore Class Reference](https://doc.qt.io/qt-6/qsystemsemaphore.html)
+        *   [QTaggedIterator Class Reference](https://doc.qt.io/qt-6/qtaggediterator.html)
+        *   [QTemporaryDir Class Reference](https://doc.qt.io/qt-6/qtemporarydir.html)
+        *   [QTemporaryFile Class Reference](https://doc.qt.io/qt-6/qtemporaryfile.html)
+        *   [QTextBoundaryFinder Class Reference](https://doc.qt.io/qt-6/qtextboundaryfinder.html)
+        *   [QTextStream Class Reference](https://doc.qt.io/qt-6/qtextstream.html)
+        *   [QThread Class Reference](https://doc.qt.io/qt-6/qthread.html)
+        *   [QThreadPool Class Reference](https://doc.qt.io/qt-6/qthreadpool.html)
+        *   [QThreadStorage Class Reference](https://doc.qt.io/qt-6/qthreadstorage.html)
+        *   [QTime Class Reference](https://doc.qt.io/qt-6/qtime.html)
+        *   [QTimeLine Class Reference](https://doc.qt.io/qt-6/qtimeline.html)
+        *   [QTimeZone Class Reference](https://doc.qt.io/qt-6/qtimezone.html)
+        *   [QTimer Class Reference](https://doc.qt.io/qt-6/qtimer.html)
+        *   [QTimerEvent Class Reference](https://doc.qt.io/qt-6/qtimerevent.html)
+        *   [QTranslator Class Reference](https://doc.qt.io/qt-6/qtranslator.html)
+        *   [QTransposeProxyModel Class Reference](https://doc.qt.io/qt-6/qtransposeproxymodel.html)
+        *   [QTypeRevision Class Reference](https://doc.qt.io/qt-6/qtyperevision.html)
+        *   [QUnhandledException Class Reference](https://doc.qt.io/qt-6/qunhandledexception.html)
+        *   [QUntypedBindable Class Reference](https://doc.qt.io/qt-6/quntypedbindable.html)
+        *   [QUntypedPropertyBinding Class Reference](https://doc.qt.io/qt-6/quntypedpropertybinding.html)
+        *   [QUrl Class Reference](https://doc.qt.io/qt-6/qurl.html)
+        *   [QUrlQuery Class Reference](https://doc.qt.io/qt-6/qurlquery.html)
+        *   [QUtf8StringView Class Reference](https://doc.qt.io/qt-6/qutf8stringview.html)
+        *   [QUuid Class Reference](https://doc.qt.io/qt-6/quuid.html)
+        *   [QVarLengthArray Class Reference](https://doc.qt.io/qt-6/qvarlengtharray.html)
+        *   [QVariant Class Reference](https://doc.qt.io/qt-6/qvariant.html)
+        *   [QVariant::ConstPointer Class Reference](https://doc.qt.io/qt-6/qvariant-constpointer.html)
+        *   [QVariant::ConstReference Class Reference](https://doc.qt.io/qt-6/qvariant-constreference.html)
+        *   [QVariant::Pointer Class Reference](https://doc.qt.io/qt-6/qvariant-pointer.html)
+        *   [QVariant::Reference Class Reference](https://doc.qt.io/qt-6/qvariant-reference.html)
+        *   [QVariantAnimation Class Reference](https://doc.qt.io/qt-6/qvariantanimation.html)
+        *   [QVariantConstPointer Class Reference](https://doc.qt.io/qt-6/qvariantconstpointer.html)
+        *   [QVariantPointer Class Reference](https://doc.qt.io/qt-6/qvariantpointer.html)
+        *   [QVariantRef Class Reference](https://doc.qt.io/qt-6/qvariantref.html)
+        *   [QVector Class Reference](https://doc.qt.io/qt-6/qvector.html)
+        *   [QVersionNumber Class Reference](https://doc.qt.io/qt-6/qversionnumber.html)
+        *   [QWaitCondition Class Reference](https://doc.qt.io/qt-6/qwaitcondition.html)
+        *   [QWeakPointer Class Reference](https://doc.qt.io/qt-6/qweakpointer.html)
+        *   [QWinEventNotifier Class Reference](https://doc.qt.io/qt-6/qwineventnotifier.html)
+        *   [QWriteLocker Class Reference](https://doc.qt.io/qt-6/qwritelocker.html)
+        *   [QXmlStreamAttribute Class Reference](https://doc.qt.io/qt-6/qxmlstreamattribute.html)
+        *   [QXmlStreamAttributes Class Reference](https://doc.qt.io/qt-6/qxmlstreamattributes.html)
+        *   [QXmlStreamEntityDeclaration Class Reference](https://doc.qt.io/qt-6/qxmlstreamentitydeclaration.html)
+        *   [QXmlStreamEntityResolver Class Reference](https://doc.qt.io/qt-6/qxmlstreamentityresolver.html)
+        *   [QXmlStreamNamespaceDeclaration Class Reference](https://doc.qt.io/qt-6/qxmlstreamnamespacedeclaration.html)
+        *   [QXmlStreamNotationDeclaration Class Reference](https://doc.qt.io/qt-6/qxmlstreamnotationdeclaration.html)
+        *   [QXmlStreamReader Class Reference](https://doc.qt.io/qt-6/qxmlstreamreader.html)
+        *   [QXmlStreamWriter Class Reference](https://doc.qt.io/qt-6/qxmlstreamwriter.html)
+        *   [Qt::partial_ordering Class Reference](https://doc.qt.io/qt-6/qt-partial-ordering.html)
+        *   [Qt::strong_ordering Class Reference](https://doc.qt.io/qt-6/qt-strong-ordering.html)
+        *   [Qt::totally_ordered_wrapper Class Reference](https://doc.qt.io/qt-6/qt-totally-ordered-wrapper.html)
+        *   [Qt::weak_ordering Class Reference](https://doc.qt.io/qt-6/qt-weak-ordering.html)
+        *   [QtJniTypes::JObject Class Reference](https://doc.qt.io/qt-6/qtjnitypes-jobject.html)
+        *   [qfloat16 Class Reference](https://doc.qt.io/qt-6/qfloat16.html)
+
+*   [Qt GUI](https://doc.qt.io/qt-6/qtgui-index.html)
+*   [Qt Network](https://doc.qt.io/qt-6/qtnetwork-index.html)
+*   [Qt Qml](https://doc.qt.io/qt-6/qtqml-index.html)
+*   [Qt Quick](https://doc.qt.io/qt-6/qtquick-index.html)
+*   [Qt Widgets](https://doc.qt.io/qt-6/qtwidgets-index.html)
+*   [Qt Test](https://doc.qt.io/qt-6/qttest-index.html)
+*   [Modules](https://doc.qt.io/qt-6/qt-additional-modules.html)
+*   [Extension modules](https://doc.qt.io/qt-6/qtmodules.html#qt-extension-modules)
+*   [Tools and utilities](https://doc.qt.io/qt-6/qt-tools-utilities.html)
+
+Search
+
+*   [Qt 6.12](https://doc.qt.io/qt-6/index.html)
+*   [Qt Core](https://doc.qt.io/qt-6/qtcore-index.html)
+*   [C++ Classes](https://doc.qt.io/qt-6/qtcore-module.html)
+*   [QPropertyAnimation](https://doc.qt.io/qt-6/qpropertyanimation.html)
+
+On this page
+
+# QPropertyAnimation Class
+
+The QPropertyAnimation class animates Qt properties. [More...](https://doc.qt.io/qt-6/qpropertyanimation.html#details)
+
+Header:`#include <QPropertyAnimation>`
+CMake:`find_package(Qt6 REQUIRED COMPONENTS Core)`  
+`target_link_libraries(mytarget PRIVATE Qt6::Core)`
+qmake:`QT += core`
+Inherits:[QVariantAnimation](https://doc.qt.io/qt-6/qvariantanimation.html)
+
+*   [List of all members, including inherited members](https://doc.qt.io/qt-6/qpropertyanimation-members.html)
+*   QPropertyAnimation is part of [Animation Framework](https://doc.qt.io/qt-6/animation.html).
+
+## Properties[](https://doc.qt.io/qt-6/qpropertyanimation.html#properties "Direct link to this headline")
+
+*   **[propertyName](https://doc.qt.io/qt-6/qpropertyanimation.html#propertyName-prop)** : QByteArray
+*   **[targetObject](https://doc.qt.io/qt-6/qpropertyanimation.html#targetObject-prop)** : QObject*
+
+## Public Functions[](https://doc.qt.io/qt-6/qpropertyanimation.html#public-functions "Direct link to this headline")
+
+**[QPropertyAnimation](https://doc.qt.io/qt-6/qpropertyanimation.html#QPropertyAnimation)**(QObject *_parent_ = nullptr)
+**[QPropertyAnimation](https://doc.qt.io/qt-6/qpropertyanimation.html#QPropertyAnimation-2)**(QObject *_target_, const QByteArray &_propertyName_, QObject *_parent_ = nullptr)
+virtual**[~QPropertyAnimation](https://doc.qt.io/qt-6/qpropertyanimation.html#dtor.QPropertyAnimation)**()
+QBindable<QByteArray>**[bindablePropertyName](https://doc.qt.io/qt-6/qpropertyanimation.html#propertyName-prop)**()
+QBindable<QObject *>**[bindableTargetObject](https://doc.qt.io/qt-6/qpropertyanimation.html#targetObject-prop)**()
+QByteArray**[propertyName](https://doc.qt.io/qt-6/qpropertyanimation.html#propertyName-prop)**() const
+void**[setPropertyName](https://doc.qt.io/qt-6/qpropertyanimation.html#propertyName-prop)**(const QByteArray &_propertyName_)
+void**[setTargetObject](https://doc.qt.io/qt-6/qpropertyanimation.html#targetObject-prop)**(QObject *_target_)
+QObject ***[targetObject](https://doc.qt.io/qt-6/qpropertyanimation.html#targetObject-prop)**() const
+
+## Reimplemented Protected Functions[](https://doc.qt.io/qt-6/qpropertyanimation.html#reimplemented-protected-functions "Direct link to this headline")
+
+virtual bool**[event](https://doc.qt.io/qt-6/qpropertyanimation.html#event)**(QEvent *_event_) override
+virtual void**[updateCurrentValue](https://doc.qt.io/qt-6/qpropertyanimation.html#updateCurrentValue)**(const QVariant &_value_) override
+virtual void**[updateState](https://doc.qt.io/qt-6/qpropertyanimation.html#updateState)**(QAbstractAnimation::State _newState_, QAbstractAnimation::State _oldState_) override
+
+## Detailed Description[](https://doc.qt.io/qt-6/qpropertyanimation.html#details "Direct link to this headline")
+
+QPropertyAnimation interpolates over [Qt properties](https://doc.qt.io/qt-6/properties.html). As property values are stored in [QVariant](https://doc.qt.io/qt-6/qvariant.html)s, the class inherits [QVariantAnimation](https://doc.qt.io/qt-6/qvariantanimation.html), and supports animation of the same [meta types](https://doc.qt.io/qt-6/qmetatype.html#Type-enum) as its super class.
+
+A class declaring properties must be a [QObject](https://doc.qt.io/qt-6/qobject.html). To make it possible to animate a property, it must provide a setter (so that QPropertyAnimation can set the property's value). Note that this makes it possible to animate many of Qt's widgets. Let's look at an example:
+
+```
+#include <QApplication>
+#include <QPushButton>
+#include <QPropertyAnimation>
+
+class MyButtonWidget : public QWidget
+{
+public:
+    MyButtonWidget(QWidget *parent = nullptr);
+};
+
+MyButtonWidget::MyButtonWidget(QWidget *parent) : QWidget(parent)
+{
+    QPushButton *button = new QPushButton(tr("Animated Button"), this);
+    QPropertyAnimation *anim = new QPropertyAnimation(button, "pos", this);
+    anim->setDuration(10000);
+    anim->setStartValue(QPoint(0, 0));
+    anim->setEndValue(QPoint(100, 250));
+    anim->start();
+}
+
+int main(int argc, char *argv[])
+{
+    QApplication a(argc, argv);
+    MyButtonWidget buttonAnimWidget;
+    buttonAnimWidget.resize(QSize(800, 600));
+    buttonAnimWidget.show();
+    return a.exec();
+}
+```
+
+**Note:**You can also control an animation's lifespan by choosing a [delete policy](https://doc.qt.io/qt-6/qabstractanimation.html#DeletionPolicy-enum) while starting the animation.
+
+The property name and the [QObject](https://doc.qt.io/qt-6/qobject.html) instance of which property should be animated are passed to the constructor. You can then specify the start and end value of the property. The procedure is equal for properties in classes you have implemented yourself–just check with [QVariantAnimation](https://doc.qt.io/qt-6/qvariantanimation.html) that your [QVariant](https://doc.qt.io/qt-6/qvariant.html) type is supported.
+
+The [QVariantAnimation](https://doc.qt.io/qt-6/qvariantanimation.html) class description explains how to set up the animation in detail. Note, however, that if a start value is not set, the property will start at the value it had when the QPropertyAnimation instance was created.
+
+QPropertyAnimation works like a charm on its own. For complex animations that, for instance, contain several objects, [QAnimationGroup](https://doc.qt.io/qt-6/qanimationgroup.html) is provided. An animation group is an animation that can contain other animations, and that can manage when its animations are played. Look at [QParallelAnimationGroup](https://doc.qt.io/qt-6/qparallelanimationgroup.html) for an example.
+
+**See also**[QVariantAnimation](https://doc.qt.io/qt-6/qvariantanimation.html), [QAnimationGroup](https://doc.qt.io/qt-6/qanimationgroup.html), and [The Animation Framework](https://doc.qt.io/qt-6/animation-overview.html).
+
+## Property Documentation
+
+### `[bindable]`propertyName : [QByteArray](https://doc.qt.io/qt-6/qbytearray.html)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/corelib/animation/qpropertyanimation.h?h=6.12#n18 "View declaration of this property")[](https://doc.qt.io/qt-6/qpropertyanimation.html#propertyName-prop "Direct link to this headline")
+
+**Note:**This property supports [QProperty](https://doc.qt.io/qt-6/qproperty.html) bindings.
+
+This property holds the target property name for this animation
+
+This property defines the target property name for this animation. The property name is required for the animation to operate.
+
+**Access functions:**
+
+QByteArray**propertyName**() const
+void**setPropertyName**(const QByteArray &_propertyName_)
+
+### `[bindable]`targetObject : [QObject](https://doc.qt.io/qt-6/qobject.html)*[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/corelib/animation/qpropertyanimation.h?h=6.12#n20 "View declaration of this property")[](https://doc.qt.io/qt-6/qpropertyanimation.html#targetObject-prop "Direct link to this headline")
+
+**Note:**This property supports [QProperty](https://doc.qt.io/qt-6/qproperty.html) bindings.
+
+This property holds the target [QObject](https://doc.qt.io/qt-6/qobject.html) for this animation.
+
+This property defines the target [QObject](https://doc.qt.io/qt-6/qobject.html) for this animation.
+
+**Access functions:**
+
+QObject ***targetObject**() const
+void**setTargetObject**(QObject *_target_)
+
+## Member Function Documentation
+
+### QPropertyAnimation::QPropertyAnimation([QObject](https://doc.qt.io/qt-6/qobject.html) *_parent_ = nullptr)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/corelib/animation/qpropertyanimation.h?h=6.12#n24 "View declaration of this function")[](https://doc.qt.io/qt-6/qpropertyanimation.html#QPropertyAnimation "Direct link to this headline")
+
+Construct a QPropertyAnimation object. _parent_ is passed to [QObject](https://doc.qt.io/qt-6/qobject.html)'s constructor.
+
+### QPropertyAnimation::QPropertyAnimation([QObject](https://doc.qt.io/qt-6/qobject.html) *_target_, const [QByteArray](https://doc.qt.io/qt-6/qbytearray.html)&_propertyName_, [QObject](https://doc.qt.io/qt-6/qobject.html) *_parent_ = nullptr)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/corelib/animation/qpropertyanimation.h?h=6.12#n25 "View declaration of this function")[](https://doc.qt.io/qt-6/qpropertyanimation.html#QPropertyAnimation-2 "Direct link to this headline")
+
+Construct a QPropertyAnimation object. _parent_ is passed to [QObject](https://doc.qt.io/qt-6/qobject.html)'s constructor. The animation changes the property _propertyName_ on _target_. The default duration is 250ms.
+
+**See also**[targetObject](https://doc.qt.io/qt-6/qpropertyanimation.html#targetObject-prop) and [propertyName](https://doc.qt.io/qt-6/qpropertyanimation.html#propertyName-prop).
+
+### `[virtual noexcept]` QPropertyAnimation::~QPropertyAnimation()[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/corelib/animation/qpropertyanimation.h?h=6.12#n26 "View declaration of this function")[](https://doc.qt.io/qt-6/qpropertyanimation.html#dtor.QPropertyAnimation "Direct link to this headline")
+
+Destroys the [QPropertyAnimation](https://doc.qt.io/qt-6/qpropertyanimation.html) instance.
+
+### `[override virtual protected]`bool QPropertyAnimation::event([QEvent](https://doc.qt.io/qt-6/qevent.html) *_event_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/corelib/animation/qpropertyanimation.h?h=6.12#n37 "View declaration of this function")[](https://doc.qt.io/qt-6/qpropertyanimation.html#event "Direct link to this headline")
+
+Reimplements: [QVariantAnimation::event](https://doc.qt.io/qt-6/qvariantanimation.html#event)(QEvent *event).
+
+### `[override virtual protected]`void QPropertyAnimation::updateCurrentValue(const [QVariant](https://doc.qt.io/qt-6/qvariant.html)&_value_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/corelib/animation/qpropertyanimation.h?h=6.12#n38 "View declaration of this function")[](https://doc.qt.io/qt-6/qpropertyanimation.html#updateCurrentValue "Direct link to this headline")
+
+Reimplements: [QVariantAnimation::updateCurrentValue](https://doc.qt.io/qt-6/qvariantanimation.html#updateCurrentValue)(const QVariant &value).
+
+This virtual function is called by [QVariantAnimation](https://doc.qt.io/qt-6/qvariantanimation.html) whenever the current value changes. _value_ is the new, updated value. It updates the current value of the property on the target object, unless the animation is stopped.
+
+**See also**[currentValue](https://doc.qt.io/qt-6/qvariantanimation.html#currentValue-prop) and [currentTime](https://doc.qt.io/qt-6/qabstractanimation.html#currentTime-prop).
+
+### `[override virtual protected]`void QPropertyAnimation::updateState([QAbstractAnimation::State](https://doc.qt.io/qt-6/qabstractanimation.html#State-enum)_newState_, [QAbstractAnimation::State](https://doc.qt.io/qt-6/qabstractanimation.html#State-enum)_oldState_)[](https://code.qt.io/cgit/qt/qtbase.git/tree/src/corelib/animation/qpropertyanimation.h?h=6.12#n39 "View declaration of this function")[](https://doc.qt.io/qt-6/qpropertyanimation.html#updateState "Direct link to this headline")
+
+Reimplements: [QVariantAnimation::updateState](https://doc.qt.io/qt-6/qvariantanimation.html#updateState)(QAbstractAnimation::State newState, QAbstractAnimation::State oldState).
+
+If the [startValue](https://doc.qt.io/qt-6/qvariantanimation.html#startValue-prop) is not defined when the state of the animation changes from Stopped to Running, the current property value is used as the initial value for the animation.
+
+© 2026 The Qt Company Ltd. Documentation contributions included herein are the copyrights of their respective owners. The documentation provided herein is licensed under the terms of the [GNU Free Documentation License version 1.3](http://www.gnu.org/licenses/fdl.html) as published by the Free Software Foundation. Qt and respective logos are [trademarks](https://doc.qt.io/qt/trademarks.html) of The Qt Company Ltd. in Finland and/or other countries worldwide. All other trademarks are property of their respective owners.
+
+###### **Contents**
+
+*   [Properties](https://doc.qt.io/qt-6/qpropertyanimation.html#properties)
+
+*   [Public Functions](https://doc.qt.io/qt-6/qpropertyanimation.html#public-functions)
+
+*   [Reimplemented Protected Functions](https://doc.qt.io/qt-6/qpropertyanimation.html#reimplemented-protected-functions)
+
+*   [Detailed Description](https://doc.qt.io/qt-6/qpropertyanimation.html#details)
+
+[![Image 2](https://doc.qt.io/images/qtgroup.svg)](https://www.qt.io/?hsLang=en)
+
+[](https://twitter.com/qtproject)[](https://www.facebook.com/qt/)[](https://www.youtube.com/user/QtStudios)[](https://www.linkedin.com/company/qtgroup/)
+
+[Contact Us](https://www.qt.io/contact-us?hsLang=en)
+
+*   [Qt Group](javascript:;)
+    *   [Our Story](https://www.qt.io/group)
+    *   [Brand](https://www.qt.io/brand)
+    *   [News](https://www.qt.io/newsroom)
+    *   [Careers](https://www.qt.io/careers)
+    *   [Investors](https://www.qt.io/investors)
+    *   [Qt Products](https://www.qt.io/product)
+    *   [Software Quality Products](https://www.qt.io/product/quality-assurance)
+
+*   [Licensing](javascript:;)
+    *   [License Agreement](https://www.qt.io/terms-conditions)
+    *   [Open Source](https://www.qt.io/licensing/open-source-lgpl-obligations)
+    *   [Plans and pricing](https://www.qt.io/pricing)
+    *   [Download](https://www.qt.io/download)
+    *   [FAQ](https://www.qt.io/faq/overview)
+
+*   [Learn Qt](javascript:;)
+    *   [For Learners](https://www.qt.io/academy)
+    *   [For Students and Teachers](https://www.qt.io/qt-educational-license)
+    *   [Qt Documentation](https://doc.qt.io/)
+    *   [Qt Forum](https://forum.qt.io/)
+
+*   [Support & Services](javascript:;)
+    *   [Professional Services](https://www.qt.io/qt-professional-services)
+    *   [Customer Success](https://www.qt.io/customer-success)
+    *   [Support Services](https://www.qt.io/qt-support/)
+    *   [Partners](https://www.qt.io/contact-us/partners)
+    *   [Qt World](https://www.qt.io/qt-world)
+
+*   [© 2026 The Qt Company](javascript:;)
+*   [Feedback](mailto:feedback@qt.io?Subject=Feedback%20about%20doc.qt.io%20site)
+
+Qt Group includes The Qt Company Oy and its global subsidiaries and affiliates.
+
+[](https://doc.qt.io/qt-6/qpropertyanimation.html)
