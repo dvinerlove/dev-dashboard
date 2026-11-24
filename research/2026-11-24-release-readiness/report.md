@@ -195,3 +195,38 @@ env/фреймворков, next-free-port, safe-kill, v1.0-полировка.
 - Покрытие: `coverage.md` — все Q covered
 - Не проверено: реальный прогон на macOS/Linux; `npm run build` из чистого клона; поведение при readonly-FS
 - Стоп-критерий: coverage-complete (Q4 волна 1, локальные Q — live-доказаны)
+
+---
+
+## Раунд 2: исправления + критики (commits ee58a82 → a5be6f9)
+
+Все 6 must-fix блокеров закрыты и проверены live (exe в чистой папке,
+playwright-скриншот онбординга, `test_upgrades.py` ALL PASS, `npm run build`
+clean). Два независимых критика прогнали diff и чеклист: critic1 нашёл
+P1 (stop не убивал adopted-pid → сирота после рестарта) + 4 P2 + 9 P3;
+critic2 нашёл release-блокер (`.gitignore /*.txt` выкосил
+requirements.txt/version.txt → битый clone/CI). Все P1/P2 и дешёвые P3
+исправлены в a5be6f9; полные разборы — critic1.md / critic2.md.
+
+### Готово к релизу
+- Fresh-install: пустые конфиги, UI 200, данные в %LOCALAPPDATA%\DevDashboard
+  (или рядом при portable), никаких чужих сервисов/IP/путей
+- Репо-гигиена: git init, LICENSE MIT, README EN + config schema,
+  CONTRIBUTING/SECURITY/CHANGELOG, CI tag→pyinstaller→draft-release,
+  трекинг requirements/version, state.db/конфиги/логи вне индекса
+- Ядро: spawned-pid проба, api_port+fallback, single-instance обеих ОС,
+  clamp грязных settings, adopted-pid stop/delete, api.port маркер
+- Тесты: ALL PASS + изоляция через DEVDASH_DATA_DIR; i18n 366/366 ключей
+- exe 0.9.0.0 с version-info, upx=False
+
+### Не готово / оставлено владельцу
+- `OWNER/dev-dashboard` в README badge+links — заменить на реальный slug
+- Нет реального скриншота в README; нет подписи exe (SmartScreen-предупреждение
+  останется — норма для OSS, документировано в competitor-отчёте)
+- winget/scoop/автообновления — отложено (post-release)
+- macOS/Linux: POSIX-ветка только статически проверена, живого прогона нет —
+  README честно помечает «untested»
+- P3-хвосты (документированы в critic1.md): ctime=None при умершем процессе
+  слабее защищает от PID-reuse; i18n_check не видит динамические tr(var)
+- research/ (~150 файлов аудитов) оставлен в репо — решение владельца,
+  личных данных внутри нет
