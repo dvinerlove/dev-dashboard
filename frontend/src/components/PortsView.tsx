@@ -6,15 +6,18 @@ import {
   Globe,
   Network,
   OctagonX,
+  Plus,
   Search,
   Star,
 } from "lucide-react";
-import type { BgProc, PortRow } from "../lib/api";
-import { api } from "../lib/api";
+import type { AppSettings, BgProc, PortRow } from "../lib/api";
+import { api, candidateToSpec } from "../lib/api";
 import { useApp } from "../lib/ctx";
+import { useCached } from "../lib/store";
 import { useT } from "../lib/i18n";
 import { cn } from "../lib/utils";
-import { SectionTitle } from "./bits";
+import { SectionTitle, SkeletonRows } from "./bits";
+import { Button } from "./ui/button";
 import { Tip } from "./ui/tooltip";
 
 type Filter = "all" | "ours" | "db" | "dev" | "net" | "sys" | "other";
@@ -22,47 +25,52 @@ const FILTERS: { id: Filter; label: string }[] = [
   { id: "all", label: "ALL" },
   { id: "ours", label: "FILTER_OURS" },
   { id: "db", label: "FILTER_DB" },
-  { id: "dev", label: "Dev" },
+  { id: "dev", label: "FILTER_DEV" },
   { id: "net", label: "FILTER_NET" },
   { id: "sys", label: "FILTER_SYS" },
   { id: "other", label: "FILTER_OTHER" },
 ];
 
-const CAT_TINT: Record<string, string> = {
-  db: "text-(--status-amber) bg-(--status-amber)/12",
-  dev: "text-(--accent-text) bg-(--accent)/12",
-  net: "text-(--text-secondary) bg-(--border-hairline)",
-  sys: "text-(--text-muted) bg-(--border-hairline)",
-  other: "text-(--text-muted) bg-(--border-hairline)",
+// zombie reason → locale key (backend raw values, do not translate upstream)
+const ZOMBIE_WHY: Record<string, string> = {
+  cwd_missing: "ZOMBIE_CWD_MISSING",
+  parent_dead: "ZOMBIE_PARENT_DEAD",
+  aged: "ZOMBIE_AGED",
 };
 
 export function PortsView() {
   const app = useApp();
   const t = useT();
-  const [rows, setRows] = useState<PortRow[]>([]);
-  const [bg, setBg] = useState<BgProc[]>([]);
+  const [data, setData] = useCached<{ ports: PortRow[]; bg: BgProc[] }>(
+    "ports",
+  );
+  const [srv, setSrv] = useCached<AppSettings>("settings");
+  const rows = data?.ports ?? [];
+  const bg = data?.bg ?? [];
+  const mine = srv?.port_mine ?? [];
+  const hidden = srv?.port_hidden ?? [];
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
-  const [mine, setMine] = useState<string[]>([]);
-  const [hidden, setHidden] = useState<string[]>([]);
+  const [loaded, setLoaded] = useState(data !== null);
 
   useEffect(() => {
     let live = true;
     let inflight = false;
     const tick = () => {
-      if (inflight) return; // title-probes могут тянуть запрос >4с
+      if (inflight) return; // title probes can take >4s
       inflight = true;
       api
         .ports()
-        .then((r) => live && (setRows(r.ports), setBg(r.bg)))
+        .then(
+          (r) =>
+            live &&
+            (setData({ ports: r.ports, bg: r.bg }), setLoaded(true)),
+        )
         .catch(() => {})
         .finally(() => (inflight = false));
     };
     tick();
-    api.settings().then((s) => {
-      setMine(s.port_mine);
-      setHidden(s.port_hidden);
-    });
+    api.settings().then(setSrv);
     const id = setInterval(tick, 4000);
     return () => {
       live = false;
@@ -73,21 +81,41 @@ export function PortsView() {
   const tag = (proc: string, key: "port_mine" | "port_hidden", on: boolean) => {
     const src = key === "port_mine" ? mine : hidden;
     const next = on ? [...src, proc] : src.filter((x) => x !== proc);
-    api.saveSettings({ [key]: next }).then(() => {
-      if (key === "port_mine") setMine(next);
-      else setHidden(next);
-      api.ports().then((r) => { setRows(r.ports); setBg(r.bg); }).catch(() => {});
+    api.saveSettings({ [key]: next }).then((r) => {
+      if (r.ok) setSrv(r);
+      api
+        .ports()
+        .then((r) => setData({ ports: r.ports, bg: r.bg }))
+        .catch(() => {});
     });
   };
 
   const isOurs = (r: PortRow) => !!(r.owner || r.self || r.mine);
-  /** Аптайм процесса коротко: 5м / 7ч / 9д — «idle»-сервер видно сразу */
+  /** Short process uptime: 5m / 7h / 9d — an "idle" server is visible at once */
   const fmtAge = (s?: number) => {
     if (s == null) return "";
     if (s < 3600) return `${Math.max(1, Math.floor(s / 60))}${t("UNIT_MIN")}`;
     if (s < 86400) return `${Math.floor(s / 3600)}${t("UNIT_HOUR")}`;
     return `${Math.floor(s / 86400)}${t("UNIT_DAY")}`;
   };
+  /** foreign listener → "New service" dialog with a filled form;
+      exact prefill from service-candidates by pid, else the minimum from the row */
+  const promote = (r: PortRow) => {
+    api
+      .serviceCandidates()
+      .then((list) => {
+        const c = list.find((x) => x.pid === r.pid);
+        app.openDlg({
+          t: "service",
+          spec: c
+            ? candidateToSpec(c)
+            : { proc: r.proc, ports: [r.port], start: r.cmd },
+          isNew: true,  // promoted row is never an existing service
+        });
+      })
+      .catch(() => {});
+  };
+
   const ql = q.trim().toLowerCase();
   const list = rows.filter((r) => {
     if (r.hidden) return false;
@@ -138,12 +166,26 @@ export function PortsView() {
                 {t(f.label)}
               </button>
             ))}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-[11.5px]"
+              onClick={() => app.openDlg({ t: "killport" })}
+            >
+              {t("KILL_PORT")}
+            </Button>
           </div>
         }
       >
         {t("LISTENING_PORTS")}
       </SectionTitle>
-      <div className="overflow-hidden rounded-lg border border-(--border-hairline) bg-(--bg-surface)">
+      <div
+        className={cn(
+          "overflow-hidden",
+          (list.length > 0 || loaded) &&
+            "rounded-lg border border-(--border-hairline) bg-(--bg-surface)/40",
+        )}
+      >
         {list.map((r) => (
           <div
             key={`${r.port}-${r.pid}`}
@@ -167,6 +209,18 @@ export function PortsView() {
                 </Tip>
               )}
             </span>
+            {r.favicon && (
+              <img
+                key={r.favicon}
+                src={r.favicon}
+                alt=""
+                aria-hidden="true"
+                className="size-3.5 shrink-0 rounded-sm"
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                }}
+              />
+            )}
             <div className="min-w-0 w-[140px] shrink-0">
               <div
                 title={r.owner || (r.mine ? t("MINE_PROC", { proc: r.proc }) : r.proc)}
@@ -186,13 +240,24 @@ export function PortsView() {
               </div>
             </div>
             {!r.owner && !r.self && (
-              <span
-                className={cn(
-                  "shrink-0 rounded px-1.5 py-0.5 text-[10px]",
-                  CAT_TINT[r.cat],
-                )}
-              >
+              <span className="shrink-0 text-[10px] text-(--text-muted)">
                 {r.label}
+              </span>
+            )}
+            {r.zombie && (
+              <span
+                title={t(ZOMBIE_WHY[r.zombie] ?? "ZOMBIE")}
+                className="shrink-0 rounded bg-(--status-amber)/20 px-1.5 py-0.5 text-[10px] font-medium text-(--status-amber)"
+              >
+                {t("ZOMBIE")}
+              </span>
+            )}
+            {r.agent && (
+              <span
+                title={t("AGENT_LAUNCHED", { agent: r.agent })}
+                className="shrink-0 font-mono text-[10px] text-(--text-muted)"
+              >
+                {r.agent}
               </span>
             )}
             {(r.owner || r.self || r.mine || r.cat === "dev") &&
@@ -210,6 +275,16 @@ export function PortsView() {
             >
               {r.cmd}
             </div>
+            {!r.owner && !r.self && (
+              <Tip label={t("MAKE_SERVICE")}>
+                <button
+                  onClick={() => promote(r)}
+                  className="cursor-pointer rounded-md p-1 text-(--text-muted) opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:bg-(--accent)/15 hover:text-(--accent-text)"
+                >
+                  <Plus size={13} strokeWidth={1.75} />
+                </button>
+              </Tip>
+            )}
             {!r.self && (
               <Tip label={r.mine ? t("UNMARK_MINE") : t("MARK_AS_MINE")}>
                 <button
@@ -261,7 +336,7 @@ export function PortsView() {
             )}
           </div>
         ))}
-        {!list.length && (
+        {!list.length && loaded && (
           <div className="flex flex-col items-center gap-2 px-3.5 py-8">
             <Network size={18} strokeWidth={1.5} className="text-(--text-muted)" />
             <div className="text-[12px] text-(--text-muted)">
@@ -271,15 +346,16 @@ export function PortsView() {
             </div>
           </div>
         )}
+        {!list.length && !loaded && <SkeletonRows n={6} />}
       </div>
-      {/* dev-процессы без портов (node/python/bun…) — «забытые серверы»,
-          которые ничего не слушают, но едят RAM */}
+      {/* portless dev processes (node/python/bun…) — "forgotten servers"
+          that listen on nothing but eat RAM */}
       {bg.length > 0 && (
         <div className="mt-4">
           <div className="mb-1.5 px-0.5 text-[11px] text-(--text-muted)">
             {t("BG_DEV_PROCS", { n: bg.length })}
           </div>
-          <div className="overflow-hidden rounded-lg border border-(--border-hairline) bg-(--bg-surface)">
+          <div className="overflow-hidden rounded-lg border border-(--border-hairline) bg-(--bg-surface)/40">
             {bg.map((p) => (
               <div
                 key={p.pid}
@@ -308,10 +384,12 @@ export function PortsView() {
                         () =>
                           api.killPid(p.pid).then((r) => {
                             toast(r.msg || t("DONE"));
-                            api.ports().then((x) => {
-                              setRows(x.ports);
-                              setBg(x.bg);
-                            }).catch(() => {});
+                            api
+                              .ports()
+                              .then((x) =>
+                                setData({ ports: x.ports, bg: x.bg }),
+                              )
+                              .catch(() => {});
                           }),
                         true,
                       )

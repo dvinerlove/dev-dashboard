@@ -1,5 +1,5 @@
-// UI-настройки в localStorage (как dd-theme): читаются синхронно при
-// старте, меняются на вкладке «Настройки» и применяются сразу.
+// UI settings in localStorage (like dd-theme): read synchronously at
+// startup, changed on the "Settings" tab and applied at once.
 const K = "dd-ui-";
 
 export function uiSetting<T>(key: string, def: T): T {

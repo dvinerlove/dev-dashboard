@@ -17,11 +17,18 @@ import { Input } from "../ui/input";
 import { Switch } from "../ui/switch";
 import { toast } from "sonner";
 
-export function ProjectDialog({ spec }: { spec: ProjectSpec | null }) {
+export function ProjectDialog({
+  spec,
+  isNew,
+}: {
+  spec: ProjectSpec | null;
+  isNew?: boolean;
+}) {
   const app = useApp();
   const t = useT();
   const s = spec ?? {};
-  const oldName = s.name ?? "";
+  // scanned spec is new: name pre-fills the form, not the rename key
+  const oldName = spec && !isNew ? (s.name ?? "") : "";
   const [f, setF] = useState({
     name: s.name ?? "",
     cmd: s.cmd ?? "",
@@ -29,26 +36,30 @@ export function ProjectDialog({ spec }: { spec: ProjectSpec | null }) {
     url: s.url ?? "",
     autostart: !!s.autostart,
   });
+  const valid = !!(f.name.trim() && f.cmd.trim() && f.cwd.trim());
+  const save = () => {
+    const d: ProjectSpec = {
+      name: f.name.trim(),
+      cmd: f.cmd.trim(),
+      cwd: f.cwd.trim(),
+    };
+    if (f.url.trim()) d.url = f.url.trim();
+    if (f.autostart) d.autostart = true;
+    api.saveProject(oldName, d).then((r) => {
+      if (!r.ok) return toast(r.msg || t("ERROR"));
+      app.closeDlg();
+      refresh();
+    });
+  };
 
   return (
     <Dialog open onOpenChange={(v) => !v && app.closeDlg()}>
       <DialogContent
         className="max-w-md"
         onKeyDown={(e) => {
-          if (e.key === "Enter" && (e.target as HTMLElement).tagName === "INPUT" && f.name.trim() && f.cmd.trim() && f.cwd.trim()) {
+          if (e.key === "Enter" && !e.nativeEvent.isComposing && (e.target as HTMLElement).tagName === "INPUT" && valid) {
             e.preventDefault();
-            const d: ProjectSpec = {
-              name: f.name.trim(),
-              cmd: f.cmd.trim(),
-              cwd: f.cwd.trim(),
-            };
-            if (f.url.trim()) d.url = f.url.trim();
-            if (f.autostart) d.autostart = true;
-            api.saveProject(oldName, d).then((r) => {
-              if (!r.ok) return toast(r.msg || t("ERROR"));
-              app.closeDlg();
-              refresh();
-            });
+            save();
           }
         }}
       >
@@ -121,24 +132,7 @@ export function ProjectDialog({ spec }: { spec: ProjectSpec | null }) {
           <Button variant="ghost" size="sm" onClick={app.closeDlg}>
             {t("CANCEL")}
           </Button>
-          <Button
-            size="sm"
-            disabled={!f.name.trim() || !f.cmd.trim() || !f.cwd.trim()}
-            onClick={() => {
-              const d: ProjectSpec = {
-                name: f.name.trim(),
-                cmd: f.cmd.trim(),
-                cwd: f.cwd.trim(),
-              };
-              if (f.url.trim()) d.url = f.url.trim();
-              if (f.autostart) d.autostart = true;
-              api.saveProject(oldName, d).then((r) => {
-                if (!r.ok) return toast(r.msg || t("ERROR"));
-                app.closeDlg();
-                refresh();
-              });
-            }}
-          >
+          <Button size="sm" disabled={!valid} onClick={save}>
             {t("SAVE")}
           </Button>
         </DialogFooter>

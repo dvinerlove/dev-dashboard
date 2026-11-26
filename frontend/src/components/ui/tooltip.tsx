@@ -25,9 +25,9 @@ export function TooltipContent({
   );
 }
 
-/** Лаконичный тултип: <Tip label="..."><button/></Tip>
- *  Строковый label дополнительно становится aria-label триггера —
- *  icon-only кнопки получают доступное имя. */
+/** Minimal tooltip: <Tip label="..."><button/></Tip>
+ *  A string label also becomes the trigger's aria-label —
+ *  icon-only buttons get an accessible name. */
 export function Tip({
   label,
   children,
@@ -38,7 +38,7 @@ export function Tip({
   side?: "top" | "bottom" | "left" | "right";
 }) {
   const el = React.isValidElement(children) ? children : null;
-  // aria-label ставим только icon-only триггерам — иначе затрём видимый текст (WCAG 2.5.3)
+  // aria-label goes only on icon-only triggers — otherwise we clobber visible text (WCAG 2.5.3)
   const hasText =
     el &&
     React.Children.toArray(
@@ -50,8 +50,8 @@ export function Tip({
           "aria-label": label,
         } as Record<string, string>)
       : children;
-  // Tooltip.Root рендерим всегда — иначе label↔null меняет тип узла,
-  // React пересоздаёт триггер и убивает CSS-переходы внутри него
+  // Tooltip.Root always renders — otherwise the label↔null switch changes the node type,
+  // React recreates the trigger and kills CSS transitions inside it
   return (
     <Tooltip>
       <TooltipTrigger asChild>{trigger}</TooltipTrigger>

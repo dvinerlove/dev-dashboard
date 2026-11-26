@@ -60,3 +60,9 @@ research/**/raw/
 
 # bound api port marker (lives in DATA_DIR)
 api.port
+
+# --- WebView2 runtime data (dev-mode window profile) ---
+webview/
+
+# --- One-off config backups ---
+*.backup-*

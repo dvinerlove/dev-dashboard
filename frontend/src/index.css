@@ -44,8 +44,8 @@
   --elev-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.55);
 }
 
-/* Консоль — фосфорный терминал: моноширинная типографика, острые углы,
-   инспектор-док снизу, рейл иконок слева (задаётся в App/Sidebar) */
+/* Console — phosphor terminal: monospace type, sharp corners,
+   inspector dock at the bottom, icon rail on the left (set in App/Sidebar) */
 :root[data-theme="console"] {
   color-scheme: dark;
   --bg-base: #050905;
@@ -77,8 +77,8 @@
   --radius-xl: 4px;
 }
 
-/* Бумага — светлая «блокнотная» тема: тёплый фон, реальные рамки,
-   глубина мягкими тенями вместо свечения */
+/* Paper — light "notebook" theme: warm background, real borders,
+   depth via soft shadows instead of glow */
 :root[data-theme="paper"] {
   color-scheme: light;
   --bg-base: #EDEBE5;
@@ -110,13 +110,13 @@
   --radius-xl: 16px;
 }
 
-/* бумажная тема чуть просторнее по типографике */
+/* the paper theme is a bit roomier typographically */
 :root[data-theme="paper"] body {
   font-size: 13.5px;
 }
 
-/* Бумага дарк 1 — тёмная версия «бумаги»: те же тёплые тауп-нейтралы
-   (не инверсия светлой рампы), индиго-акцент осветлён под тёмный фон */
+/* Paper dark 1 — dark version of "paper": same warm taupe neutrals
+   (not an inversion of the light ramp), indigo accent lightened for dark bg */
 :root[data-theme="paperdark1"] {
   color-scheme: dark;
   --bg-base: #171512;
@@ -151,7 +151,7 @@
   font-size: 13.5px;
 }
 
-/* Бумага дарк 2 — эспрессо: глубже и контрастнее, та же тёплая гамма */
+/* Paper dark 2 — espresso: deeper and higher-contrast, same warm palette */
 :root[data-theme="paperdark2"] {
   color-scheme: dark;
   --bg-base: #100E0B;
@@ -186,8 +186,8 @@
   font-size: 13.5px;
 }
 
-/* Ретро — Windows 95: серый фон, Tahoma, нулевые радиусы,
-   тёмно-синий акцент, жёсткие тени вместо свечения */
+/* Retro — Windows 95: gray background, Tahoma, zero radii,
+   navy accent, hard shadows instead of glow */
 :root[data-theme="retro"] {
   color-scheme: light;
   --bg-base: #C0C0C0;
@@ -237,56 +237,65 @@ body {
   background: var(--bg-base);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
-  touch-action: manipulation;               /* без 300ms-задержки dbl-tap zoom */
-  -webkit-tap-highlight-color: transparent; /* без серого флеша по тапу */
+  touch-action: manipulation;               /* no 300ms dbl-tap zoom delay */
+  -webkit-tap-highlight-color: transparent; /* no gray flash on tap */
 }
 
-/* в консольной теме весь интерфейс — моноширинный, как терминал */
+/* in the console theme the whole UI is monospace, like a terminal */
 :root[data-theme="console"] body {
   font-family: "Geist Mono", "Cascadia Code", monospace;
   font-size: 12.5px;
 }
 
-/* текст выделяется по умолчанию; select-none только там, где выделение мешает */
+/* text is selectable by default; select-none only where selection gets in the way */
 button, nav, label, [data-slot="switch"], [cmdk-item] { user-select: none; }
 
-.font-mono, code, pre {
+.font-mono, code, pre, .kbd {
   font-family: "Geist Mono", "JetBrains Mono", "Cascadia Code", "Cascadia Mono", monospace;
   font-variant-numeric: tabular-nums;
 }
 
 .tnum { font-variant-numeric: tabular-nums; }
 
-/* длинные списки логов: браузер пропускает offscreen-рендер */
+/* long log lists: the browser skips offscreen rendering */
+/* app logo: svg as mask — color follows currentColor, so it adapts
+   to every theme automatically (light theme → dark icon) */
+.app-icon {
+  display: inline-block;
+  aspect-ratio: 22 / 24;
+  background-color: currentColor;
+  -webkit-mask: url(/icon.svg) center / contain no-repeat;
+  mask: url(/icon.svg) center / contain no-repeat;
+}
+
 .cv-auto { content-visibility: auto; contain-intrinsic-size: auto 18px; }
 
-/* единая кривая и длительность — snappy, как в Linear */
+/* single curve and duration — snappy, Linear-style */
 *, *::before, *::after {
   transition-duration: 140ms;
   transition-timing-function: var(--ease-out);
 }
 
-/* kbd в стиле Raycast: моноширинный, тонкий бордер, верхний блик */
+/* kbd Raycast-style: monospace, thin border, top highlight */
 .kbd {
   display: inline-flex;
   align-items: center;
   border: 1px solid var(--border-hairline);
-  border-radius: 4px;
+  border-radius: var(--radius-sm, 4px);
   background: var(--bg-canvas);
   padding: 0 5px;
-  font-family: "JetBrains Mono", "Cascadia Code", monospace;
   font-size: 10.5px;
   line-height: 1.52;
   color: var(--text-muted);
   box-shadow: inset 0 1px 0 var(--inset-hl);
 }
 
-/* едва заметный верхний световой край поверхностей (Linear/Raycast depth) */
+/* barely visible top light edge on surfaces (Linear/Raycast depth) */
 .elev {
   box-shadow: inset 0 1px 0 var(--inset-hl), var(--elev-shadow);
 }
 
-/* тонкие полупрозрачные скроллбары */
+/* thin translucent scrollbars */
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--scroll) transparent;
@@ -294,23 +303,22 @@ button, nav, label, [data-slot="switch"], [cmdk-item] { user-select: none; }
 *::-webkit-scrollbar { width: 6px; height: 6px; }
 *::-webkit-scrollbar-thumb {
   background: var(--scroll);
-  border-radius: 3px;
+  border-radius: var(--radius-sm, 3px);
 }
 *::-webkit-scrollbar-thumb:hover { background: var(--scroll-hover); }
 *::-webkit-scrollbar-track { background: transparent; }
 
-/* скролл не сдвигает контент */
+/* scrollbars do not shift content */
 main, .scroll-stable { scrollbar-gutter: stable; }
 
-/* чёткий клавиатурный фокус, без мышиных рамок;
-   не рисуем второй индикатор там, где контрол задал свой */
+/* crisp keyboard focus, no mouse outlines;
+   do not draw a second indicator where the control sets its own */
 :focus-visible:not(.outline-none) {
   outline: 1px solid var(--accent);
   outline-offset: 1px;
-  border-radius: 4px;
 }
 
-/* логи можно выделять */
+/* logs are selectable */
 .selectable { user-select: text; }
 
 @media (prefers-reduced-motion: reduce) {
@@ -323,27 +331,27 @@ main, .scroll-stable { scrollbar-gutter: stable; }
 /* cmdk */
 [cmdk-root] { width: 100%; }
 [cmdk-item][data-selected="true"] { background: var(--bg-hover); color: var(--text-primary); }
-/* список палитры: тонкий скроллбар без системных стрелок WebView2 */
+/* palette list: thin scrollbar without the WebView2 system arrows */
 [cmdk-list] { scrollbar-width: thin; scrollbar-color: var(--scroll) transparent; }
 [cmdk-list]::-webkit-scrollbar { width: 6px; }
-[cmdk-list]::-webkit-scrollbar-thumb { background: var(--scroll); border-radius: 3px; }
+[cmdk-list]::-webkit-scrollbar-thumb { background: var(--scroll); border-radius: var(--radius-sm, 3px); }
 [cmdk-list]::-webkit-scrollbar-track, [cmdk-list]::-webkit-scrollbar-button { background: transparent; width: 0; height: 0; }
 
-/* layout-свойства не анимируем: drag resizer и popper-позиционирование — мгновенно */
+/* no layout-property animation: drag resizer and popper positioning are instant */
 [data-panel], [data-radix-popper-content-wrapper] { transition-property: none; }
 
-/* короткий fade для overlay-слоёв (диалоги) */
+/* short fade for overlay layers (dialogs) */
 @keyframes overlay-in { from { opacity: 0; } }
 
-/* скрим диалога: dim + blur «приезжают» вместе — материал, а не fade.
-   Стационарные значения — классами на оверлее (blur 14px / saturate 150%) */
+/* dialog scrim: dim + blur arrive together — material, not a fade.
+   Static values are classes on the overlay (blur 14px / saturate 150%) */
 @keyframes scrim-in {
   from { opacity: 0; backdrop-filter: blur(0px) saturate(100%); }
 }
 @keyframes scrim-out {
   to { opacity: 0; backdrop-filter: blur(0px) saturate(100%); }
 }
-/* контент диалога: лёгкая материализация scale+fade (translate — классами) */
+/* dialog content: light scale+fade materialization (translate via classes) */
 @keyframes dialog-in {
   from { opacity: 0; scale: 0.97; }
 }

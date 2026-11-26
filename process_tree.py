@@ -1,17 +1,17 @@
-"""Убийство дерева процессов: Windows Job Objects / POSIX process groups.
+"""Killing a process tree: Windows Job Objects / POSIX process groups.
 
-Windows — Job с KILL_ON_JOB_CLOSE: пока дашборд держит хендл открытым, можно
-TerminateJobObject() (мгновенное убийство всего дерева). При аварийном
-закрытии процесса дашборда хендлы падают — деревья тоже умирают (нет
-сирот). При штатном выходе перед close() зовём disarm(), иначе сервисы
-погибнут вместе с дашбордом.
+Windows — a Job with KILL_ON_JOB_CLOSE: while the dashboard holds the
+handle open, TerminateJobObject() kills the whole tree instantly. On an
+abrupt dashboard shutdown the handles drop — the trees die too (no
+orphans). On clean exit we call disarm() before close(), otherwise the
+services die together with the dashboard.
 
-POSIX — start_new_session + killpg(SIGKILL): порождённый процесс — лидер
-группы, дети наследуют pgid. disarm() — no-op: на POSIX дети и так
-переживают родителя.
-shortcut: на POSIX при аварийном падении дашборда дерево НЕ умирает —
-на macOS нет ядерного аналога KILL_ON_JOB_CLOSE (на Linux был бы cgroup).
-Сироты добираются на следующем старте через pids_on_port/kill_proc_tree.
+POSIX — start_new_session + killpg(SIGKILL): the spawned process is the
+group leader, children inherit the pgid. disarm() is a no-op: on POSIX
+children outlive the parent anyway.
+shortcut: on POSIX an abrupt dashboard crash does NOT kill the tree —
+macOS has no kernel equivalent of KILL_ON_JOB_CLOSE (Linux would have
+cgroups). Orphans are picked up on next start via pids_on_port/kill_proc_tree.
 """
 import subprocess
 import sys
@@ -39,12 +39,12 @@ if pi.IS_WIN:
 
     JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x2000
     _JobObjectExtendedLimitInformation = 9
-    CREATE_SUSPENDED = 0x00000004  # winbase.h; в subprocess константы нет
+    CREATE_SUSPENDED = 0x00000004  # winbase.h; subprocess has no constant
 
 
     class _BasicLimit(ctypes.Structure):
-        # LARGE_INTEGER = int64; SIZE_T/ULONG_PTR — machine-word (ctypes сам
-        # выровняет под 8 байт на x64 и 4 на x86).
+        # LARGE_INTEGER = int64; SIZE_T/ULONG_PTR are machine-word (ctypes
+        # aligns to 8 bytes on x64 and 4 on x86).
         _fields_ = [
             ("PerProcessUserTimeLimit", ctypes.c_int64),
             ("PerJobUserTimeLimit", ctypes.c_int64),
@@ -84,7 +84,7 @@ if pi.IS_WIN:
 
 
     class Job:
-        """Один Job Object на один запуск сервиса/проекта."""
+        """One Job Object per service/project launch."""
 
         def __init__(self):
             self.h = _k32.CreateJobObjectW(None, None)
@@ -99,8 +99,8 @@ if pi.IS_WIN:
                 raise
 
         def assign(self, proc):
-            """Назначить Popen в job по его process-handle. False при отказе
-            (ERROR_ACCESS_DENIED — дашборд сам в чужом Job без BREAKAWAY)."""
+            """Assign a Popen to the job via its process handle. False on refusal
+            (ERROR_ACCESS_DENIED — dashboard itself is in a foreign Job without BREAKAWAY)."""
             if not self.h:
                 return False
             return bool(_k32.AssignProcessToJobObject(
@@ -111,8 +111,8 @@ if pi.IS_WIN:
                 _k32.TerminateJobObject(self.h, code)
 
         def disarm(self):
-            """Снять KILL_ON_JOB_CLOSE: штатный выход дашборда оставляет
-            процессы жить."""
+            """Clear KILL_ON_JOB_CLOSE: a clean dashboard exit leaves
+            the processes running."""
             if self.h:
                 _set_limit(self.h, 0)
 
@@ -123,14 +123,14 @@ if pi.IS_WIN:
 
 
     def popen_in_job(args, *, job=None, **kw):
-        """Popen под Job Object без гонки: CREATE_SUSPENDED → assign → resume.
-        Возвращает (proc, job|None). Если job не передан — создаётся новый;
-        при отказе назначения возвращает None вместо job."""
+        """Popen under a Job Object without a race: CREATE_SUSPENDED → assign → resume.
+        Returns (proc, job|None). If job is not given a new one is created;
+        on assignment refusal returns None instead of job."""
         kw["creationflags"] = kw.get("creationflags", 0) | CREATE_SUSPENDED
         try:
             proc = subprocess.Popen(args, **kw)
         except Exception:
-            if job:  # чужой job — закрыть, чтоб не утёк хендл
+            if job:  # foreign job — close it so the handle does not leak
                 job.disarm()
                 job.close()
             raise
@@ -140,7 +140,7 @@ if pi.IS_WIN:
             ok = job.assign(proc)
         except Exception:
             ok = False
-        try:  # процесс может умереть до resume — не роняем вызов
+        try:  # the process may die before resume — do not crash the call
             psutil.Process(proc.pid).resume()
         except psutil.Error:
             pass
@@ -156,11 +156,11 @@ else:
 
 
     class Job:
-        """POSIX-аналог: держит pgid лидера группы процессов.
+        """POSIX analog: holds the pgid of the process group leader.
 
-        Тот же контракт, что у Win32-Job: assign/terminate/disarm/close.
-        Порождённый с start_new_session процесс — лидер группы (pid==pgid),
-        дети наследуют группу → killpg добивает дерево."""
+        Same contract as the Win32 Job: assign/terminate/disarm/close.
+        A process spawned with start_new_session is the group leader (pid==pgid),
+        children inherit the group → killpg finishes the tree."""
 
         def __init__(self):
             self.pgid = None
@@ -176,7 +176,7 @@ else:
                 except (ProcessLookupError, PermissionError, OSError):
                     pass
 
-        def disarm(self):  # дети POSIX и без того переживают родителя
+        def disarm(self):  # POSIX children outlive the parent anyway
             pass
 
         def close(self):
@@ -184,10 +184,10 @@ else:
 
 
     def popen_in_job(args, *, job=None, **kw):
-        """Popen в своей сессии → killpg добивает всё дерево.
-        Та же сигнатура (proc, job), что и Windows-версия."""
-        kw.pop("creationflags", None)  # аргумент Windows-only, на POSIX игнор,
-        kw["start_new_session"] = True  # но убираем явно ради ясности
+        """Popen in its own session → killpg finishes the whole tree.
+        Same (proc, job) signature as the Windows version."""
+        kw.pop("creationflags", None)  # Windows-only arg, ignored on POSIX
+        kw["start_new_session"] = True  # but remove it explicitly for clarity
         proc = subprocess.Popen(args, **kw)
         if job is None:
             job = Job()

@@ -31,9 +31,14 @@ function ArRow({ row }: { row: AutorunRow }) {
       <div className="min-w-0 flex-1">
         <div
           title={row.name}
-          className="truncate text-[13px] font-medium text-(--text-primary)"
+          className="flex items-center gap-1.5 truncate text-[13px] font-medium text-(--text-primary)"
         >
           {row.name}
+          {row.self && (
+            <span className="shrink-0 text-[10px] font-medium text-(--text-muted)">
+              {t("THIS_APP")}
+            </span>
+          )}
         </div>
         <div
           title={row.sub}
@@ -43,38 +48,41 @@ function ArRow({ row }: { row: AutorunRow }) {
         </div>
       </div>
       <span
+        title={row.metrics}
         className={cn(
-          "w-[90px] shrink-0 text-right text-[11.5px]",
+          "w-[90px] shrink-0 truncate text-right text-[11.5px]",
           row.failed ? "text-(--status-amber)" : "text-(--text-muted)",
         )}
       >
         {row.metrics}
       </span>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label={t("ACTIONS")}
-            className="opacity-60 group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
-          >
-            <MoreHorizontal size={14} strokeWidth={1.75} />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem
-            onSelect={() => app.editAutorun(row.name, row.sub, row.mine)}
-          >
-            <Pencil size={14} strokeWidth={1.75} /> {t("EDIT_ENTRY")}
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            className="text-(--status-red) data-[highlighted]:bg-(--bg-hover) data-[highlighted]:text-(--status-red)"
-            onSelect={() => app.deleteAutorun(row.name)}
-          >
-            <Trash2 size={14} strokeWidth={1.75} /> {t("REMOVE_FROM_AUTORUN")}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      {!row.self && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={t("ACTIONS")}
+              className="opacity-60 group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
+            >
+              <MoreHorizontal size={14} strokeWidth={1.75} />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              onSelect={() => app.editAutorun(row.name, row.sub, row.mine)}
+            >
+              <Pencil size={14} strokeWidth={1.75} /> {t("EDIT_ENTRY")}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="text-(--status-red) data-[highlighted]:bg-(--bg-hover) data-[highlighted]:text-(--status-red)"
+              onSelect={() => app.deleteAutorun(row.name)}
+            >
+              <Trash2 size={14} strokeWidth={1.75} /> {t("REMOVE_FROM_AUTORUN")}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
     </div>
   );
 }

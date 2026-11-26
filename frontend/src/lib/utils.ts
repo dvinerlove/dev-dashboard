@@ -5,7 +5,7 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-/** Управление окном pywebview (кастомная рамка). В браузере — тихий no-op. */
+/** pywebview window control (custom frame). In a browser — quiet no-op. */
 export function winCtl(
   m: "window_minimize" | "window_toggle_maximize" | "window_close"
      | "window_drag_start",

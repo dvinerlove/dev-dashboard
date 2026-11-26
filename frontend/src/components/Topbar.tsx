@@ -1,10 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  Activity,
   Minus,
   PanelRight,
-  Play,
-  Plus,
   Search,
   Square,
   X,
@@ -14,26 +11,20 @@ import { useT } from "../lib/i18n";
 import { useDash } from "../lib/store";
 import { cn, winCtl } from "../lib/utils";
 import { Button } from "./ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "./ui/dropdown";
 import { Tip } from "./ui/tooltip";
 
-/** mousedown дальше не идёт — иначе кнопки внутри шапки
- *  тоже начинали бы перетаскивание окна */
+/** stop mousedown here — otherwise buttons inside the topbar
+ *  would also start dragging the window */
 const noDrag = (e: React.MouseEvent) => e.stopPropagation();
 
-/** ЛКМ на шапке → нативный move-loop Windows (один вызов, без лагов
- *  .pywebview-drag-region). detail>1 — это даблклик → maximize, не drag. */
+/** LMB on the topbar → native Windows move loop (one call, no
+ *  .pywebview-drag-region lag). detail>1 is a double click → maximize, not drag. */
 const startDrag = (e: React.MouseEvent) => {
   if (e.button === 0 && e.detail < 2) winCtl("window_drag_start")();
 };
 
-/** Даблклик по шапке → maximize, но не сквозь кнопки: dblclick
- *  всплывает, без гейта даблклик по любой кнопке разворачивал окно */
+/** Double click on the topbar → maximize, but not through buttons: dblclick
+ *  bubbles; without the gate a double click on any button would maximize */
 const dblMax = (e: React.MouseEvent) => {
   if (!(e.target as HTMLElement).closest("button, a, input, [role=button]")) {
     winCtl("window_toggle_maximize")();
@@ -48,10 +39,10 @@ export function Topbar() {
   const problems = st?.problems.length ?? 0;
   const bad = problems > 0;
 
-  // поиск строго по центру окна: absolute + измеренная ширина свободного
-  // места между крайними блоками (ResizeObserver ловит и ресайз, и
-  // схлопывания заголовка/статуса) → центр точный, налезть не может,
-  // а transition-[width] превращает смену ширины в плавный дрейф
+  // search strictly centered in the window: absolute + measured free space
+  // between the edge blocks (ResizeObserver catches both resizes and
+  // title/status collapses) → the center is exact, cannot overlap,
+  // and transition-[width] turns width changes into a smooth drift
   const leftRef = useRef<HTMLDivElement>(null);
   const rightRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLButtonElement>(null);
@@ -69,14 +60,14 @@ export function Topbar() {
       const f = Math.max(0, half * 2 - 16);
       const w = Math.min(340, f);
       const wEff = f < 92 ? Math.min(32, f) : w;
-      // кнопка хочет центр, но уходит в свободный зазор, если соседи
-      // пересекают его во время своих схлопываний — наезжать нельзя
+      // the button wants the center but moves into a free gap when neighbors
+      // cross it during their own collapses — overlapping is not allowed
       const lo = l.right + 8;
       const hi = r.left - 8 - wEff;
       const x = Math.min(Math.max(cx - wEff / 2, lo), Math.max(hi, lo));
       const hide = wEff < 40;
-      // сжатие/эвакуация — мгновенно (transition дал бы наезд на кадры);
-      // расширение и возврат к центру — плавно
+      // collapse/evacuation — instant (a transition would smear across frames);
+      // expand and return to center — smooth
       btn.style.transitionProperty = f < lastF.cur ? "none" : "";
       lastF.cur = f;
       btn.style.width = `${wEff}px`;
@@ -85,8 +76,8 @@ export function Topbar() {
       btn.style.pointerEvents = hide ? "none" : "";
       setFree(f);
     };
-    // RO на блоках ловит контентные изменения (схлопывания, бейджи);
-    // при ресайзе окна размеры те же — позиции сдвигаются, нужен resize
+    // RO on the blocks catches content changes (collapses, badges);
+    // on window resize the sizes are the same — positions shift, need resize
     const ro = new ResizeObserver(measure);
     for (const e of [leftRef.current, rightRef.current]) {
       if (e) ro.observe(e);
@@ -99,7 +90,7 @@ export function Topbar() {
     };
   }, []);
   const searchW = Math.min(340, free);
-  // три режима: пилл с текстом / пилл с kbd / голая иконка (крайний случай)
+  // three modes: text pill / kbd pill / bare icon (edge case)
   const mode = searchW >= 190 ? "full" : searchW >= 92 ? "kbd" : "icon";
   const effW = mode === "icon" ? 32 : searchW;
 
@@ -115,20 +106,15 @@ export function Topbar() {
         ref={leftRef}
         className="flex items-center gap-2 whitespace-nowrap"
       >
-        <Activity size={15} strokeWidth={1.75} className="text-(--accent)" />
-        {/* заголовок схлопывается плавно (max-w→0 + компенсация gap) —
-            иначе display:none дёргало бы поиск мгновенно */}
-        <div className="flex max-w-[260px] items-center gap-2 overflow-hidden whitespace-nowrap opacity-100 transition-[max-width,opacity,margin] max-[1150px]:-mr-2 max-[1150px]:max-w-0 max-[1150px]:opacity-0">
-          <h1 className="text-[13px] text-(--text-muted)">Dev Dashboard</h1>
-          <span className="text-[13px] text-(--text-muted)">/</span>
-        </div>
-        <span className="text-[13px] font-medium text-(--text-primary)">
-          {t(SECTION_TITLES[app.section])}
-        </span>
+        <span
+          aria-hidden
+          className="app-icon h-4 select-none opacity-70 text-(--text-primary)"
+        />
+        <h1 className="sr-only">{t(SECTION_TITLES[app.section])}</h1>
       </div>
 
-      {/* поиск → Command Palette: строго по центру, ширина = свободное
-          место (измерено), при тесноте сворачивается в иконку */}
+      {/* search → Command Palette: strictly centered, width = measured free
+          space, collapses to an icon when tight */}
       <button
         ref={searchRef}
         onClick={() => app.setPalette(true)}
@@ -154,7 +140,7 @@ export function Topbar() {
         onMouseDown={noDrag}
         className="ml-auto flex items-center gap-1.5"
       >
-        {/* живой статус */}
+        {/* live status */}
         <button
           onClick={() => app.setSection("events")}
           className="flex h-7 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-md border border-(--border-hairline) bg-(--bg-surface) px-2.5 text-[12px] text-(--text-secondary) transition-colors hover:border-(--border-strong)"
@@ -180,46 +166,6 @@ export function Topbar() {
           )}
         </button>
 
-        <Tip label={t("START_ALL")}>
-          <Button variant="ghost" size="icon" onClick={app.startAll}>
-            <Play size={15} strokeWidth={1.75} />
-          </Button>
-        </Tip>
-        <Tip label={t("STOP_ALL")}>
-          <Button variant="ghost" size="icon" onClick={app.stopAll}>
-            <Square size={15} strokeWidth={1.75} />
-          </Button>
-        </Tip>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="secondary"
-              size="sm"
-              className="h-7"
-              aria-label={t("ADD")}
-            >
-              <Plus size={14} strokeWidth={1.75} />
-              <span className="max-w-[80px] overflow-hidden whitespace-nowrap transition-[max-width,opacity,margin] max-[1150px]:-mr-1.5 max-[1150px]:max-w-0 max-[1150px]:opacity-0">
-                {t("ADD")}
-              </span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onSelect={() => app.openDlg({ t: "service", spec: null })}>
-              {t("NEW_SERVICE")}
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => app.openDlg({ t: "project", spec: null })}>
-              {t("NEW_PROJECT")}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onSelect={() => app.openDlg({ t: "autorun", name: "", cmd: "" })}
-            >
-              {t("NEW_AUTORUN_ENTRY")}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
         <Tip label={t("INSPECTOR_CTRL_I")}>
           <Button
             variant="ghost"
@@ -231,8 +177,8 @@ export function Topbar() {
           </Button>
         </Tip>
 
-        {/* кнопки окна: — □ × (× = в трей). Только Windows-кастомная
-            рамка: на macOS нативный chrome, в веб-режиме — браузер */}
+        {/* window buttons: — □ × (× = to tray). Windows custom frame only:
+            macOS has native chrome, web mode has the browser */}
         {st?.platform === "windows" && (
           <>
             <div className="mx-1 h-4 w-px bg-(--border-strong)" />

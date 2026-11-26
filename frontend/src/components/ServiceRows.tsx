@@ -64,7 +64,7 @@ function ServiceRowItem({
         <StatusDot state={row.state} warn={row.warn} />
       )}
 
-      {/* имя + описание */}
+      {/* name + description */}
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
           <button
@@ -96,7 +96,7 @@ function ServiceRowItem({
             </span>
           ) : row.failed && row.reason ? (
             <span className="text-(--status-red)">
-              {row.reason === "circuit_open" ? t("CRASH_LOOP") : row.reason}
+              {row.reasonKey === "circuit_open" ? t("CRASH_LOOP") : row.reason}
             </span>
           ) : (
             row.sub || row.pillText
@@ -104,7 +104,7 @@ function ServiceRowItem({
         </div>
       </div>
 
-      {/* порт / ip */}
+      {/* port / ip */}
       <div className="flex w-[130px] shrink items-center justify-end gap-1.5">
         {row.envWarn && <WarnBadge text={row.envWarn} />}
         {row.warn && !row.envWarn && (
@@ -115,20 +115,33 @@ function ServiceRowItem({
         )}
       </div>
 
-      {/* метрики — на узком окне прячем, имя важнее */}
-      <div className="w-[120px] shrink-0 text-right font-mono text-[12px] text-(--text-secondary) max-[1100px]:hidden">
+      {/* metrics — hidden on narrow windows, the name matters more */}
+      <div className="flex w-[120px] shrink-0 items-center justify-end gap-1.5 text-right font-mono text-[12px] text-(--text-secondary) max-[1100px]:hidden">
+        {!!row.ms_hist && row.ms_hist.length >= 2 && (
+          <span title={`~${row.ms_hist[row.ms_hist.length - 1]} ms`}>
+            <MsSpark data={row.ms_hist} />
+          </span>
+        )}
+        {row.uptime != null && (
+          <span
+            className="shrink-0 text-[10.5px] text-(--text-muted)"
+            title={t("UPTIME")}
+          >
+            {row.uptime.toFixed(1)}%
+          </span>
+        )}
         {row.m ? (
-          <span>
-            {row.m.mb} MB{row.m.up ? ` · ${row.m.up}` : ""}
+          <span className="min-w-0 truncate">
+            {Math.round(row.m.cpu)}% · {row.m.mb} MB
           </span>
         ) : (
-          <span className="text-(--text-muted)">
+          <span className="min-w-0 truncate text-(--text-muted)">
             {row.warn ? "" : row.metrics || ""}
           </span>
         )}
       </div>
 
-      {/* действия */}
+      {/* actions */}
       <div className="flex w-[88px] shrink-0 items-center justify-end gap-0.5">
         {!row.monitor && (
           <>
@@ -143,7 +156,7 @@ function ServiceRowItem({
                     app.svcToggle(row.name, remote);
                   }}
                 >
-                  <Square size={14} strokeWidth={1.75} fill="currentColor" />
+                  <Square size={14} strokeWidth={1.75} />
                 </Button>
               </Tip>
             ) : (
@@ -248,6 +261,30 @@ function ServiceRowItem({
         </DropdownMenu>
       </div>
     </div>
+  );
+}
+
+/** tiny latency sparkline for http/tcp remotes (ms_hist = last probe ms) */
+function MsSpark({ data }: { data: number[] }) {
+  const w = 30;
+  const h = 12;
+  const max = Math.max(...data, 1);
+  const pts = data
+    .map(
+      (v, i) =>
+        `${(i / (data.length - 1)) * (w - 2) + 1},${h - 1 - (v / max) * (h - 2)}`,
+    )
+    .join(" ");
+  return (
+    <svg width={w} height={h} aria-hidden="true" className="inline-block">
+      <polyline
+        points={pts}
+        fill="none"
+        stroke="var(--accent)"
+        strokeWidth="1"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 

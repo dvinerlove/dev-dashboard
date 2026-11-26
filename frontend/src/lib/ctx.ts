@@ -1,11 +1,6 @@
 import { createContext, useContext } from "react";
 import type { ThemeId } from "./theme";
-import type {
-  PortConflict,
-  ProjectSpec,
-  ScannedProject,
-  ServiceSpec,
-} from "./api";
+import type { PortConflict, ProjectSpec, ServiceSpec } from "./api";
 
 export type Section = "overview" | "infra" | "projects" | "ports" | "autorun" | "events" | "settings";
 
@@ -18,7 +13,7 @@ export const SECTION_TITLES: Record<Section, string> = {
   events: "SECTION_EVENTS",
   settings: "SECTION_SETTINGS",
 };
-export type SelKind = "svc" | "prj";
+export type SelKind = "svc" | "prj" | "autorun";
 export interface Sel {
   kind: SelKind;
   name: string;
@@ -27,12 +22,11 @@ export interface Sel {
 
 export type Dlg =
   | { t: "confirm"; title: string; body: string; action: string; danger?: boolean; run: () => void }
-  | { t: "service"; spec: ServiceSpec | null }
-  | { t: "project"; spec: ProjectSpec | null }
+  | { t: "service"; spec: ServiceSpec | null; isNew?: boolean }
+  | { t: "project"; spec: ProjectSpec | null; isNew?: boolean }
   | { t: "killport" }
   | { t: "autorun"; name: string; cmd: string }
   | { t: "token"; name: string }
-  | { t: "scan"; items: ScannedProject[] }
   | { t: "portconflict"; name: string; c: PortConflict & { port: number; pid: number; pname: string } }
   | { t: "onboarding" }
   | null;
@@ -54,14 +48,13 @@ export interface AppApi {
   setRailAuto: (v: boolean) => void;
   openDlg: (d: Dlg) => void;
   closeDlg: () => void;
-  // действия из старого Main.qml
+  // actions from the old Main.qml
   svcToggle: (name: string, remote?: boolean) => void;
   svcRestart: (name: string) => void;
   prjToggle: (name: string) => void;
   chip: (kind: "svc" | "remote" | "prj", name: string) => void;
   startAll: () => void;
   stopAll: () => void;
-  scan: () => void;
   killPortFlow: (port: number) => void;
   deleteService: (name: string) => void;
   deleteProject: (name: string, running: boolean) => void;

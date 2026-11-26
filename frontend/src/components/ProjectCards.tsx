@@ -35,12 +35,12 @@ export function ProjectCard({ row }: { row: ProjectRow }) {
   const t = useT();
   const pend = usePending(row.name);
   const selected = app.sel?.kind === "prj" && app.sel.name === row.name;
-  // открывать URL только у живого проекта, иначе чип просто копируется
+  // open the URL only for a live project, otherwise the chip just copies
   const url =
     row.state === "up" && row.chipUrl && row.chipUrl !== "copy"
       ? row.chipUrl
       : "";
-  // у проекта задан порт/URL (в конфиге или детектирован) — можно открыть в браузере
+  // the project has a port/URL (configured or detected) — can be opened in a browser
   const link = row.chipUrl && row.chipUrl !== "copy" ? row.chipUrl : "";
 
   return (
@@ -49,7 +49,6 @@ export function ProjectCard({ row }: { row: ProjectRow }) {
       className={cn(
         "group relative flex h-[46px] cursor-pointer items-center gap-3 border-b border-(--border-hairline) px-3.5 last:border-b-0 select-none hover:bg-(--bg-hover)",
         selected && "bg-(--bg-selected) hover:bg-(--bg-selected)",
-        row.running && "border-l-2 border-l-emerald-500 pl-3",
       )}
     >
       {selected && (
@@ -78,12 +77,12 @@ export function ProjectCard({ row }: { row: ProjectRow }) {
             <span className="text-[11px] text-(--status-red)">{t("STATE_CRASHED")}</span>
           )}
           {row.framework && (
-            <span className="shrink-0 rounded bg-(--bg-hover) px-1 py-px text-[9.5px] text-(--text-muted)">
+            <span className="shrink-0 text-[10px] text-(--text-muted)">
               {row.framework}
             </span>
           )}
           {row.branch && (
-            <span className="font-mono flex shrink-0 items-center gap-0.5 rounded bg-(--bg-hover) px-1 py-px text-[9.5px] text-(--text-muted)">
+            <span className="font-mono flex shrink-0 items-center gap-0.5 text-[10px] text-(--text-muted)">
               <GitBranch size={9} strokeWidth={1.75} />
               {row.branch}
             </span>
@@ -102,7 +101,7 @@ export function ProjectCard({ row }: { row: ProjectRow }) {
                 .filter(Boolean)
                 .join(" · ")}
             >
-              <span className="shrink-0 rounded bg-(--status-amber)/12 px-1 py-px text-[9.5px] text-(--status-amber)">
+              <span className="shrink-0 rounded bg-(--status-amber)/20 px-1 py-px text-[9.5px] font-medium text-(--status-amber)">
                 {row.envMissing.length === 1
                   ? t("MISSING_NAME", { name: row.envMissing[0] })
                   : t("MISSING_ENV_COUNT", { n: row.envMissing.length })}
@@ -123,14 +122,14 @@ export function ProjectCard({ row }: { row: ProjectRow }) {
                 .filter(Boolean)
                 .join(" · ")}
             >
-              <span className="shrink-0 rounded bg-(--bg-hover) px-1 py-px text-[9.5px] text-(--text-muted)">
+              <span className="shrink-0 text-[10px] text-(--text-muted)">
                 ~ENV
               </span>
             </Tip>
           )}
           {row.envOpen && (
             <Tip label={t("ENV_IN_GIT_TIP")}>
-              <span className="shrink-0 rounded bg-(--status-red)/12 px-1 py-px text-[9.5px] text-(--status-red)">
+              <span className="shrink-0 rounded bg-(--status-red)/20 px-1 py-px text-[9.5px] font-medium text-(--status-red)">
                 {t("ENV_IN_GIT")}
               </span>
             </Tip>
@@ -150,8 +149,8 @@ export function ProjectCard({ row }: { row: ProjectRow }) {
         </div>
       </div>
 
-      <div className="flex w-[130px] shrink items-center justify-end">
-        {row.chip && (
+      {row.chip && (
+        <div className="flex shrink-0 items-center justify-end">
           <Chip
             text={row.chip}
             onClick={() => {
@@ -164,19 +163,21 @@ export function ProjectCard({ row }: { row: ProjectRow }) {
               }
             }}
           />
-        )}
-      </div>
+        </div>
+      )}
 
-      <div className="w-[90px] shrink-0 text-right max-[1100px]:hidden">
+      <div className="w-[90px] shrink-0 text-right @max-[560px]:hidden">
         {row.m && (
-          <span className="tnum inline-block rounded bg-(--bg-canvas) px-1.5 py-0.5 font-mono text-[11px] text-(--text-secondary)">
+          <span className="tnum inline-block font-mono text-[11px] text-(--text-secondary)">
             {row.m.mb} MB
           </span>
         )}
       </div>
 
-      {/* быстрые действия */}
+      {/* quick actions; secondary ones (folder/IDE/link) on narrow —
+          all of that is already in the ⋯ menu */}
       <div className="flex shrink-0 items-center justify-end gap-0.5">
+        <div className="flex items-center gap-0.5 @max-[680px]:hidden">
         <Tip label={t("OPEN_FOLDER")}>
           <Button
             variant="ghost"
@@ -221,6 +222,7 @@ export function ProjectCard({ row }: { row: ProjectRow }) {
             </Button>
           </Tip>
         )}
+        </div>
         {row.running ? (
           <Button
             variant="ghost"
@@ -300,7 +302,7 @@ export function ProjectCard({ row }: { row: ProjectRow }) {
 export function ProjectsGrid({ rows }: { rows: ProjectRow[] }) {
   const t = useT();
   return (
-    <div className="overflow-hidden rounded-lg border border-(--border-hairline) bg-(--bg-surface)/40">
+    <div className="@container overflow-hidden rounded-lg border border-(--border-hairline) bg-(--bg-surface)/40">
       {rows.map((r) => (
         <ProjectCard key={r.name} row={r} />
       ))}

@@ -1,4 +1,4 @@
-// Типы и клиент локального API :4850 (core.py)
+// Types and client for the local API :4850 (core.py)
 
 export type SvcState = "up" | "down" | "dead" | "off" | "check" | "failed";
 
@@ -7,10 +7,34 @@ export interface LogLine {
   l: "error" | "warn" | "info";
 }
 
+export interface ServiceCandidate {
+  name: string;
+  pid: number;
+  proc: string;
+  match: string;
+  ports: number[];
+  start: string;
+  cwd: string;
+  cat: string;
+  label: string;
+  hint?: Partial<ServiceSpec> | null;
+  alive?: boolean;
+  why?: string[];
+  zombie?: string | null;   // "cwd_missing" | "parent_dead" | "aged"
+  agent?: string | null;    // "claude" | "codex" | "cursor" | "windsurf" | "aider"
+  score: number;
+}
+
 export interface EnvVar {
   key: string;
   value: string;
   secret: boolean;
+}
+
+export interface EnvWarn {
+  key: string;
+  code: string;
+  msg: string;
 }
 
 export interface PortRow {
@@ -24,9 +48,13 @@ export interface PortRow {
   label: string;
   mine: boolean;
   hidden: boolean;
-  lan?: string | boolean;  // ip бинда или true; truthy = открыт в сеть
+  lan?: string | boolean;  // bind ip or true; truthy = LAN-exposed
   title?: string;
+  favicon?: string;
   age?: number;
+  score?: number;
+  zombie?: string | null;
+  agent?: string | null;
 }
 
 export interface BgProc {
@@ -56,16 +84,20 @@ export interface ServiceRow {
   chipUrl: string;
   monitor: boolean;
   reason: string;
+  reasonKey?: string;  // untranslated kind ("circuit_open") — reason itself is localized
   squatterPort: number;
   autorestart: boolean;
   hasToken: boolean;
   hasUrl: boolean;
   hasPath: boolean;
   remote: boolean;
+  deps?: string[];  // depends_on names, for the inspector dep graph
   inAutorun?: boolean;
   arName?: string;
   envWarn?: string;
   m?: Metrics;
+  ms_hist?: number[];  // last probe ms (http/tcp remotes), oldest → newest
+  uptime?: number | null;  // remotes: probe uptime % (0–100), null = n/a
 }
 
 export interface ProjectRow {
@@ -97,6 +129,7 @@ export interface AutorunRow {
   metrics: string;
   arEnabled: boolean;
   mine: boolean;
+  self?: boolean;
   state: SvcState;
 }
 
@@ -126,8 +159,9 @@ export interface DashState {
   infraUp: number;
   infraTotal: number;
   platform?: string;
-  lang?: "ru" | "en";
+  lang?: string;
   version?: string;
+  updChannel?: "dev" | "git" | "winget" | "scoop";
   memMb: number;
   ts: number;
 }
@@ -153,10 +187,31 @@ export interface ServiceSpec {
   env_file?: string;
   autorestart?: boolean;
   monitor_only?: boolean;
-  zerotier?: boolean;
-  supabase?: boolean;
   depends_on?: string[];
+  health_url?: string;
+  mem_limit_mb?: number;
+  watch?: boolean;
+  restart_every_min?: number;
+  env?: Record<string, string>;
+  env_profiles?: Record<string, Record<string, string>>;
+  env_profile?: string;
   [k: string]: unknown;
+}
+
+/** Candidate → spec for the "new service" dialog: the remembered spec
+ * (hint) is the base, live candidate data fills the gaps. */
+export function candidateToSpec(c: ServiceCandidate): ServiceSpec {
+  const h = (c.hint ?? {}) as ServiceSpec;
+  return {
+    ...h,
+    name: h.name || c.name,
+    ports: h.ports ?? c.ports,
+    proc: h.proc || c.proc,
+    match: h.match || c.match,
+    start: c.start || h.start,
+    cwd: c.cwd || h.cwd,
+    path: h.path || c.cwd,
+  };
 }
 
 export interface ProjectSpec {
@@ -194,6 +249,24 @@ export interface ScannedProject {
   branch?: string;
   env_missing?: string[];
   env_open?: boolean;
+  env_committed?: boolean;  // .env is tracked by git
+  score?: number;
+  root?: string;
+  running?: boolean;
+  url?: string;
+  autostart?: boolean;
+  restored?: boolean;
+  worktree?: boolean;  // this dir is a git worktree checkout
+  worktrees?: { cwd: string; branch?: string }[];  // all checkouts of the repo
+  compose_services?: string[];
+}
+
+/** Scanned folder → spec for the "new project" dialog. */
+export function projectToSpec(p: ScannedProject): ProjectSpec {
+  const s: ProjectSpec = { name: p.name, cmd: p.cmd, cwd: p.cwd };
+  if (p.url) s.url = p.url;
+  if (p.autostart) s.autostart = true;
+  return s;
 }
 
 async function get<T>(path: string): Promise<T> {
@@ -205,9 +278,10 @@ async function get<T>(path: string): Promise<T> {
 async function post<T = { ok: boolean; msg?: string }>(
   path: string,
   body: unknown = {},
+  method = "POST",
 ): Promise<T> {
   const r = await fetch(path, {
-    method: "POST",
+    method,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
@@ -229,6 +303,8 @@ export const api = {
     get<ProcTarget[]>(`/api/service-targets?name=${encodeURIComponent(name)}`),
   stopAllTargets: () => get<string[]>("/api/stop-all-targets"),
   portTargets: (port: number) => get<ProcTarget[]>(`/api/port-targets?port=${port}`),
+  freePort: (from = 8000) =>
+    get<{ port: number | null; from: number }>(`/api/free-port?from=${from}`),
   ports: () =>
     get<{ ports: PortRow[]; bg: BgProc[] }>("/api/ports"),
   portConflict: (name: string) =>
@@ -240,20 +316,49 @@ export const api = {
       `/api/services/${encodeURIComponent(name)}/env${reveal ? "?reveal=1" : ""}`,
     ),
   saveEnv: (name: string, env: Record<string, string>) =>
-    post<{ restart_required?: boolean }>(
+    post<{ restart_required?: boolean; warnings?: EnvWarn[] }>(
       `/api/services/${encodeURIComponent(name)}/env`,
       env,
+    ),
+  saveEnvProfiles: (
+    name: string,
+    profiles: Record<string, Record<string, string>>,
+  ) =>
+    post<{
+      ok: boolean;
+      restart_required?: boolean;
+      msg?: string;
+      warnings?: EnvWarn[];
+    }>(
+      `/api/services/${encodeURIComponent(name)}/env-profiles`,
+      { profiles },
+      "PUT",
+    ),
+  setEnvProfile: (name: string, profile: string) =>
+    post<{ ok: boolean; restart_required?: boolean; msg?: string }>(
+      `/api/services/${encodeURIComponent(name)}/env-profile`,
+      { profile },
+    ),
+  setEnvSecret: (name: string, key: string, value: string) =>
+    post<{ ok: boolean; restart_required?: boolean; msg?: string }>(
+      `/api/services/${encodeURIComponent(name)}/env-secret`,
+      { key, value },
     ),
   projectEnv: (name: string, reveal = false) =>
     get<{ env: EnvVar[]; missing: { key: string; secret: boolean }[] }>(
       `/api/projects/${encodeURIComponent(name)}/env${reveal ? "?reveal=1" : ""}`,
     ),
   saveProjectEnv: (name: string, env: Record<string, string>) =>
-    post<{ ok?: boolean }>(
+    post<{ ok?: boolean; warnings?: EnvWarn[] }>(
       `/api/projects/${encodeURIComponent(name)}/env`,
       env,
     ),
 
+  selfUpdate: () =>
+    post<{ ok: boolean; msg?: string; channel?: string; version?: string }>(
+      "/api/self-update",
+      {},
+    ),
   svcAction: (name: string, act: "start" | "stop" | "restart") =>
     post(`/api/services/${encodeURIComponent(name)}/${act}`),
   prjAction: (name: string, act: "start" | "stop" | "restart") =>
@@ -262,6 +367,8 @@ export const api = {
     post(`/api/projects/${encodeURIComponent(name)}/open-folder`),
   openProjectIde: (name: string) =>
     post(`/api/projects/${encodeURIComponent(name)}/open-ide`),
+  serviceCandidates: () =>
+    get<ServiceCandidate[]>("/api/service-candidates"),
   saveService: (old_name: string, data: ServiceSpec) =>
     post("/api/services/save", { old_name, data }),
   deleteService: (name: string) => post("/api/services/delete", { name }),
@@ -297,6 +404,7 @@ export const api = {
 
 export interface AppSettings {
   scan_roots: string[];
+  scan_roots_auto?: string[];
   port_mine: string[];
   port_hidden: string[];
   probe_interval: number;
@@ -304,8 +412,9 @@ export interface AppSettings {
   backoff: number[];
   api_port: number;
   config_dir: string;
-  lang?: "auto" | "ru" | "en";
-  lang_resolved?: "ru" | "en";
+  lang?: string;
+  lang_resolved?: string;
+  autostart?: boolean;
 }
 
 export function copyText(text: string, msg?: string) {

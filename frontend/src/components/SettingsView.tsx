@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { FolderOpen, FolderPlus, GraduationCap, X } from "lucide-react";
+import { ExternalLink, FolderOpen, FolderPlus, GraduationCap, RefreshCw, X } from "lucide-react";
 import { api, type AppSettings } from "../lib/api";
 import { useApp } from "../lib/ctx";
-import { setLang, useT } from "../lib/i18n";
-import { useDash } from "../lib/store";
+import { LANGS, setLang, useT } from "../lib/i18n";
+import { useCached, useDash } from "../lib/store";
 import { cn } from "../lib/utils";
 import { toast } from "sonner";
 import { SectionTitle, ThemePicker } from "./bits";
@@ -11,7 +11,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Switch } from "./ui/switch";
 
-/** Строка настройки: подпись+хинт слева, контрол справа (стиль VS Code) */
+/** Settings row: label+hint on the left, control on the right (VS Code style) */
 function Row({
   label,
   hint,
@@ -84,26 +84,36 @@ export function SettingsView() {
   const app = useApp();
   const t = useT();
   const st = useDash();
-  const [srv, setSrv] = useState<AppSettings | null>(null);
-  const [probe, setProbe] = useState("");
-  const [depT, setDepT] = useState("");
-  const [backoff, setBackoff] = useState("");
-  const [roots, setRoots] = useState<string[]>([]);
+  const [srv, setSrv] = useCached<AppSettings>("settings");
+  const [probe, setProbe] = useState(() =>
+    srv ? String(srv.probe_interval) : "",
+  );
+  const [depT, setDepT] = useState(() => (srv ? String(srv.dep_timeout) : ""));
+  const [backoff, setBackoff] = useState(() => srv?.backoff.join(", ") ?? "");
+  const [roots, setRoots] = useState<string[]>(() => srv?.scan_roots ?? []);
+  // update check: "wait" → fetching; {tag,url} → newer release found
+  const [upd, setUpd] = useState<{ tag: string; url: string } | "wait" | null>(null);
+  const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
+    const had = srv !== null;
     api.settings().then((s) => {
       setSrv(s);
-      setProbe(String(s.probe_interval));
-      setDepT(String(s.dep_timeout));
-      setBackoff(s.backoff.join(", "));
-      setRoots(s.scan_roots);
+      if (!had) {
+        // first-ever load fills the form; on remounts it already holds
+        // (cached) values — refilling would clobber in-flight typing
+        setProbe(String(s.probe_interval));
+        setDepT(String(s.dep_timeout));
+        setBackoff(s.backoff.join(", "));
+        setRoots(s.scan_roots);
+      }
     });
   }, []);
 
   const saveRoots = (next: string[]) => {
     setRoots(next);
     api.saveSettings({ scan_roots: next }).then((r) => {
-      if (r.ok) setRoots(r.scan_roots);
+      if (r.ok) (setSrv(r), setRoots(r.scan_roots));
       else toast(r.msg || t("SAVE_FAILED"));
     });
   };
@@ -137,11 +147,53 @@ export function SettingsView() {
   const num = (v: string) =>
     /^-?\d*\.?\d*$/.test(v) ? v : v.replace(/[^\d.]/g, "");
 
+  const doUpdate = async () => {
+    setUpdating(true);
+    const r = await api.selfUpdate().catch(() => null);
+    if (r?.ok) {
+      toast(t("UPDATE_RESTARTING"));
+      // the app exits and relaunches itself — nothing more to do
+    } else {
+      setUpdating(false);
+      toast.error(r?.msg || t("UPDATE_FAILED"));
+    }
+  };
+
+  const checkUpdates = async () => {
+    setUpd("wait");
+    try {
+      const r = await fetch(
+        "https://api.github.com/repos/dvinerlove/dev-dashboard/releases/latest",
+        { signal: AbortSignal.timeout(8000) },
+      );
+      if (!r.ok) throw new Error(`${r.status}`);
+      const j = (await r.json()) as { tag_name?: string; html_url?: string };
+      const tag = String(j.tag_name ?? "").replace(/^v/, "");
+      if (!tag || !j.html_url) throw new Error("bad release");
+      const cur = (st?.version ?? "0").split(".").map((x) => parseInt(x, 10) || 0);
+      const nxt = tag.split(".").map((x) => parseInt(x, 10) || 0);
+      let newer = false;
+      for (let i = 0; i < Math.max(cur.length, nxt.length); i++) {
+        const d = (nxt[i] ?? 0) - (cur[i] ?? 0);
+        if (d) {
+          newer = d > 0;
+          break;
+        }
+      }
+      if (newer) setUpd({ tag, url: j.html_url });
+      else {
+        setUpd(null);
+        toast(t("UPDATE_LATEST"));
+      }
+    } catch {
+      setUpd(null);
+      toast.error(t("UPDATE_FAILED"));
+    }
+  };
+
   return (
     <>
-      <SectionTitle>{t("SECTION_SETTINGS")}</SectionTitle>
-
-      <SectionTitle className="mt-1">{t("APPEARANCE")}</SectionTitle>
+      <SectionTitle>{t("APPEARANCE")}</SectionTitle>
       <Group>
         <div className="border-b border-(--border-hairline) px-3.5 py-3 last:border-b-0">
           <div className="text-[13px] text-(--text-primary)">{t("THEME")}</div>
@@ -151,7 +203,7 @@ export function SettingsView() {
           <ThemePicker className="mt-2.5 grid-cols-3" />
         </div>
         <Row label={t("LANGUAGE")} hint={t("LANG_AUTO_HINT")}>
-          {(["auto", "ru", "en"] as const).map((l) => (
+          {["auto", ...LANGS].map((l) => (
             <button
               key={l}
               onClick={() =>
@@ -169,7 +221,7 @@ export function SettingsView() {
                   : "border-(--border-hairline) text-(--text-secondary) hover:border-(--border-strong)",
               )}
             >
-              {l === "auto" ? t("LANG_AUTO") : l === "ru" ? "RU" : "EN"}
+              {l === "auto" ? t("LANG_AUTO") : l.toUpperCase()}
             </button>
           ))}
         </Row>
@@ -233,7 +285,7 @@ export function SettingsView() {
             aria-label={t("BACKOFF_DELAYS_ARIA")}
           />
         </Row>
-        <Row label="" hint="">
+        <div className="flex min-h-[46px] items-center justify-end border-b border-(--border-hairline) px-3.5 py-2 last:border-b-0">
           <Button
             size="sm"
             onClick={saveBackend}
@@ -242,11 +294,18 @@ export function SettingsView() {
           >
             {t("APPLY")}
           </Button>
-        </Row>
+        </div>
       </Group>
 
       <SectionTitle className="mt-4">{t("PROJECT_FOLDERS")}</SectionTitle>
       <Group>
+        {roots.length === 0 && !!srv?.scan_roots_auto?.length && (
+          <div className="border-b border-(--border-hairline) px-3.5 py-2 text-[11.5px] text-(--text-muted) last:border-b-0">
+            {t("SCAN_ROOTS_AUTO", {
+              dirs: srv.scan_roots_auto.join(", "),
+            })}
+          </div>
+        )}
         {roots.map((r) => (
           <div
             key={r}
@@ -321,6 +380,22 @@ export function SettingsView() {
       <SectionTitle className="mt-4">{t("APP_SECTION")}</SectionTitle>
       <Group>
         <Row
+          label={t("START_WITH_WINDOWS")}
+          hint={t("START_WITH_WINDOWS_HINT")}
+        >
+          <Switch
+            checked={srv?.autostart ?? false}
+            disabled={!srv}
+            onCheckedChange={(v) =>
+              api.saveSettings({ autostart: v }).then((r) => {
+                if (r.ok) setSrv(r);
+                else toast(r.msg || t("SAVE_FAILED"));
+              })
+            }
+            aria-label={t("START_WITH_WINDOWS")}
+          />
+        </Row>
+        <Row
           label="API"
           hint={t("API_PORT_HINT")}
         >
@@ -357,8 +432,46 @@ export function SettingsView() {
         </Row>
         <Row label={t("VERSION")}>
           <span className="font-mono text-[12px] text-(--text-secondary)">
-            v{st?.version ?? "…"}
+            Dev Dashboard v{st?.version ?? "…"}
           </span>
+          {upd && upd !== "wait" ? (
+            <>
+              {st?.updChannel !== "dev" && (
+                <Button
+                  size="sm"
+                  className="h-7"
+                  disabled={updating}
+                  onClick={doUpdate}
+                >
+                  <RefreshCw
+                    size={13}
+                    strokeWidth={1.75}
+                    className={updating ? "animate-spin" : ""}
+                  />{" "}
+                  {t("UPDATE_NOW")}
+                </Button>
+              )}
+              <Button
+                variant="secondary"
+                size="sm"
+                className="h-7"
+                onClick={() => api.openUrl(upd.url)}
+              >
+                <ExternalLink size={13} strokeWidth={1.75} />{" "}
+                {t("UPDATE_AVAILABLE", { v: upd.tag })}
+              </Button>
+            </>
+          ) : (
+            <Button
+              variant="secondary"
+              size="sm"
+              className="h-7"
+              disabled={upd === "wait"}
+              onClick={checkUpdates}
+            >
+              <RefreshCw size={13} strokeWidth={1.75} /> {t("CHECK_UPDATES")}
+            </Button>
+          )}
         </Row>
       </Group>
     </>

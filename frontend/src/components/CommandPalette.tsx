@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Command } from "cmdk";
 import {
+  Check,
   FolderGit2,
   Grid2x2,
   ListVideo,
@@ -9,7 +10,6 @@ import {
   Palette,
   PanelRight,
   Play,
-  Radar,
   RotateCw,
   Server,
   Skull,
@@ -65,7 +65,6 @@ export function CommandPalette() {
               placeholder={t("SEARCH_PLACEHOLDER")}
               className="h-10 flex-1 bg-transparent text-[13px] text-(--text-primary) outline-none placeholder:text-(--text-muted)"
             />
-            <kbd className="kbd">Esc</kbd>
           </div>
           <Command.List className="max-h-[340px] overflow-y-auto overscroll-contain p-1.5">
             <Command.Empty className="py-6 text-center text-[12px] text-(--text-muted)">
@@ -75,19 +74,19 @@ export function CommandPalette() {
             <Command.Group
               heading={<GroupHead>{t("COMMANDS")}</GroupHead>}
             >
-              <Item onSelect={run(app.startAll)}>
+              <Item value={`${t("START_ALL")} запустить все start all run`} onSelect={run(app.startAll)}>
                 <Play size={14} strokeWidth={1.75} /> {t("START_ALL")}
               </Item>
-              <Item onSelect={run(app.stopAll)}>
+              <Item value={`${t("STOP_ALL")} остановить все stop all`} onSelect={run(app.stopAll)}>
                 <Square size={14} strokeWidth={1.75} /> {t("STOP_ALL")}
               </Item>
-              <Item onSelect={run(app.scan)}>
-                <Radar size={14} strokeWidth={1.75} /> {t("SCAN_PROJECTS")}
-              </Item>
-              <Item onSelect={run(() => app.openDlg({ t: "killport" }))}>
+              <Item value={`${t("KILL_PORT")} освободить убить порт kill free port`} onSelect={run(() => app.openDlg({ t: "killport" }))}>
                 <Skull size={14} strokeWidth={1.75} /> {t("KILL_PORT")}
               </Item>
-              <Item onSelect={run(() => app.setInspector(!app.inspector))}>
+              <Item value={`${t("FIND_FREE_PORT")} свободный порт free port find`} onSelect={run(() => app.openDlg({ t: "killport" }))}>
+                <Network size={14} strokeWidth={1.75} /> {t("FIND_FREE_PORT")}
+              </Item>
+              <Item value={`${t("TOGGLE_INSPECTOR")} инспектор inspector toggle panel`} onSelect={run(() => app.setInspector(!app.inspector))}>
                 <PanelRight size={14} strokeWidth={1.75} /> {t("TOGGLE_INSPECTOR")}
               </Item>
             </Command.Group>
@@ -102,7 +101,7 @@ export function CommandPalette() {
                   <Palette size={14} strokeWidth={1.75} className="text-(--text-muted)" />
                   {t(th.label)}
                   {app.theme === th.id && (
-                    <span className="font-mono text-[11px] text-(--accent-text)">●</span>
+                    <Check size={13} strokeWidth={1.75} className="ml-auto text-(--accent-text)" />
                   )}
                 </Item>
               ))}
@@ -178,27 +177,27 @@ export function CommandPalette() {
             </Command.Group>
 
             <Command.Group heading={<GroupHead>{t("SECTIONS")}</GroupHead>}>
-              <Item onSelect={run(() => app.setSection("overview"))}>
+              <Item value={`${t("SECTION_OVERVIEW")} обзор overview home`} onSelect={run(() => app.setSection("overview"))}>
                 <Grid2x2 size={14} strokeWidth={1.75} className="text-(--text-muted)" />
                 {t("SECTION_OVERVIEW")}
               </Item>
-              <Item onSelect={run(() => app.setSection("infra"))}>
+              <Item value={`${t("SECTION_INFRA")} инфраструктура сервисы services infra`} onSelect={run(() => app.setSection("infra"))}>
                 <Server size={14} strokeWidth={1.75} className="text-(--text-muted)" />
                 {t("SECTION_INFRA")}
               </Item>
-              <Item onSelect={run(() => app.setSection("projects"))}>
+              <Item value={`${t("SECTION_PROJECTS")} проекты projects`} onSelect={run(() => app.setSection("projects"))}>
                 <FolderGit2 size={14} strokeWidth={1.75} className="text-(--text-muted)" />
                 {t("SECTION_PROJECTS")}
               </Item>
-              <Item onSelect={run(() => app.setSection("ports"))}>
+              <Item value={`${t("SECTION_PORTS")} порты ports`} onSelect={run(() => app.setSection("ports"))}>
                 <Network size={14} strokeWidth={1.75} className="text-(--text-muted)" />
                 {t("SECTION_PORTS")}
               </Item>
-              <Item onSelect={run(() => app.setSection("autorun"))}>
+              <Item value={`${t("SECTION_AUTORUN")} автозапуск autorun startup`} onSelect={run(() => app.setSection("autorun"))}>
                 <ListVideo size={14} strokeWidth={1.75} className="text-(--text-muted)" />
                 {t("SECTION_AUTORUN")}
               </Item>
-              <Item onSelect={run(() => app.setSection("events"))}>
+              <Item value={`${t("SECTION_EVENTS")} события events issues`} onSelect={run(() => app.setSection("events"))}>
                 <OctagonAlert size={14} strokeWidth={1.75} className="text-(--text-muted)" />
                 {t("SECTION_EVENTS")}
               </Item>
@@ -223,7 +222,7 @@ export function CommandPalette() {
 
 function GroupHead({ children }: { children: React.ReactNode }) {
   return (
-    <span className="block px-2 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-(--text-muted)">
+    <span className="block px-2 pb-1 pt-2 text-[11px] font-medium uppercase tracking-[0.08em] text-(--text-muted)">
       {children}
     </span>
   );

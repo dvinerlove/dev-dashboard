@@ -1,18 +1,18 @@
 export type ThemeId = "graphite" | "console" | "paper" | "paperdark1" | "paperdark2" | "retro";
 
 export const THEMES: { id: ThemeId; label: string }[] = [
-  { id: "graphite", label: "THEME_GRAPHITE" },
-  { id: "console", label: "THEME_CONSOLE" },
   { id: "paper", label: "THEME_PAPER" },
   { id: "paperdark1", label: "THEME_PAPER_MIDNIGHT" },
   { id: "paperdark2", label: "THEME_PAPER_ESPRESSO" },
+  { id: "graphite", label: "THEME_GRAPHITE" },
+  { id: "console", label: "THEME_CONSOLE" },
   { id: "retro", label: "THEME_RETRO" },
 ];
 
 const KEY = "dd-theme";
 
-/** --bg-base каждой темы: фон окна/WebView2 под текущую тему,
-   чтобы полоса при ресайзе и вспышка при загрузке сливались */
+/** --bg-base of each theme: window/WebView2 background matching the theme
+   so the resize stripe and the load flash blend in */
 const THEME_BG: Record<ThemeId, string> = {
   graphite: "#0B0D11",
   console: "#050905",
@@ -22,8 +22,8 @@ const THEME_BG: Record<ThemeId, string> = {
   retro: "#C0C0C0",
 };
 
-/** Цвета для мини-превью тем (свотчи в онбординге) — близкие
-   к токенам index.css: фон, поверхность, акцент, текст */
+/** Colors for theme mini-previews (swatches in onboarding) — close
+   to the index.css tokens: background, surface, accent, text */
 export const THEME_SWATCH: Record<
   ThemeId,
   { bg: string; surface: string; accent: string; text: string }
@@ -55,11 +55,11 @@ export function applyTheme(t: ThemeId) {
   syncNativeBg(t);
 }
 
-/** до первого рендера — без вспышки дефолтной темы */
+/** until the first render — no default-theme flash */
 export function initTheme(): ThemeId {
   const t = currentTheme();
   document.documentElement.dataset.theme = t;
-  // мост ещё не готов — досинхронизируем фон по pywebviewready
+  // bridge not ready — resync the background on pywebviewready
   window.addEventListener("pywebviewready", () => syncNativeBg(t), {
     once: true,
   });

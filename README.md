@@ -16,7 +16,7 @@ Dev Dashboard is a local control panel for dev services on Windows: dev servers,
 - **Crashes restart themselves, then stop** — auto-restart backs off 2→5→10→20 s, and a circuit breaker gives up after 5 crashes per minute, filing a `crash_loop` issue instead of looping forever
 - **Start dependencies in order** — `depends_on` waits for a dependency's health URL (HTTP), its first port (TCP), or a process that stays up, before starting what needs it
 - **Answer "what's holding this port?" at a glance** — every TCP listener on the machine, attributed to your services, flagged when it's reachable from the LAN
-- **Watch what you don't run locally** — HTTP, TCP, and Docker monitors for remote services; Supabase and ZeroTier probes included
+- **Watch what you don't run locally** — HTTP (keyword + token auth from env), TCP, and Docker monitors for remote services
 - **Edit env vars without leaking secrets** — per-service env overrides in the UI; values whose names look secret (`TOKEN`, `SECRET`, `KEY`, `PASSWORD`, `PASS`, `AUTH`, `CREDENTIAL`, `JWT`, `SESSION`) are masked in API responses
 - **Know why something is red** — an issues feed collects crashes, port conflicts, dependency timeouts, and errors parsed from service logs; run and issue history persists in SQLite
 - **Let AI agents operate it** — a zero-dependency stdio MCP server (7 tools) lets Cursor, Cline, or Codex list services, read logs, and restart things — [setup](README_MCP.md)
@@ -86,10 +86,7 @@ Config files are plain JSON in the [data directory](#data-location) — edit by 
 | `host`, `port` | string, int | For `type: "tcp"` monitors |
 | `container` | string | Container name for `type: "docker"` |
 | `keyword` | string | For `type: "http"`: body must contain this, else "dead" |
-| `interval` | int | Remote probe period in seconds (default: docker 15, supabase 60, other 30) |
-| `zerotier` | bool | Vendor probe: ZeroTier via its local API |
-| `zt_token` | string | ZeroTier authtoken override (default: read from the service's authtoken file) |
-| `supabase` | bool | HTTP probe variant: sends `apikey` + `Authorization: Bearer` from `env_key`/`env_file` |
+| `interval` | int | Remote probe period in seconds (default: docker 15, other 30) |
 | `path` | string | Project path — enables the "open folder" affordance |
 | `note` | string | Custom "off" reason (docker: shown when no container is found) |
 

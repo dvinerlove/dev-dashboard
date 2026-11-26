@@ -1,11 +1,12 @@
-"""Ядро дашборда без Qt: probe-loop, состояние, действия, HTTP API + статика.
-Заменяет bridge.py: та же логика, вместо QMetaObject — прямые вызовы под локом,
-вместо QProcess/QTimer — subprocess/threading."""
+"""Qt-free dashboard core: probe loop, state, actions, HTTP API + static.
+Replaces bridge.py: same logic, direct calls under a lock instead of
+QMetaObject, subprocess/threading instead of QProcess/QTimer."""
 import json
 import mimetypes
 import os
 import re
 import subprocess
+import sys
 import threading
 import time
 import zlib
@@ -28,11 +29,11 @@ PILL = {"up": ("PILL_RUNNING", "ok"), "down": ("PILL_STOPPED", "muted"),
         "dead": ("PILL_DEAD", "bad"), "off": ("STATE_OFF", "dim"),
         "failed": ("PILL_FAILED", "bad"), "check": ("…", "check")}
 
-RESTART_BACKOFF = (2, 5, 10, 20)   # экспоненциальный backoff авторестарта
-CIRCUIT_FAILS = 5                  # падений за окно до открытия circuit breaker
-CIRCUIT_WINDOW = 60                # окно подсчёта падений, сек
-STABLE_UPTIME = 60                 # проработал столько — счётчик падений сбрасывается
-DEP_TIMEOUT = 15                   # ожидание готовности зависимости, сек
+RESTART_BACKOFF = (2, 5, 10, 20)   # autorestart backoff steps
+CIRCUIT_FAILS = 5                  # crashes in the window before circuit opens
+CIRCUIT_WINDOW = 60                # crash counting window, sec
+STABLE_UPTIME = 60                 # survived this long — crash counter resets
+DEP_TIMEOUT = 15                   # dependency readiness wait, sec
 
 STATIC_DIR = os.path.join(be.RESOURCE_DIR, "frontend", "dist")
 
@@ -44,10 +45,100 @@ _LOG_ERR_RE = re.compile(
 _LOG_WARN_RE = re.compile(r"\bwarn(?:ing)?\b|deprecated", re.I)
 _ENV_SECRET_RE = re.compile(
     r"TOKEN|SECRET|KEY|PASSWORD|PASS|AUTH|CREDENTIAL|JWT|SESSION", re.I)
+_PID_STATS_RE = re.compile(r"pid\s+(\d+).*?([\d.]+)%.*?(\d+)\s*MB(.*?(\d+)m)?")
+_AR_FILE_RE = re.compile(r"[\w.-]+\.(?:py|cmd|bat|exe|ps1|vbs|com)\b", re.I)
+_SCRIPT_EXT_RE = re.compile(
+    r"\.(?:py|js|ts|mjs|cjs|mts|cts|rb|php|jar|dart)\b", re.I)
+_LAUNCHER_EXT_RE = re.compile(r"\.(?:cmd|bat|ps1|sh|vbs)\b", re.I)
+_VENV_DIR_RE = re.compile(
+    r"[\\/](?:\.?venv|envs?|(?:mini|ana)?conda\d*)[\\/]", re.I)
+_SHELL_PROCS = {"cmd", "powershell", "pwsh", "bash", "sh", "zsh", "wsl"}
+# run-tools as an ancestor = the real launcher (npm run dev, go run,
+# uv run x.py) — the ground truth of "how to start this" on any stack
+_RUN_TOOLS = {"go", "cargo", "npm", "yarn", "pnpm", "bun", "deno",
+              "make", "dotnet", "uv", "poetry", "gradle", "gradlew",
+              "mvn", "flutter", "mix", "composer"}
+# declared TS runners for a .ts script without a launcher (node >= 22.6
+# runs .ts natively, so no entry = keep plain node)
+_NODE_RUNNERS = {"tsx": "npx tsx", "ts-node": "npx ts-node",
+                 "vite-node": "npx vite-node", "esno": "npx esno"}
+
+# convention words (data, not vendors): a stem/dir like "index"/"src" says
+# nothing about which project it is — smart naming climbs past them
+_GENERIC_STEMS = {"index", "server", "main", "app", "bot", "run", "start",
+                  "worker", "cli", "service", "daemon", "api", "core", "web",
+                  "serve", "dev", "up"}
+_GENERIC_DIRS = _GENERIC_STEMS | {"src", "dist", "build", "bin", "lib",
+                                  "lib64", "scripts", "node_modules",
+                                  "__pycache__", "out", "release", "debug"}
+
+
+def _smart_name(stem, dpath):
+    """Generic stem -> anchor to the nearest meaningful folder, e.g.
+    index.ts in job-intelligence\\server -> "job-intelligence index"."""
+    if stem.lower() not in _GENERIC_STEMS:
+        return stem
+    for d in reversed(dpath.replace("/", "\\").strip("\\").split("\\")):
+        if d and not d.endswith(":") and d.lower() not in _GENERIC_DIRS:
+            return f"{d} {stem}"
+    return stem
+
+
+def _shq(tok):
+    """Re-quote a token that contained spaces (cmdline lists keep them)."""
+    return f'"{tok}"' if " " in tok else tok
+
+
+def _find_launcher(p_):
+    """Parent chain -> real launcher: a script file run via shell (cmd /c
+    x.cmd, pwsh -File x.ps1) or a run-tool cmdline (npm run dev, go run
+    ./cmd, uv run x.py). Ground truth of "how to start this" — better than
+    any command reconstructed from the child's own argv."""
+    a_ = p_
+    for _ in range(4):
+        try:
+            a_ = a_.parent() if a_ else None
+            if not a_:
+                return None
+            an = a_.name().lower().removesuffix(".exe")
+            atoks = a_.cmdline() or []
+            if an in _RUN_TOOLS:
+                return " ".join(_shq(x) for x in atoks), a_.cwd(), ""
+            if an not in _SHELL_PROCS:
+                return None  # non-shell ancestor: no script launcher above
+            for t_ in atoks[1:]:
+                if _LAUNCHER_EXT_RE.search(t_):
+                    return _shq(t_), (os.path.dirname(t_)
+                                     if os.path.isabs(t_) else a_.cwd()), \
+                        os.path.splitext(os.path.basename(t_))[0]
+        except (psutil.Error, OSError):
+            continue  # one dead ancestor must not hide the launcher above
+    return None
+
+
+def _node_runner(sdir):
+    """Nearest package.json -> declared TS runner (tsx/ts-node/...)."""
+    d = sdir
+    for _ in range(6):
+        pj = os.path.join(d, "package.json")
+        if os.path.isfile(pj):
+            try:
+                meta = json.load(open(pj, encoding="utf-8"))
+                deps = {**meta.get("dependencies", {}),
+                        **meta.get("devDependencies", {})}
+            except (OSError, ValueError):
+                return None
+            return next((r for k, r in _NODE_RUNNERS.items()
+                         if k in deps), None)
+        nd = os.path.dirname(d)
+        if nd == d:
+            return None
+        d = nd
+    return None
 
 
 def classify_log_line(line):
-    """Уровень строки лога: error / warn / info."""
+    """Log line level: error / warn / info."""
     if _LOG_ERR_RE.search(line):
         return "error"
     if _LOG_WARN_RE.search(line):
@@ -55,8 +146,70 @@ def classify_log_line(line):
     return "info"
 
 
+_AGENTS = ("claude", "codex", "cursor", "windsurf", "aider")
+_PREV_PIDS = set()  # live pids at the previous api_ports snapshot
+
+
+def _agent_of(pid):
+    """Name of an agent in the ancestor chain (<=8 levels, as own_owner):
+    exe/cmdline of a parent contains a known agent name. None otherwise."""
+    try:
+        p = psutil.Process(pid)
+    except (psutil.Error, OSError):
+        return None
+    for _ in range(8):
+        try:
+            p = p.parent()
+            if not p:
+                return None
+            hay = ((p.exe() or "") + " "
+                   + " ".join(p.cmdline() or [])).lower()
+        except (psutil.Error, OSError):
+            continue  # one dead ancestor must not hide the agent above
+        for a in _AGENTS:
+            if a in hay:
+                return a
+    return None
+
+
+def _proc_flags(pid, info, pr, by_pid, age, prev):
+    """(zombie, agent) for a ports row: zombie = cwd_missing/parent_dead/aged.
+    parent_dead means orphaned on our watch — the parent was alive in the
+    previous snapshot. Detached/system processes spawn parentless all the
+    time; flagging them would be noise."""
+    zombie = None
+    try:
+        if pr and not os.path.isdir(pr.cwd() or "."):
+            zombie = "cwd_missing"
+    except (psutil.Error, OSError):
+        pass
+    if zombie is None:
+        try:
+            ppid = info["ppid"] if info else (pr.ppid() if pr else 0)
+        except (psutil.Error, OSError):
+            ppid = 0
+        if ppid and ppid in prev and not psutil.pid_exists(ppid):
+            zombie = "parent_dead"
+    if zombie is None and age >= 86400:
+        zombie = "aged"
+    return zombie, _agent_of(pid)
+
+
+def _own_owner(pid, own, by_pid):
+    """Our service/project name if pid or an ancestor (<=8) is in own."""
+    seen, cur = set(), pid
+    for _ in range(8):
+        if cur in own:
+            return own[cur]
+        if cur in seen:
+            break
+        seen.add(cur)
+        cur = (by_pid.get(cur) or {}).get("ppid") or 0
+    return None
+
+
 def _timer(sec, fn):
-    """Daemon-таймер: не держит python.exe после выхода из трея."""
+    """Daemon timer: does not keep python.exe alive after tray exit."""
     t = threading.Timer(sec, fn)
     t.daemon = True
     t.start()
@@ -64,12 +217,12 @@ def _timer(sec, fn):
 
 class _ApiServer(ThreadingHTTPServer):
     daemon_threads = True
-    # на Windows SO_REUSEADDR разрешает ВТОРОЙ bind на занятый порт —
-    # fallback на следующий порт тогда не сработает
+    # on Windows SO_REUSEADDR allows a SECOND bind on a busy port —
+    # the next-port fallback would not work then
     allow_reuse_address = not pi.IS_WIN
 
     def handle_error(self, request, client_address):
-        pass  # обрывы keep-alive браузером/webview — шум, не ошибка
+        pass  # keep-alive aborts by browser/webview — noise, not an error
 
 
 class _ApiHandler(BaseHTTPRequestHandler):
@@ -103,8 +256,8 @@ class _ApiHandler(BaseHTTPRequestHandler):
             return default
 
     def _host_ok(self):
-        """DNS-rebinding guard: только локальный Host, иначе чужой домен,
-        указавший на 127.0.0.1, читал бы секреты из GET-эндпоинтов."""
+        """DNS-rebinding guard: local Host only, otherwise a foreign domain
+        pointing at 127.0.0.1 could read secrets from GET endpoints."""
         host = self.headers.get("Host", "")
         return re.match(r"^(127\.0\.0\.1|localhost|::1|\[::1\]):\d+$", host)
 
@@ -126,6 +279,8 @@ class _ApiHandler(BaseHTTPRequestHandler):
                 self._send(200 if env is not None else 404,
                            env if env is not None else
                            {"error": "not found"})
+            elif path == "/api/service-candidates":
+                self._send(200, d.api_service_candidates())
             elif path == "/api/state":
                 self._send(200, d.api_state())
             elif path == "/api/status":
@@ -158,6 +313,8 @@ class _ApiHandler(BaseHTTPRequestHandler):
                 self._send(200, d.stop_all_targets())
             elif path == "/api/port-targets":
                 self._send(200, d.port_targets(self._qint(q, "port", 0)))
+            elif path == "/api/free-port":
+                self._send(200, d.free_port(self._qint(q, "from", 8000)))
             elif path == "/api/port-conflict":
                 self._send(200, d.port_conflict(q.get("name", [""])[0]))
             elif path == "/api/service-token":
@@ -175,7 +332,7 @@ class _ApiHandler(BaseHTTPRequestHandler):
     do_HEAD = do_GET
 
     def _static(self, path):
-        """Отдача собранного фронта; SPA-fallback на index.html."""
+        """Serve the built frontend; SPA fallback to index.html."""
         if path in ("", "/"):
             path = "/index.html"
         fs = os.path.normpath(os.path.join(STATIC_DIR, path.lstrip("/")))
@@ -207,7 +364,7 @@ class _ApiHandler(BaseHTTPRequestHandler):
     # ---------- POST ----------
 
     def do_POST(self):
-        # CSRF: разрешаем только локальные Origin (или его отсутствие — curl и т.п.)
+        # CSRF: allow only local Origins (or none — curl etc.)
         origin = self.headers.get("Origin")
         if origin and not re.match(
                 r"^https?://(127\.0\.0\.1|localhost)(:\d+)?$", origin):
@@ -221,7 +378,7 @@ class _ApiHandler(BaseHTTPRequestHandler):
             n = int(self.headers.get("Content-Length") or 0)
         except ValueError:
             n = -1
-        if not 0 <= n <= 1 << 20:  # больше 1 МБ дашборду не нужно
+        if not 0 <= n <= 1 << 20:  # dashboard never needs more than 1 MB
             self._send(400, {"error": "bad content-length"})
             return
         try:
@@ -235,7 +392,7 @@ class _ApiHandler(BaseHTTPRequestHandler):
         d = self.dash
         try:
             env_m = re.match(r"^/api/(services|projects)/(.+)/env$", path)
-            if env_m:  # PUT (и POST для простоты): полная замена env
+            if env_m:  # PUT (and POST for simplicity): full env replacement
                 fn = (d.save_env if env_m.group(1) == "services"
                       else d.save_project_env)
                 res = fn(unquote(env_m.group(2)), body)
@@ -247,9 +404,27 @@ class _ApiHandler(BaseHTTPRequestHandler):
                 else:
                     self._send(200, res)
                 return
+            ep_m = re.match(
+                r"^/api/services/(.+)/env-(profiles|profile|secret)$", path)
+            if ep_m:
+                name, kind = unquote(ep_m.group(1)), ep_m.group(2)
+                res = (d.save_env_profiles(name, body.get("profiles"))
+                       if kind == "profiles"
+                       else d.set_env_profile(name, body.get("profile", ""))
+                       if kind == "profile"
+                       else d.set_env_secret(name, body.get("key"),
+                                             body.get("value", "")))
+                if res is None:
+                    self._send(404, {"error": "not found"})
+                elif res is False or isinstance(res, tuple):
+                    self._send(400, {"error": res[1] if res
+                                     else "bad profiles"})
+                else:
+                    self._send(200, res)
+                return
             m = re.match(r"^/api/(projects|services)/(.+)/(start|stop|restart)$",
                          path)
-            if m:  # совместимость со старым API
+            if m:  # compat with the old API
                 ok = d.api_action(m.group(2), m.group(3), m.group(1))
                 self._send(200 if ok else 404, {"ok": bool(ok)})
                 return
@@ -306,6 +481,7 @@ class _ApiHandler(BaseHTTPRequestHandler):
                 "/api/pick-dir":
                     lambda: d.pick_dir(body.get("start", "")),
                 "/api/show-window": d.show_window,
+                "/api/self-update": d.self_update,
             }
             fn = routes.get(path)
             if not fn:
@@ -326,45 +502,52 @@ class _ApiHandler(BaseHTTPRequestHandler):
 
 
 class Dashboard:
-    """Состояние + действия дашборда. tray_cb/info_cb — колбэки оболочки."""
+    """Dashboard state + actions. tray_cb/info_cb are shell callbacks."""
 
     def __init__(self):
         self.projects_data = be.load_projects()
         self.services_data = be.load_services()
-        self.tray_cb = None      # (title, msg) — уведомление из трея
-        self.info_cb = None      # (msg) — тост в UI (сейчас через ответы API)
+        self.tray_cb = None      # (title, msg) — tray notification
+        self.info_cb = None      # (msg) — UI toast (currently via API responses)
 
         self._lock = threading.RLock()
-        self._procs = {}          # name -> Popen (запущенные из дашборда)
-        self._svc_spawn = {}      # name -> (pid, ctime) shell-обёртки сервиса
-        self._proj_dead = {}      # name -> был краш (пилюля «упал»)
+        self._procs = {}          # name -> Popen (started by the dashboard)
+        self._svc_spawn = {}      # name -> (pid, ctime) of the service shell wrapper
+        self._proj_dead = {}      # name -> had a crash ("dead" pill)
         self._detected_url = {}   # name -> url
         self._fw_cache = {}      # cwd -> framework label
-        self._envinfo = {}       # cwd -> (ts, env+branch поля), TTL 30с —
-        self._envval = {}        # (env_file,key) -> (ts, значение), TTL 30с
+        self._envinfo = {}       # cwd -> (ts, env+branch fields), TTL 30s
+        self._envval = {}        # (env_file,key) -> (ts, value), TTL 30s
         self._last_services = {}
         self._svc_prev = {}
         self._jobs = {}           # name -> process_tree.Job
-        self._crash_ts = {}       # name -> [ts] падений (скользящее окно)
-        self._quick_fails = {}    # name -> подряд быстрых падений (backoff)
-        self._cb_open = set()     # circuit breaker: авторестарт отключён
-        self._svc_up_since = {}   # name -> ts перехода в up
+        self._crash_ts = {}       # name -> [ts] of crashes (sliding window)
+        self._quick_fails = {}    # name -> consecutive quick crashes (backoff)
+        self._cb_open = set()     # circuit breaker: autorestart disabled
+        self._svc_up_since = {}   # name -> ts of the transition to up
+        self._watch_mtime = {}    # name -> last seen cwd mtime (watch mode)
+        self._uptime = {}         # remote name -> (ts, uptime%), TTL 30s
         st_cfg = be.load_settings()
         self._backoff = tuple(st_cfg["backoff"]) or RESTART_BACKOFF
         self._dep_timeout = st_cfg["dep_timeout"] or DEP_TIMEOUT
         self._probe_interval = st_cfg["probe_interval"] or 4
-        self.api_port = st_cfg["api_port"]   # обновится реальным при bind
-        self._err_issues = {}     # (name) -> последний log_error issue (дедуп)
+        self.api_port = st_cfg["api_port"]   # updated to the real one on bind
+        self._err_issues = {}     # (name) -> last log_error issue (dedup)
         self._svc_cpu = {}
         self._proj_cpu = {}
         self._remote_next = {}
         self._remote_last = {}
+        self._remote_hist = {}    # name -> deque of the last 30 ms values
+        self._log_off = {}        # service name -> read offset of logs/<name>.log
+        self._last_listeners = None  # port -> pid of the previous probe tick
         self._probing = False
         self._probe_t0 = 0.0
-        self._issues = deque(maxlen=120)   # дедуплицированные события
-        self._runs = {}                    # name -> deque последних запусков
-        self.show_cb = None     # () — поднять окно (single-instance)
-        try:  # история из state.db
+        self._sniff = {}          # port -> (ts, (title, favicon)) — 60s
+        self._sniff_busy = False
+        self._issues = deque(maxlen=120)   # deduplicated events
+        self._runs = {}                    # name -> deque of recent runs
+        self.show_cb = None     # () — raise the window (single-instance)
+        try:  # history from state.db
             pruns, piss = st.load()
             for n, lst in pruns.items():
                 self._runs[n] = deque(lst[-10:], maxlen=10)
@@ -375,11 +558,11 @@ class Dashboard:
         self._proj_info = {}
         self._status = "● …"
         self._problems = []
-        self._log_entries = deque(maxlen=2000)  # событийный лог (in-memory)
+        self._log_entries = deque(maxlen=2000)  # event log (in-memory)
         self._stop = threading.Event()
         self.api = None
 
-    # ---------- жизненный цикл ----------
+    # ---------- lifecycle ----------
 
     def start(self):
         self._start_api()
@@ -391,15 +574,15 @@ class Dashboard:
                 port=self.api_port))
         self.refresh_probe()
         threading.Thread(target=self._probe_loop, daemon=True).start()
-        # автостарт проектов, помеченных autostart
+        # autostart projects marked autostart
         for p in list(self.projects_data):
             if p.get("autostart") and not be.is_pid_running(p.get("pid"), p.get("pid_ctime")):
                 self.start_project(p["name"])
 
     def stop(self):
         self._stop.set()
-        # штатный выход: снять KILL_ON_JOB_CLOSE — сервисы переживают
-        # выход дашборда; при краше дашборда деревья умрут сами
+        # clean exit: clear KILL_ON_JOB_CLOSE — services survive
+        # dashboard exit; if the dashboard crashes, trees die on their own
         with self._lock:
             jobs = list(self._jobs.values())
             self._jobs.clear()
@@ -414,7 +597,7 @@ class Dashboard:
                 min(max(float(self._probe_interval), 0.5), 60)):
             self.refresh_probe()
 
-    # ---------- лог ----------
+    # ---------- log ----------
 
     def _log(self, text):
         m = re.match(r"^\[([^\]]+)\](.*)$", text, re.S)
@@ -427,15 +610,16 @@ class Dashboard:
             "time": f"{datetime.now():%H:%M:%S}",
             "tagColor": be.TAG_COLORS[
                 zlib.crc32(tag.encode()) % len(be.TAG_COLORS)] if tag else ""})
+        be.append_dashboard_log(text)
 
     def log_line(self, text):
         self._log(text)
 
-    # ---------- пробы ----------
+    # ---------- probes ----------
 
     def refresh_probe(self):
         if self._probing:
-            if time.time() - self._probe_t0 < 90:  # зависший worker → сброс флага
+            if time.time() - self._probe_t0 < 90:  # stuck worker → reset flag
                 return
         self._probing = True
         self._probe_t0 = time.time()
@@ -453,19 +637,24 @@ class Dashboard:
     def _probe_worker(self):
         try:
             procs, listeners, _lan = be._proc_snapshot()
+            self._watch_ports(procs, listeners)
+            self._scan_service_logs()
             services = {}
             remotes = []
+            mem_over = {}
+            watch_chg = set()     # names whose watched cwd mtime grew
             for s in list(self.services_data):
                 if s.get("type"):
                     remotes.append(s)
                 else:
-                    try:  # битый spec в конфиге не должен губить все пробы
+                    try:  # a broken spec in config must not kill all probes
                         res = be._probe_service(
-                            s, procs, listeners, self._svc_cpu)
-                        # сервис запущен нами без proc/match: проба его не
-                        # видит — «жив» по pid обёртки (своей или из spec)
+                            s, procs, listeners, self._svc_cpu,
+                            confirm_dead=self._svc_prev.get(s["name"]) == "up")
+                        # service started by us without proc/match: the probe
+                        # cannot see it — "alive" via wrapper pid (ours or spec's)
                         if res[0] == "down" and not s.get("monitor_only"):
-                            with self._lock:  # _svc_spawn пишется под _lock
+                            with self._lock:  # _svc_spawn is written under _lock
                                 ent = self._svc_spawn.get(s["name"])
                                 if ent is None and not s.get("proc") \
                                         and not s.get("match"):
@@ -473,17 +662,39 @@ class Dashboard:
                                 if ent and be.is_pid_running(*ent):
                                     res = ("up", f"pid {ent[0]}")
                                 elif s["name"] in self._svc_spawn:
-                                    del self._svc_spawn[s["name"]]  # обёртка ушла
+                                    del self._svc_spawn[s["name"]]  # wrapper gone
                         services[s["name"]] = res
+                        lim = s.get("mem_limit_mb")
+                        if res[0] == "up" and lim \
+                                and not s.get("monitor_only"):
+                            mb = self._svc_tree_mb(s, procs)
+                            if mb > lim:
+                                mem_over[s["name"]] = (int(mb), lim)
                     except Exception:
                         services[s["name"]] = ("dead", "bad spec")
+                    try:  # watch: fs walk must never break the probe;
+                        # down/dead re-baselines — changes while stopped
+                        # must not fire on the next start
+                        if s.get("watch") and s.get("cwd") \
+                                and not s.get("monitor_only"):
+                            mt = be.latest_mtime(s["cwd"])
+                            if res[0] != "up" or not mt:
+                                self._watch_mtime.pop(s["name"], None)
+                            else:
+                                prev_mt = self._watch_mtime.get(s["name"])
+                                if prev_mt and mt > prev_mt \
+                                        and s.get("start"):
+                                    watch_chg.add(s["name"])
+                                self._watch_mtime[s["name"]] = mt
+                    except Exception:
+                        pass
             for pid in list(self._svc_cpu):
                 if not psutil.pid_exists(pid):
                     del self._svc_cpu[pid]
             now = time.time()
             due = [s for s in remotes
                    if now >= self._remote_next.get(s["name"], 0)]
-            if due:  # remote-пробы параллельно, каждая со своим интервалом
+            if due:  # remote probes in parallel, each on its own interval
                 def _safe(s):
                     try:
                         return be._probe_remote(s)
@@ -495,11 +706,21 @@ class Dashboard:
                         self._remote_last[s["name"]] = res
                         self._remote_next[s["name"]] = \
                             now + be._remote_interval(s)
-            for s in remotes:  # не дозрели — показываем прошлый результат
+                        try:  # uptime sampling — non-critical
+                            st.remote_probe(s["name"], res[0] == "up")
+                        except Exception:
+                            pass
+                        if s.get("type") in ("http", "tcp"):
+                            m = re.search(r"(\d+)\s*ms\b", res[1] or "")
+                            if m:
+                                self._remote_hist.setdefault(
+                                    s["name"], deque(maxlen=30)
+                                ).append(int(m.group(1)))
+            for s in remotes:  # not due yet — show the previous result
                 services.setdefault(
                     s["name"], self._remote_last.get(s["name"], ("check", "…")))
 
-            # проекты: pid + метрики + порты — тяжёлый скан здесь, не в GUI-тике
+            # projects: pid + metrics + ports — heavy scan here, not the GUI tick
             projects = {}
             for p in list(self.projects_data):
                 pid = p.get("pid")
@@ -528,11 +749,84 @@ class Dashboard:
                                           self._mine_tokens()),
                         n not in disabled)
                        for n, c in be._read_autorun()]
-            self._apply_probe((services, projects, autorun))
+            self._apply_probe(
+                (services, projects, autorun, mem_over, watch_chg))
         except Exception:
             import traceback
-            traceback.print_exc()
+            self._log("[SYSTEM] probe worker crashed: "
+                      + traceback.format_exc())
             self._probing = False
+
+    def _svc_tree_mb(self, spec, procs):
+        """Total RSS of the service tree in MB: matched pids or, for a
+        proc/match-less spec, the spawned/adopted wrapper pid."""
+        pids = [p["pid"] for p in procs
+                if (spec.get("proc") and p["name"] == spec["proc"])
+                or (spec.get("match") and spec["match"].lower() in p["cl"])]
+        if not pids:
+            ent = self._svc_spawn.get(spec["name"]) \
+                or (spec.get("pid"), spec.get("pid_ctime"))
+            if ent[0]:
+                pids = [ent[0]]
+        total = 0
+        for pid in pids:
+            try:
+                pr = psutil.Process(pid)
+                total += pr.memory_info().rss + sum(
+                    c.memory_info().rss for c in pr.children(recursive=True))
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                pass
+        return total / 1048576
+
+    def _watch_ports(self, procs, listeners):
+        """New foreign LISTEN port or an owner-pid change -> tray notice.
+        The first snapshot after start is quiet; ours/mine are skipped."""
+        prev = self._last_listeners
+        self._last_listeners = dict(listeners)
+        if prev is None:
+            return
+        mine = {x.lower() for x in be.load_settings()["port_mine"]}
+        by_pid = {p["pid"]: p for p in procs}
+        own = self._own_pids(procs, list(self.services_data),
+                             list(self.projects_data))
+        for port, pid in listeners.items():
+            proc = (by_pid.get(pid) or {}).get("name", "?")
+            if pid == os.getpid() or proc in mine \
+                    or _own_owner(pid, own, by_pid):
+                continue
+            if port not in prev:
+                self._tray("Dev Dashboard",
+                           be.tr("PORT_NEW", port=port, proc=proc))
+            elif prev[port] != pid:
+                self._tray("Dev Dashboard",
+                           be.tr("PORT_OWNER", port=port, proc=proc))
+
+    def _scan_service_logs(self):
+        """New lines of logs/<name>.log since the last read -> error lines
+        -> log_error issues. The first read positions at EOF — history
+        is not parsed; a truncated file (clear log) restarts from 0."""
+        for spec in list(self.services_data):
+            if spec.get("type"):
+                continue
+            path = be._service_log_path(spec)
+            try:
+                size = os.path.getsize(path)
+            except OSError:
+                continue
+            off = self._log_off.get(spec["name"])
+            if off is None or off > size:
+                self._log_off[spec["name"]] = size
+                continue
+            try:
+                with open(path, "rb") as f:
+                    f.seek(off)
+                    data = f.read()
+                self._log_off[spec["name"]] = size
+            except OSError:
+                continue
+            for line in be.decode_log(data).splitlines():
+                if line and classify_log_line(line) == "error":
+                    self._issue_log_error(spec["name"], line)
 
     def _svc_row(self, spec, res=None):
         state, detail = res if res else self._last_services.get(
@@ -568,15 +862,13 @@ class Dashboard:
         elif state == "failed":
             reason = be.tr_detail("circuit_open")
         sub = spec.get("sub", "")
-        for pt in spec.get("ports", ()):  # порт живёт в чипе — из подписи убрать
+        for pt in spec.get("ports", ()):  # port lives in the chip — drop from subtitle
             sub = re.sub(rf"\s*·?\s*:{pt}\b", "", sub, count=1)
         if spec.get("autorestart"):
             ar = be.tr("AUTORESTART")
             sub = (sub + " · " + ar) if sub else ar
         metrics = be.tr_detail(detail) if state in ("up", "off") else ""
-        metrics = re.sub(r"^:\d+(\s*·\s*)?", "", metrics)  # порт уже в чипе
-        if spec.get("zerotier") and re.fullmatch(r"[0-9.]+", metrics or ""):
-            chip, chip_url, metrics = metrics, "copy", ""  # IP — это адрес-чип
+        metrics = re.sub(r"^:\d+(\s*·\s*)?", "", metrics)  # port already in the chip
         chip = re.sub(r"^(127\.0\.0\.1|localhost|0\.0\.0\.0):", ":", chip)
         row = {"name": spec["name"], "sub": sub,
                "state": state or "check", "pillText": be.tr(word), "tone": tone,
@@ -584,21 +876,26 @@ class Dashboard:
                "metrics": metrics, "warn": state == "off" and bool(detail),
                "chip": chip, "chipUrl": chip_url, "monitor": monitor,
                "reason": reason, "squatterPort": squatter,
+               # raw (untranslated) reason kind for frontend checks —
+               # `reason` itself is localized, comparing it to keys is locale-brittle
+               "reasonKey": "circuit_open" if state == "failed" else "",
                "autorestart": bool(spec.get("autorestart")),
                "hasToken": bool(spec.get("env_key") and spec.get("env_file")),
                "hasUrl": bool(url), "hasPath": bool(spec.get("path")),
-               "remote": bool(spec.get("type"))}
-        # структурные метрики для UI: 'pid 19676 · 0% · 352MB · 7ч12м'
-        m = re.search(r"pid\s+(\d+).*?([\d.]+)%.*?(\d+)\s*MB(.*?(\d+)m)?",
-                      detail or "")
+               "remote": bool(spec.get("type")),
+               "deps": spec.get("depends_on") or [],
+               "env_profiles": sorted(spec.get("env_profiles") or {}),
+               "env_profile": spec.get("env_profile") or ""}
+        # structured metrics for the UI: 'pid 19676 · 0% · 352MB · 7h12m'
+        m = _PID_STATS_RE.search(detail or "")
         if state == "up" and m:
             row["m"] = {"pid": int(m.group(1)),
                         "cpu": float(m.group(2)),
                         "mb": int(m.group(3)),
                         "up": be.tr_detail(
                             (m.group(4) or "").strip(" ·"))}
-        # динамическая проверка: ключа env_key реально нет в env_file;
-        # кэш 30с — файл не перечитываем на каждом state-полле
+        # dynamic check: env_key is really missing from env_file;
+        # 30s cache — do not re-read the file on every state poll
         ek, ef = spec.get("env_key"), spec.get("env_file")
         if ek and ef:
             ck = (ef, ek)
@@ -609,11 +906,21 @@ class Dashboard:
             if not ent[1]:
                 row["envWarn"] = be.tr("ENV_MISSING", k=ek)
                 row["warn"] = True
+        if spec.get("type"):  # remote latency history (last 30 probes)
+            row["ms_hist"] = list(self._remote_hist.get(spec["name"], ()))
+            ent = self._uptime.get(spec["name"])  # 30s cache — 1 SELECT/remote
+            if ent is None or time.time() - ent[0] > 30:
+                try:
+                    ent = (time.time(), st.uptime_pct(spec["name"]))
+                except Exception:
+                    ent = (time.time(), None)
+                self._uptime[spec["name"]] = ent
+            row["uptime"] = ent[1]
         return row
 
     def _env_info(self, cwd):
-        """env-diff + gitignore-cover + ветка проекта; кэш 30с, чтобы
-        /api/state не открывал ~7 файлов на проект каждый полл."""
+        """env-diff + gitignore-cover + project branch; 30s cache so
+        /api/state does not open ~7 files per project on each poll."""
         ent = self._envinfo.get(cwd)
         if ent and time.time() - ent[0] < 30:
             return ent[1]
@@ -648,11 +955,10 @@ class Dashboard:
                 fw = be.project_framework(cwd)
                 self._fw_cache[cwd] = fw
         row["framework"] = fw or ""
-        # diff .env vs .env.example + gitignore-cover + ветка (кэш 30с)
+        # .env vs .env.example diff + gitignore-cover + branch (30s cache)
         if cwd:
             row.update(self._env_info(cwd))
-        m = re.search(r"pid\s+(\d+).*?([\d.]+)%.*?(\d+)\s*MB",
-                      info.get("stats") or "")
+        m = _PID_STATS_RE.search(info.get("stats") or "")
         if running and m:
             row["m"] = {"pid": int(m.group(1)), "cpu": float(m.group(2)),
                         "mb": int(m.group(3)), "up": ""}
@@ -660,8 +966,8 @@ class Dashboard:
 
     def _ar_row(self, n, c, running, mine, enabled):
         if not enabled:
-            # выкл видно по тумблеру — в метриках дублировать не надо
-            pill, tone, metrics = be.tr("STATE_OFF"), "dim", "—"
+            # off is visible on the toggle — no need to duplicate in metrics
+            pill, tone, metrics = be.tr("STATE_OFF"), "dim", ""
             failed = False
         else:
             pill, tone = be.tr("STATE_ON"), "accent"
@@ -673,27 +979,25 @@ class Dashboard:
                 "mine": mine, "state": "up" if running else "down"}
 
     def _mine_tokens(self):
-        """Токены «своих» автозапусков: варианты имён сервисов и стемы
-        файлов из их start — те же иглы, что у _ar_match."""
+        """Tokens of "own" autorun entries: service name variants and file
+        stems from their start — the same needles as _ar_match."""
         toks = set()
         for spec in self.services_data:
             n = spec["name"].lower()
             toks.update((n, n.replace(" ", "-"), n.replace(" ", "_")))
-            for t in re.findall(r"[\w.-]+\.(?:py|cmd|bat|exe|ps1|vbs|com)\b",
-                                spec.get("start") or "", re.I):
+            for t in _AR_FILE_RE.findall(spec.get("start") or ""):
                 toks.add(os.path.splitext(os.path.basename(t))[0].lower())
         return toks
 
     def _ar_match(self, name, spec, entries):
-        """Имя записи автозапуска, относящейся к сервису (или None).
-        Иглы: имя сервиса, варианты с -/_ и stem исполняемого файла из start
-        («pythonw shot2note.py serve» → «shot2note», имя «shot2note serve» →
-        «shot2note-serve», что матчит запись shot2note-serve.cmd)."""
+        """Name of the autorun entry belonging to the service (or None).
+        Needles: service name, -/_ variants and exe stem from start
+        ("pythonw my_app.py serve" → "my_app", name "my app serve" →
+        "my-app-serve", matching the my-app-serve.cmd entry)."""
         needles = {name.lower(),
                    name.lower().replace(" ", "-"),
                    name.lower().replace(" ", "_")}
-        for tok in re.findall(r"[\w.-]+\.(?:py|cmd|bat|exe|ps1|vbs|com)\b",
-                              spec.get("start") or "", re.I):
+        for tok in _AR_FILE_RE.findall(spec.get("start") or ""):
             needles.add(os.path.splitext(os.path.basename(tok))[0].lower())
         for e in entries:
             s = (e["name"] + " " + e["sub"]).lower()
@@ -702,7 +1006,7 @@ class Dashboard:
         return None
 
     def _apply_probe(self, res):
-        services, projects, autorun = res
+        services, projects, autorun, mem_over, watch_chg = res
         with self._lock:
             self._probing = False
             self._last_services = services
@@ -714,7 +1018,7 @@ class Dashboard:
                 prev = self._svc_prev.get(name)
                 if prev != "up" and st == "up":
                     self._svc_up_since[name] = time.time()
-                    self._run_start(name)      # внешний или наш старт — фиксируем
+                    self._run_start(name)      # external or our start — record it
                 if prev == "up" and st in ("down", "dead"):
                     self._run_end(name, st)
                 if prev == "up" and st == "dead":
@@ -725,12 +1029,41 @@ class Dashboard:
                     self._tray("Dev Dashboard",
                                be.tr("NAME_EXITED",
                                      name=name))
-                # watchdog: backoff + circuit breaker на падение up -> down/dead
+                # watchdog: backoff + circuit breaker on up -> down/dead transition
                 if spec.get("autorestart") and not spec.get("monitor_only") \
                         and not spec.get("type") and spec.get("start") \
                         and st in ("down", "dead") and prev == "up":
                     self._svc_autorestart(spec)
                 self._svc_prev[name] = st
+                # planned restarts (mem limit / file watch / interval):
+                # stop + relaunch through the crash budget — a trigger
+                # firing every probe tick trips the circuit instead of
+                # looping. _svc_autorestart does not consult the
+                # autorestart flag: the trigger itself opts the service in
+                if st == "up" and spec.get("start") \
+                        and not spec.get("type") and not spec.get("monitor_only"):
+                    mo = mem_over.get(name)
+                    every = spec.get("restart_every_min") or 0
+                    if mo:
+                        why, detail = be.tr("MEM_LIMIT", mb=mo[0],
+                                            lim=mo[1]), "memory limit"
+                    elif name in watch_chg:
+                        why, detail = be.tr("WATCH_RESTART"), "files changed"
+                    elif every and time.time() - \
+                            self._svc_up_since.get(name, 0) > every * 60:
+                        why, detail = be.tr("CRON_RESTART",
+                                            min=every), "scheduled restart"
+                    else:
+                        why = None
+                    if why:
+                        self._issue("restart", name, why)
+                        self._log(f"[{name}] {why}")
+                        self._stop_service(spec)
+                        # mark the planned stop: not a crash on the next tick,
+                        # and _autorestart_fire must not see a stale "up"
+                        self._last_services[name] = ("down", detail)
+                        self._svc_prev[name] = "down"
+                        self._svc_autorestart(spec)
 
             ok = sum(1 for st, _ in services.values() if st == "up")
             problems = [{"name": n, "why": be.tr_detail(detail)}
@@ -754,7 +1087,7 @@ class Dashboard:
                     elif was:
                         self._run_end(p["name"], "dead")
                         if p["name"] not in self._procs:
-                            # умер вне дашборда — помечаем «упал»
+                            # died outside the dashboard — mark "dead"
                             self._proj_dead[p["name"]] = True
                             self._issue("crash", p["name"],
                                         be.tr("EXITED"))
@@ -764,13 +1097,17 @@ class Dashboard:
                 if not p.get("url"):
                     ports = info.get("ports") or []
                     self._detected_url[p["name"]] = \
-                        f"http://localhost:{ports[0]}" if ports else ""
+                        f"http://127.0.0.1:{ports[0]}" if ports else ""
                 if info.get("running"):
                     ok += 1
 
             mine, other = [], []
             for n, c, r, mn, e in autorun:
-                (mine if mn else other).append(self._ar_row(n, c, r, mn, e))
+                own = be.self_autorun_is(n, c)  # наша запись — всегда «своя»
+                row = self._ar_row(n, c, r, mn or own, e)
+                if own:
+                    row["self"] = True
+                (mine if mn or own else other).append(row)
             self._ar_mine, self._ar_other = mine, other
             ok += sum(1 for _, _, r, mn, e in autorun if r and e)
             known = {p["name"] for p in problems}
@@ -801,15 +1138,15 @@ class Dashboard:
                 pass
 
     def _svc_autorestart(self, spec):
-        """Падение сервиса с autorestart: backoff 2→5→10→20с, circuit
-        breaker после 5 падений за 60с."""
+        """Crash of an autorestart service: backoff 2→5→10→20s, circuit
+        breaker after 5 crashes in 60s."""
         name = spec["name"]
         if name in self._cb_open:
             return
         now = time.time()
-        up = self._svc_up_since.pop(name, 0)  # consume: серия инста-крашей
-        if up and now - up > STABLE_UPTIME:   # без up не должна сбрасывать счёт
-            self._quick_fails[name] = 0      # долго работал — счёт с нуля
+        up = self._svc_up_since.pop(name, 0)  # consume: a run of insta-crashes
+        if up and now - up > STABLE_UPTIME:   # without up it must not reset the count
+            self._quick_fails[name] = 0      # ran long — count from scratch
             self._crash_ts.pop(name, None)
         ts = self._crash_ts.setdefault(name, [])
         ts.append(now)
@@ -831,8 +1168,8 @@ class Dashboard:
         _timer(delay, lambda s=spec: self._autorestart_fire(s))
 
     def _autorestart_fire(self, spec):
-        """Отложенный авторестарт: не воскрешать удалённый, уже поднятый
-        или закрытый circuit'ом сервис."""
+        """Deferred autorestart: do not resurrect a service that was deleted,
+        already brought up, or cut off by the circuit."""
         if spec not in self.services_data:
             return
         name = spec["name"]
@@ -843,7 +1180,7 @@ class Dashboard:
         self._start_service(spec)
 
     def _issue(self, kind, name, text):
-        """Событие в issues-ленту; повтор подряд того же вида — только счётчик."""
+        """Event into the issues feed; a repeat of the same kind only bumps the count."""
         with self._lock:
             it = self._issues[-1] if self._issues else None
             if it and it["kind"] == kind and it["name"] == name:
@@ -859,18 +1196,19 @@ class Dashboard:
             pass
 
     def _issue_log_error(self, name, text):
-        """Ошибка из лога сервиса/проекта: дедуп по тексту в окне 60с (×N)."""
+        """Error from a service/project log: text dedup within a 60s window (×N)."""
         text = text.strip()[:300]
         now = time.time()
-        it = self._err_issues.get(name)
-        if it and it["text"] == text and now - it["t"] < 60:
-            it["count"] += 1
-            it["t"] = now
-        else:
-            it = {"t": now, "kind": "log_error", "name": name,
-                  "text": text, "count": 1}
-            self._err_issues[name] = it
-            self._issues.append(it)
+        with self._lock:
+            it = self._err_issues.get(name)
+            if it and it["text"] == text and now - it["t"] < 60:
+                it["count"] += 1
+                it["t"] = now
+            else:
+                it = {"t": now, "kind": "log_error", "name": name,
+                      "text": text, "count": 1}
+                self._err_issues[name] = it
+                self._issues.append(it)
         try:
             st.save_issue(it)
         except Exception:
@@ -895,7 +1233,7 @@ class Dashboard:
             except Exception:
                 pass
 
-    # ---------- сервисы ----------
+    # ---------- services ----------
 
     def _service(self, name):
         return next((s for s in self.services_data if s["name"] == name), None)
@@ -904,20 +1242,30 @@ class Dashboard:
         return dict(self._service(name) or {})
 
     def service_env(self, name, reveal=False):
-        """ENV-оверрайды сервиса; секретные ключи маскируются без reveal."""
+        """Service ENV overrides; secret keys and cred: refs are masked
+        without reveal. reveal resolves cred: via the OS keystore —
+        an unsupported platform or a missing entry shows the literal
+        "cred:<target>" ref."""
         spec = self._service(name)
         if not spec:
             return None
         env = spec.get("env") or {}
-        return [{"key": k,
-                 "value": str(v)
-                 if reveal or not _ENV_SECRET_RE.search(k)
-                 else "••••••••",
-                 "secret": bool(_ENV_SECRET_RE.search(k))}
+
+        def value(k, v):
+            v = str(v)
+            if v.startswith("cred:"):
+                return (pi.cred_read(v[5:]) or v) if reveal \
+                    else "••••••••"
+            return v if reveal or not _ENV_SECRET_RE.search(k) \
+                else "••••••••"
+
+        return [{"key": k, "value": value(k, v),
+                 "secret": bool(_ENV_SECRET_RE.search(k))
+                 or str(v).startswith("cred:")}
                 for k, v in env.items()]
 
     def save_env(self, name, env):
-        """PUT: полная замена env-оверрайдов. Не логировать значения!"""
+        """PUT: full replacement of env overrides. Never log values!"""
         spec = self._service(name)
         if not spec:
             return None
@@ -928,23 +1276,166 @@ class Dashboard:
         env = {str(k).strip(): str(v) for k, v in env.items()
                if str(k).strip()}
         with self._lock:
+            old_targets = {v[5:] for v in (spec.get("env") or {}).values()
+                           if isinstance(v, str) and
+                           v.startswith("cred:DevDashboard/")}
+            new_targets = {v[5:] for v in env.values()
+                           if v.startswith("cred:DevDashboard/")}
             if env:
                 spec["env"] = env
             else:
                 spec.pop("env", None)
             be.save_services(self.services_data)
+        # unreferenced cred: targets are deleted — a rename keeps the same
+        # target referenced, a true row deletion drops it
+        for target in old_targets - new_targets:
+            try:
+                pi.cred_delete(target)
+            except OSError:
+                pass
+        st = self._last_services.get(name, (None,))[0]
+        res = {"restart_required": st == "up"}
+        w = be.validate_env(env)
+        if w:
+            res["warnings"] = w
+        return res
+
+    def save_env_profiles(self, name, profiles):
+        """PUT: full replacement of named env_profiles (never log values!)."""
+        spec = self._service(name)
+        if not spec:
+            return None
+        if spec.get("type") or spec.get("monitor_only"):
+            return False, be.tr("ENV_MONITOR_ONLY")
+        if profiles is None:
+            profiles = {}
+        if not isinstance(profiles, dict) or not all(
+                isinstance(v, dict) for v in profiles.values()):
+            return False, be.tr("PROFILES_NOT_OBJ")
+        profiles = {str(k).strip(): {str(kk): str(vv)
+                                     for kk, vv in v.items()
+                                     if str(kk).strip()}
+                    for k, v in profiles.items() if str(k).strip()}
+        with self._lock:
+            if profiles:
+                spec["env_profiles"] = profiles
+            else:
+                spec.pop("env_profiles", None)
+            be.save_services(self.services_data)
+        st = self._last_services.get(name, (None,))[0]
+        res = {"restart_required": st == "up"}
+        w = [x for pname, p in profiles.items()
+             for x in be.validate_env(p, prefix=f"{pname}.")]
+        if w:
+            res["warnings"] = w
+        return res
+
+    def set_env_profile(self, name, profile):
+        """POST: select the active env_profile ("" = none)."""
+        spec = self._service(name)
+        if not spec:
+            return None
+        if spec.get("type") or spec.get("monitor_only"):
+            return False, be.tr("ENV_MONITOR_ONLY")
+        profile = str(profile or "").strip()
+        if profile and profile not in (spec.get("env_profiles") or {}):
+            return False, be.tr("PROFILE_NOT_FOUND", name=profile)
+        with self._lock:
+            if profile:
+                spec["env_profile"] = profile
+            else:
+                spec.pop("env_profile", None)
+            be.save_services(self.services_data)
         st = self._last_services.get(name, (None,))[0]
         return {"restart_required": st == "up"}
 
-    # ---------- проекты ----------
+    def set_env_secret(self, name, key, value):
+        """POST: store a secret in the OS credential store; spec.env keeps
+        only "cred:DevDashboard/<name>/<key>". save_env deletes the
+        credential once no env value references its target anymore."""
+        spec = self._service(name)
+        if not spec:
+            return None
+        if spec.get("type") or spec.get("monitor_only"):
+            return False, be.tr("ENV_MONITOR_ONLY")
+        if not pi.IS_WIN:
+            return False, be.tr("CRED_UNSUPPORTED")
+        key = str(key or "").strip()
+        if not key:
+            return False, be.tr("NAME_REQUIRED")
+        target = f"DevDashboard/{name}/{key}"
+        try:
+            ok = pi.cred_write(target, str(value))
+        except OSError:
+            ok = False
+        if not ok:
+            return False, be.tr("CRED_WRITE_FAIL", target=target)
+        with self._lock:
+            spec.setdefault("env", {})[key] = f"cred:{target}"
+            be.save_services(self.services_data)
+        st = self._last_services.get(name, (None,))[0]
+        return {"restart_required": st == "up"}
+
+    def self_update(self):
+        """POST: upgrade to the latest release and restart. Channel decides
+        the mechanism: winget/scoop defer to their package manager, git
+        swaps the exe directly. A detached .bat does the swap after this
+        process exits — a running exe cannot overwrite itself."""
+        import tempfile
+        ch = be.update_channel()
+        if ch == "dev":
+            return False, be.tr("UPDATE_DEV_MODE")
+        rel = None
+        if ch == "git":
+            rel = be.fetch_latest_release()
+            if not rel or not rel["zip_url"]:
+                return False, be.tr("UPDATE_CHECK_FAILED")
+            if be.semver_key(rel["tag"]) <= be.semver_key(be.VERSION):
+                return False, be.tr("UPDATE_NONE")
+        target, pid = sys.executable, os.getpid()
+        tmp = os.path.join(tempfile.gettempdir(), "devdash-update")
+        try:
+            if ch == "git":
+                action = ("copy", be.download_update_zip(rel["zip_url"], tmp))
+            elif ch == "winget":
+                action = ("cmd",
+                          f"winget upgrade --id {be.WINGET_ID} -e --silent"
+                          " --accept-source-agreements"
+                          " --accept-package-agreements")
+            else:  # scoop — shim target stays valid through the re-junction
+                action = ("cmd", "scoop update dev-dashboard")
+            ps1 = be.write_update_helper(target, pid, action,
+                                         os.path.join(tmp,
+                                                      "apply-update.ps1"))
+        except (OSError, ValueError, urllib.error.URLError) as e:
+            return False, str(e)[:200]
+        # CREATE_NO_WINDOW only: DETACHED_PROCESS leaves powershell.exe
+        # (a console app) without a console and it never runs; windows
+        # children outlive the parent anyway
+        subprocess.Popen(["powershell", "-NoProfile", "-ExecutionPolicy",
+                          "Bypass", "-File", ps1],
+                         creationflags=getattr(subprocess,
+                                               "CREATE_NO_WINDOW", 0),
+                         close_fds=True)
+
+        def _quit_later():  # let the HTTP response flush first
+            time.sleep(1.0)
+            cb = getattr(self, "quit_cb", None)
+            if cb:
+                cb()
+        threading.Thread(target=_quit_later, daemon=True).start()
+        return {"channel": ch, "version": rel["tag"] if rel else "",
+                "restart_required": True}
+
+    # ---------- projects ----------
 
     def _project(self, name):
         return next((p for p in self.projects_data if p["name"] == name),
                     None)
 
     def project_env(self, name, reveal=False):
-        """ENV проекта = его .env + missing-ключи из .env.example;
-        секреты маскируются без reveal."""
+        """Project ENV = its .env + missing keys from .env.example;
+        secrets are masked without reveal."""
         p = self._project(name)
         if not p:
             return None
@@ -962,8 +1453,8 @@ class Dashboard:
                             for k in d.get("missing", [])]}
 
     def save_project_env(self, name, env):
-        """PUT: перезапись .env проекта ключами из payload — комментарии
-        и пустые строки файла сохраняются, удалённые ключи пропадают."""
+        """PUT: rewrite project .env with payload keys — file comments
+        and blank lines are preserved, removed keys are dropped."""
         p = self._project(name)
         if not p:
             return None
@@ -994,11 +1485,15 @@ class Dashboard:
         except OSError as e:
             return False, str(e)
         self._envinfo.pop(p["cwd"], None)
-        return {"ok": True}
+        res = {"ok": True}
+        w = be.validate_env(env)
+        if w:
+            res["warnings"] = w
+        return res
 
     def _start_service(self, spec, _depth=0, _seen=None):
-        # depends_on: дозапустить неработающие зависимости и дождаться
-        # их готовности (health_url → HTTP, порт → TCP, иначе «жив 0.5с»)
+        # depends_on: start up dead dependencies and wait for their
+        # readiness (health_url → HTTP, port → TCP, else "alive 0.5s")
         if _seen is None:
             _seen = {spec["name"]}
         waiting = []
@@ -1039,8 +1534,8 @@ class Dashboard:
         return True
 
     def _wait_ready(self, spec, timeout):
-        """Готов ли сервис: health_url → HTTP 200-399; порт → TCP; иначе
-        процесс жив и не упал за 0.5с. Поллинг 250мс, таймаут — сек."""
+        """Is the service ready: health_url → HTTP 200-399; port → TCP; else
+        process alive and not crashed within 0.5s. 250ms poll, sec timeout."""
         name, url = spec["name"], spec.get("health_url")
         ports = spec.get("ports") or []
         alive_since, deadline = None, time.time() + timeout
@@ -1075,14 +1570,67 @@ class Dashboard:
             time.sleep(0.25)
         return False
 
+    def _remap_port(self, spec):
+        """ports[0] held by another process at launch -> the next free port
+        (scan +20) or None. The spec is not mutated — the override reaches
+        the process only via the PORT/DEVDASH_PORT env vars."""
+        ports = spec.get("ports") or ()
+        if not ports or not be._port_open(ports[0]):
+            return None  # free — the common case costs one TCP connect
+        port = ports[0]
+        holders = set(be.pids_on_port(port))
+        if not holders:
+            return None
+        own = {p["pid"] for p in be._proc_snapshot()[0]
+               if (spec.get("proc") and p["name"] == spec["proc"].lower())
+               or (spec.get("match") and spec["match"].lower() in p["cl"])}
+        own.update(x for x in
+                   (spec.get("pid"),
+                    (self._svc_spawn.get(spec["name"]) or (0,))[0]) if x)
+        if holders <= own:
+            return None  # bound by our own still-running process — as before
+        for p in range(port + 1, min(port + 21, 65536)):
+            if not be._port_open(p):
+                return p
+        return None  # no free port nearby — the probe reports the busy port
+
     def _do_start(self, spec):
+        # alive matched procs → already running; a restart fired on a
+        # probe flap must not spawn a duplicate (SO_REUSEADDR lets two
+        # instances share the port → split-brain listeners)
+        if spec.get("proc") or spec.get("match"):
+            matched = [p for p in be._proc_snapshot()[0]
+                       if (spec.get("proc") and p["name"] == spec["proc"])
+                       or (spec.get("match")
+                           and spec["match"].lower() in p["cl"])]
+            if matched:
+                self._log(f"[{spec['name']}] " + be.tr(
+                    "SKIP_ALIVE",
+                    pids=", ".join(str(p["pid"]) for p in matched[:5])))
+                self._force_probe()
+                return False
         job = None
         try:
             job = ptree.Job()
         except OSError:
             pass
         try:
-            ok, err, proc = be.start_service_process(spec, self._log, job=job)
+            lspec = spec
+            free = self._remap_port(spec)
+            if free:
+                # remap rides on a throwaway spec copy: profile merged and
+                # expanded now, env_profile cleared so the remapped PORT
+                # stays authoritative over a profile-defined PORT
+                lspec = dict(spec, env_profile="",
+                             env=dict(be.env_profile_env(spec),
+                                      PORT=str(free),
+                                      DEVDASH_PORT=str(free)))
+                msg = be.tr("PORT_REMAPPED",
+                            old=spec["ports"][0], new=free)
+                self._issue("port", spec["name"], msg)
+                self._log(f"[{spec['name']}] {msg}")
+            ok, err, proc = be.start_service_process(
+                lspec, self._log, job=job)
         except Exception:
             if job:
                 job.disarm()
@@ -1092,7 +1640,7 @@ class Dashboard:
             with self._lock:
                 old = self._jobs.pop(spec["name"], None)
                 if old:
-                    old.terminate()      # старые процессы — добить дерево
+                    old.terminate()      # stale processes — finish the tree
                     old.close()
                 self._jobs[spec["name"]] = job
         elif job:
@@ -1100,8 +1648,8 @@ class Dashboard:
             job.close()
         if ok:
             with self._lock:
-                # pid обёртки — сигнал «жив» для проб без proc/match/ports;
-                # в spec — чтобы проба приняла его и после рестарта дашборда
+                # wrapper pid is the "alive" signal for probes without proc/match/ports;
+                # kept in spec so the probe accepts it after a dashboard restart
                 self._svc_spawn[spec["name"]] = (proc.pid,
                                                  be.pid_ctime(proc.pid))
                 spec["pid"], spec["pid_ctime"] = \
@@ -1109,7 +1657,7 @@ class Dashboard:
                 be.save_services(self.services_data)
             self._run_start(spec["name"])
             if spec.get("autorestart"):
-                # insta-crash <4с проба не увидит — проверим через 8с
+                # insta-crash <4s is invisible to the probe — verify after 8s
                 _timer(8, lambda s=spec: self._start_verify(s))
         else:
             self._log(f"[{spec['name']} ERR] " + be.tr(
@@ -1120,18 +1668,18 @@ class Dashboard:
         return ok
 
     def _start_verify(self, spec):
-        """Если через 8с сервис всё ещё не up и процесса нет — insta-crash:
-        засчитываем падение, чтобы circuit breaker сработал."""
+        """If after 8s the service is still not up and no process — insta-crash:
+        count it as a crash so the circuit breaker kicks in."""
         if self._last_services.get(spec["name"], (None,))[0] == "up":
             return
         if any((spec.get("proc") and p["name"] == spec["proc"])
                or (spec.get("match") and spec["match"].lower() in p["cl"])
                for p in be._proc_snapshot()[0]):
-            return  # процесс жив — просто медленный старт
+            return  # process alive — just a slow start
         self._svc_autorestart(spec)
 
     def port_conflict(self, name):
-        """{} или {port,pid,pname}: порт занят чужим процессом — для диалога."""
+        """{} or {port,pid,pname}: port held by a foreign process — for the dialog."""
         spec = self._service(name)
         if not spec:
             return {}
@@ -1151,7 +1699,7 @@ class Dashboard:
         return {}
 
     def service_targets(self, name):
-        """Кого убьёт stop — имена процессов для диалога подтверждения."""
+        """What stop would kill — process names for the confirm dialog."""
         spec = self._service(name)
         if not spec:
             return []
@@ -1162,7 +1710,7 @@ class Dashboard:
 
     def start_service(self, name):
         spec = self._service(name)
-        # ручной старт — сброс circuit breaker и счётчиков падений
+        # manual start — reset circuit breaker and crash counters
         self._cb_open.discard(name)
         self._crash_ts.pop(name, None)
         self._quick_fails.pop(name, None)
@@ -1178,13 +1726,13 @@ class Dashboard:
             job = self._jobs.pop(spec["name"], None)
             spawn = self._svc_spawn.pop(spec["name"], None)
             spid, sctime = spec.pop("pid", None), spec.pop("pid_ctime", None)
-            if spid:  # принятый пробой pid — снять до убийства
+            if spid:  # probe-adopted pid — clear it before killing
                 be.save_services(self.services_data)
-        if job:  # Job Object: мгновенное убийство всего дерева
+        if job:  # Job Object: instant kill of the whole tree
             job.terminate()
             job.close()
-        # adopted/spawned pid вне Job (перезапуск дашборда, Job() упал) —
-        # без этого stop «успешен», а процесс продолжает жить
+        # adopted/spawned pid outside the Job (dashboard restart, Job() failed) —
+        # without this stop "succeeds" while the process keeps living
         killed = [pid for pid, ct in ((spawn or (None, None)), (spid, sctime))
                   if pid and be.is_pid_running(pid, ct)
                   and be.kill_proc_tree(pid)]
@@ -1222,7 +1770,7 @@ class Dashboard:
         specs = self._dep_order([s for s in self.services_data
                                  if not s.get("monitor_only")
                                  and not s.get("type") and s.get("start")])
-        for i, s in enumerate(specs):  # стаггер — не душить систему разом
+        for i, s in enumerate(specs):  # stagger — do not choke the system at once
             _timer(i * 0.8, lambda s=s: self._start_service(s))
 
     def stop_all(self):
@@ -1234,8 +1782,8 @@ class Dashboard:
             _timer(i * 0.5, lambda s=s: self._stop_service(s))
 
     def _dep_order(self, specs):
-        """Топосорт по depends_on: зависимости стартуют раньше зависимых.
-        Циклы/неизвестные имена не блокируют — докидываются в конец."""
+        """Toposort by depends_on: dependencies start before dependents.
+        Cycles/unknown names do not block — appended at the end."""
         by_name = {s["name"]: s for s in specs}
         done, out = set(), []
 
@@ -1270,17 +1818,18 @@ class Dashboard:
         spec = self._service(name)
         if not spec:
             return False, be.tr("NAME_NOT_FOUND", name=name)
-        self._stop_service(spec)  # иначе запущенный процесс станет сиротой
+        self._stop_service(spec)  # otherwise the started process becomes an orphan
         with self._lock:
             if spec in self.services_data:
                 self.services_data.remove(spec)
             be.save_services(self.services_data)
+        be.note_deleted_service(spec)  # "Discovered" restores fields via proc/match
         self._force_probe()
         return True, ""
 
     def save_service(self, old_name, data):
-        """old_name='' — добавить; форма шлёт только известные ключи,
-        неизвестные в spec сохраняются."""
+        """old_name='' — add; the form sends only known keys,
+        unknown keys in spec are preserved."""
         try:
             if isinstance(data.get("ports"), str):
                 data["ports"] = [int(x) for x in
@@ -1291,25 +1840,27 @@ class Dashboard:
             data.pop("type", None)
         if not isinstance(data.get("name"), str) or not data["name"].strip():
             return False, be.tr("NAME_REQUIRED")
-        be._norm_service(data)  # ports → валидный int-лист либо удалить
+        be._norm_service(data)  # ports → valid int list or drop
         with self._lock:
             if old_name:
                 spec = self._service(old_name)
                 if spec is None:
                     return False, be.tr("NAME_NOT_FOUND", name=old_name)
-                # ключи формы, отсутствующие в data — удалить (снятый чек/
-                # пустое поле); неизвестные ключи spec сохранить
+                # form keys absent from data — delete (unchecked box/
+                # empty field); keep unknown spec keys
                 known = {"name", "sub", "type", "ports", "proc", "match", "url",
                          "host", "port", "keyword", "container", "interval",
                          "start", "cwd", "path", "note", "env_key", "env_file",
-                         "autorestart", "monitor_only", "zerotier", "supabase",
-                         "depends_on"}
+                         "autorestart", "monitor_only", "depends_on",
+                         "health_url", "mem_limit_mb", "watch",
+                         "restart_every_min", "env_profiles", "env_profile"}
                 for k in known - set(data):
                     spec.pop(k, None)
                 spec.update(data)
             else:
                 self.services_data.append(data)
             be.save_services(self.services_data)
+        be.drop_deleted_service(data["name"])  # re-added — forget the remembered one
         self._force_probe()
         return True, ""
 
@@ -1362,7 +1913,7 @@ class Dashboard:
             return ""
         return be._env_get(spec.get("env_file", ""), spec.get("env_key", ""))
 
-    # ---------- проекты ----------
+    # ---------- projects ----------
 
     def _proj(self, name):
         return next((p for p in self.projects_data if p["name"] == name), None)
@@ -1392,7 +1943,7 @@ class Dashboard:
         with self._lock:
             if job:
                 old = self._jobs.pop(name, None)
-                if old:  # job прошлого запуска: добить дерево, закрыть хендл
+                if old:  # job from the previous run: finish the tree, close the handle
                     old.terminate()
                     old.close()
                 self._jobs[name] = job
@@ -1413,7 +1964,7 @@ class Dashboard:
     def _pump(self, stream, name, err):
         try:
             for raw in iter(stream.readline, b""):
-                line = raw.decode("utf-8", errors="replace").rstrip()
+                line = be.decode_log(raw).rstrip()
                 if line:
                     self._log(f"[{name}{' ERR' if err else ''}] {line}")
                     if classify_log_line(line) == "error":
@@ -1448,23 +1999,23 @@ class Dashboard:
             job = self._jobs.pop(name, None)
         pid = p.get("pid")
         with self._lock:
-            # pid=None до убийства: _wait_proc не примет остановку за краш
+            # pid=None before kill: _wait_proc will not take the stop for a crash
             p["pid"] = None
             p["pid_ctime"] = None
             self._proj_dead[name] = False
             be.save_projects(self.projects_data)
         if proc and proc.poll() is None:
-            try:  # мягкое завершение, 3с на выход
+            try:  # graceful shutdown, 3s to exit
                 proc.terminate()
                 proc.wait(timeout=3)
             except Exception:
                 pass
         if job:
-            job.terminate()          # добить всё дерево гарантированно
+            job.terminate()          # finish the whole tree for sure
             job.close()
         if pid:
-            # всегда: при job=None (отказ в назначении) без этого дети
-            # процесса остаются сиротами; повторное убийство безопасно
+            # always: with job=None (assign failed) without this the children
+            # of the process stay orphaned; killing again is safe
             be.kill_proc_tree(pid)
         self._log(f"[{name}] " + be.tr("PROC_STOPPED",
                                        pid=pid))
@@ -1486,58 +2037,153 @@ class Dashboard:
                 known = {"name", "cmd", "cwd", "url", "autostart"}
                 for k in known - set(data):
                     p.pop(k, None)
-                # cmd/cwd обязательны для probe/ports-путей — частичный
-                # save без них ломал бы p["cwd"]-индексы
+                # cmd/cwd are required for the probe/ports paths — a partial
+                # save without them would break the p["cwd"] indexes
                 data.setdefault("cmd", "")
                 data.setdefault("cwd", "")
                 data.setdefault("pid", p.get("pid"))
-                p.update(data)  # неизвестные ключи + pid сохраняются
+                p.update(data)  # unknown keys + pid are preserved
             else:
-                data.setdefault("pid", None)
+                if self._proj(data["name"].strip()):
+                    return False, be.tr("NAME_TAKEN", name=data["name"])
+                data["pid"] = None  # client-sent pid must never be trusted
                 self.projects_data.append(data)
             be.save_projects(self.projects_data)
+        be.drop_deleted_project(data["name"],
+                                data.get("cwd"))  # re-added — forget it
         return True, ""
 
     def delete_project(self, name):
         p = self._proj(name)
         if not p:
             return False, be.tr("NAME_NOT_FOUND", name=name)
+        # untrack, don't kill — unlike services, a deleted project's
+        # process keeps running (it may not be ours)
+        be.note_deleted_project(p)  # scan restores cmd/url by cwd match
         with self._lock:
             self.projects_data.remove(p)
             be.save_projects(self.projects_data)
         return True, ""
 
     def add_projects(self, items):
-        # whitelist: env_*/branch из скана — временные поля, их место не
-        # в projects_config.json (пересчитываются живьём в _proj_row)
+        # whitelist: env_*/branch from the scan are transient fields, they
+        # do not belong in projects_config.json (recomputed live in _proj_row)
         KEEP = ("name", "cmd", "cwd", "url", "framework", "autostart")
-        new = [{k: v for k, v in i.items() if k in KEEP}
-               for i in items
-               if isinstance(i, dict) and i.get("name") and i.get("cmd")]
-        for i in new:
-            i.setdefault("pid", None)
-            i.setdefault("cwd", "")
-        if new:
-            with self._lock:
+        with self._lock:
+            have = {(p["name"], os.path.normcase(os.path.normpath(
+                p.get("cwd") or ""))) for p in self.projects_data}
+            names = {p["name"] for p in self.projects_data}
+            new, seen = [], set()
+            for i in items:
+                if not (isinstance(i, dict) and i.get("name")
+                        and i.get("cmd")):
+                    continue
+                nc = os.path.normcase(os.path.normpath(i.get("cwd") or ""))
+                # no dup by name or cwd — a stale strip row must not clone
+                if i["name"] in names or (i["name"], nc) in have \
+                        or nc in seen:
+                    continue
+                seen.add(nc)
+                new.append({k: v for k, v in i.items() if k in KEEP})
+            for i in new:
+                i["pid"] = None
+                i.setdefault("cwd", "")
+                be.drop_deleted_project(i["name"], i["cwd"])
+            if new:
                 self.projects_data.extend(new)
                 be.save_projects(self.projects_data)
         return True, be.tr("ADDED_N", n=len(new))
 
     def scan_projects(self):
-        known = {os.path.normcase(os.path.normpath(p["cwd"]))
-                 for p in list(self.projects_data)}
-        found, seen = [], set()
+        # the walk is the slow part — a short cache is enough for the
+        # strip's mount+expand fetches and repeated visits
+        now = time.time()
+        if getattr(self, "_scan_cache", None) \
+                and now - self._scan_cache[0] < 30:
+            return {"found": self._scan_cache[1]}
+        with self._lock:
+            known = {os.path.normcase(os.path.normpath(p["cwd"]))
+                     for p in list(self.projects_data)}
+        # cwds of running processes — a "project already running" signal
+        # for scoring; its LISTEN port prefills the project url
+        run_dirs, run_ports = set(), {}
+        me = os.getpid()
+        try:
+            conns = psutil.net_connections("tcp")
+        except (psutil.Error, OSError):
+            conns = []
+        for p in be._proc_snapshot()[0]:
+            if p["proc"].pid == me:
+                continue  # our own :4850 is not a project
+            try:
+                nc = os.path.normcase(os.path.normpath(p["proc"].cwd()))
+            except (psutil.Error, OSError):
+                continue
+            run_dirs.add(nc)
+            for c in conns:
+                if c.status == "LISTEN" and c.pid == p["proc"].pid \
+                        and c.laddr:
+                    run_ports.setdefault(nc, c.laddr.port)
+        deleted = {os.path.normcase(os.path.normpath(s["cwd"])): s
+                   for s in be.load_settings()["prj_deleted"]
+                   if s.get("cwd")}
+        groups, order, seen = {}, [], set()
         for root in be.scan_roots():
             if not os.path.isdir(root):
                 continue
-            for p in be.scan_project_dirs(root, known):
+            for p in be.scan_project_dirs(root, known, run_dirs, run_ports):
                 key = os.path.normcase(os.path.normpath(p["cwd"]))
                 if key not in seen:
                     seen.add(key)
-                    found.append(p)
+                    repo = p.get("repo") or key
+                    if repo not in groups:
+                        groups[repo] = []
+                        order.append(repo)
+                    groups[repo].append(p)
+        # worktrees of one repo fold into a single primary row (the main
+        # checkout, else the best score) carrying {cwd, branch} per checkout
+        found = []
+        for repo in order:
+            rows = groups[repo]
+            pri = rows[0] if len(rows) == 1 else next(
+                (r for r in rows
+                 if os.path.normcase(os.path.normpath(r["cwd"])) == repo),
+                max(rows, key=lambda r: r["score"]))
+            if len(rows) > 1:
+                pri["worktrees"] = [{"cwd": r["cwd"], "branch": r["branch"]}
+                                    for r in rows]
+            found.append(pri)
+        for p in found:  # deleted spec resurrects user's cmd/url/autostart
+            old = deleted.get(os.path.normcase(os.path.normpath(p["cwd"])))
+            if old:
+                p["restored"] = True
+                for k in ("name", "cmd", "url", "autostart"):
+                    if old.get(k) is not None:
+                        p[k] = old[k]
+        # same basename under different parents (multi-root scans) —
+        # qualify with the nearest ancestor dir until the name is unique
+        counts = {}
+        for p in found:
+            counts[p["name"]] = counts.get(p["name"], 0) + 1
+        taken = set(counts)
+        for p in found:
+            if counts[p["name"]] <= 1:
+                continue
+            base, d = p["name"], p["cwd"]
+            for _ in range(4):
+                d = os.path.dirname(d)
+                par = os.path.basename(d).upper()
+                if not par:
+                    break
+                q = f"{base} · {par}"
+                if q not in taken:
+                    taken.add(q)
+                    p["name"] = q
+                    break
+        self._scan_cache = (now, found)
         return {"found": found}
 
-    # ---------- автозапуск ----------
+    # ---------- autorun ----------
 
     def toggle_autorun(self, name, enabled):
         try:
@@ -1554,6 +2200,8 @@ class Dashboard:
     def write_autorun(self, name, cmd, old_name):
         if not name.strip() or not cmd.strip():
             return False, be.tr("NAME_CMD_REQUIRED")
+        if old_name and old_name.lower() == be.SELF_AUTORUN_NAME.lower():
+            return False, be.tr("AR_SELF_MANAGED")  # Settings toggle owns it
         try:
             if old_name and old_name != name:
                 pi.autorun_delete(old_name)
@@ -1577,10 +2225,10 @@ class Dashboard:
         self._force_probe()
         return True, ""
 
-    # ---------- общее ----------
+    # ---------- misc ----------
 
     def open_project(self, name, what):
-        """Открыть папку проекта в Проводнике или в IDE (cursor → code)."""
+        """Open the project folder in Explorer or in an IDE (cursor → code)."""
         p = self._proj(name)
         cwd = (p or {}).get("cwd") or ""
         if not p:
@@ -1589,13 +2237,12 @@ class Dashboard:
             return False, be.tr("PROJ_DIR_MISSING",
                                 cwd=cwd or "—")
         if what == "open-ide":
-            import shutil
-            for exe in ("cursor", "code"):
-                if shutil.which(exe):
-                    subprocess.Popen(pi.shell_argv(f'{exe} "{cwd}"'),
-                                     **pi.popen_kwargs())
-                    return True, ""
-            pi.open_path(cwd)  # нет IDE — хотя бы файловый менеджер
+            exe = be.find_editor()
+            if exe:
+                subprocess.Popen(pi.shell_argv(f'{exe} "{cwd}"'),
+                                 **pi.popen_kwargs())
+                return True, ""
+            pi.open_path(cwd)  # no IDE — at least a file manager
             return True, ""
         pi.open_path(cwd)
         return True, ""
@@ -1607,12 +2254,14 @@ class Dashboard:
                 return True, ""
             if path and os.path.exists(path):
                 if editor:
-                    try:  # «Открыть в редакторе»: code → иначе ассоциация
-                        subprocess.Popen(pi.shell_argv(f'code "{path}"'),
-                                         **pi.popen_kwargs())
-                        return True, ""
-                    except OSError:
-                        pass
+                    exe = be.find_editor()
+                    if exe:
+                        try:  # "Open in editor" → otherwise file association
+                            subprocess.Popen(pi.shell_argv(f'{exe} "{path}"'),
+                                             **pi.popen_kwargs())
+                            return True, ""
+                        except OSError:
+                            pass
                 pi.open_path(path)
                 return True, ""
         except OSError as e:
@@ -1630,7 +2279,7 @@ class Dashboard:
                                        title=be.tr("PROJ_FOLDER"))
             root.destroy()
             return {"dir": d or ""}
-        except Exception as e:  # headless/нет tkinter — чистая ошибка, не 500
+        except Exception as e:  # headless/no tkinter — clean error, not a 500
             return False, be.tr("PICK_DIR_FAIL", e=e)
 
     def port_targets(self, port):
@@ -1642,9 +2291,19 @@ class Dashboard:
                 out.append({"name": "?", "pid": pid})
         return out
 
+    def free_port(self, start):
+        """First free TCP port >= start ('from' itself counts)."""
+        try:
+            start = int(start)
+        except (TypeError, ValueError):
+            start = 8000
+        start = max(1, min(start, 65535))
+        p = start if not be._port_open(start) else be.next_free_port(start)
+        return {"port": p, "from": start}
+
     def _protected_pid(self, pid):
-        """Системный/db-процесс, НЕ принадлежащий нашим сервисам и
-        проектам — защита от случайного kill postgres/svchost."""
+        """System/db process NOT belonging to our services and
+        projects — protection against accidentally killing postgres/svchost."""
         try:
             name = psutil.Process(pid).name().lower()
         except (psutil.Error, OSError):
@@ -1661,7 +2320,7 @@ class Dashboard:
         return True
 
     def kill_pid(self, pid):
-        """Убить процесс по pid (фоновые dev-процессы без портов)."""
+        """Kill a process by pid (background dev processes without ports)."""
         try:
             pid = int(pid)
         except (TypeError, ValueError):
@@ -1709,7 +2368,7 @@ class Dashboard:
         return True, ""
 
     def api_settings(self):
-        """Текущие настройки ядра + мета (порт помечен restart-only)."""
+        """Current core settings + meta (port marked restart-only)."""
         with self._lock:
             return {
                 "probe_interval": self._probe_interval,
@@ -1717,16 +2376,18 @@ class Dashboard:
                 "backoff": list(self._backoff),
                 "api_port": be.load_settings()["api_port"],
                 "config_dir": be.DATA_DIR,
-                "scan_roots": be.scan_roots(),
+                "scan_roots": be.load_settings()["scan_roots"],
+                "scan_roots_auto": be.scan_roots(),
                 "port_mine": be.load_settings()["port_mine"],
                 "port_hidden": be.load_settings()["port_hidden"],
                 "lang": be.load_settings()["lang"],
                 "lang_resolved": be.lang(),
+                "autostart": be.self_autorun_enabled(),
             }
 
     def save_settings(self, body):
-        """Патч настроек из UI: валидация -> settings.json -> применить
-        живьём. api_port не меняется без перезапуска — в ответ не входит."""
+        """Settings patch from the UI: validate -> settings.json -> apply
+        live. api_port cannot change without a restart — absent from the reply."""
         with self._lock:
             patch = {}
             try:
@@ -1763,7 +2424,14 @@ class Dashboard:
                         patch[key] = lst
                 if "lang" in body and str(body["lang"]) in be.LANGS:
                     patch["lang"] = str(body["lang"])
-                if "api_port" in body:  # применится на следующем старте
+                if "autostart" in body:
+                    want = bool(body["autostart"])
+                    if want != be.self_autorun_enabled():
+                        try:  # registry write — applies instantly, not stored
+                            be.self_autorun_set(want)
+                        except OSError:
+                            return False, be.tr("SAVE_FAILED")
+                if "api_port" in body:  # applies on next start
                     p = int(body["api_port"])
                     if not 1024 <= p <= 65535:
                         raise ValueError
@@ -1778,13 +2446,9 @@ class Dashboard:
             res["restart_required"] = saved["api_port"] != self.api_port
             return res
 
-    def api_ports(self):
-        """TCP-слушатели + владелец (сервис/проект, в т.ч. через родителей
-        и cwd в cmdline) + категория чужих и пользовательские метки."""
-        procs, listeners, lan = be._proc_snapshot()
-        by_pid = {p["pid"]: p for p in procs}
-        with self._lock:  # снапшот shared-списков — записи идут под _lock
-            svcs, prjs = list(self.services_data), list(self.projects_data)
+    def _own_pids(self, procs, svcs, prjs):
+        """pid -> our service/project name: proc/match hits, spawned or
+        adopted service pids, project pids. Port attribution + port-watch."""
         own = {}
         for spec in svcs:
             for p in procs:
@@ -1792,7 +2456,7 @@ class Dashboard:
                         or (spec.get("match")
                             and spec["match"].lower() in p["cl"]):
                     own[p["pid"]] = spec["name"]
-            # spawned/adopted pid сервиса без proc/match — тоже «наш»
+            # spawned/adopted pid of a service without proc/match — also "ours"
             for pid in (spec.get("pid"),
                         (self._svc_spawn.get(spec["name"]) or (0,))[0]):
                 if pid:
@@ -1800,21 +2464,21 @@ class Dashboard:
         for prj in prjs:
             if prj.get("pid"):
                 own[prj["pid"]] = prj["name"]
+        return own
+
+    def api_ports(self):
+        """TCP listeners + owner (service/project, incl. via parents
+        and cwd in cmdline) + category of foreign ones and user marks."""
+        global _PREV_PIDS
+        procs, listeners, lan = be._proc_snapshot()
+        by_pid = {p["pid"]: p for p in procs}
+        prev, _PREV_PIDS = _PREV_PIDS, set(by_pid)
+        with self._lock:  # snapshot shared lists — writes go under _lock
+            svcs, prjs = list(self.services_data), list(self.projects_data)
+        own = self._own_pids(procs, svcs, prjs)
         st = be.load_settings()
         mine = {x.lower() for x in st["port_mine"]}
         hidden = {x.lower() for x in st["port_hidden"]}
-        # процесс «наш», если его предок в own (npm -> node и т.п.)
-        def own_owner(pid):
-            seen, cur = set(), pid
-            for _ in range(8):
-                if cur in own:
-                    return own[cur]
-                if cur in seen:
-                    break
-                seen.add(cur)
-                info = by_pid.get(cur)
-                cur = info["ppid"] if info else 0
-            return None
 
         def own_by_cwd(pid):
             cl = (by_pid.get(pid) or {}).get("cl", "")
@@ -1823,7 +2487,7 @@ class Dashboard:
             for prj in prjs:
                 raw = prj.get("cwd") or ""
                 if not raw:
-                    continue  # '' → normpath('.') матчил бы всё подряд
+                    continue  # '' → normpath('.') would match anything
                 cwd = os.path.normcase(os.path.normpath(raw))
                 if cwd + os.sep in cl or cl.endswith(cwd):
                     return prj["name"]
@@ -1832,17 +2496,20 @@ class Dashboard:
         out = []
         for port, pid in sorted(listeners.items()):
             info = by_pid.get(pid)
+            pr = info["proc"] if info else None
             try:
                 if info:
                     proc, cmd = info["name"], info["cmd"]
-                    age = time.time() - info["proc"].create_time()
                 else:
-                    pp = psutil.Process(pid)
-                    proc, cmd = pp.name(), " ".join(pp.cmdline() or [])
-                    age = time.time() - pp.create_time()
+                    pr = psutil.Process(pid)
+                    proc, cmd = pr.name(), " ".join(pr.cmdline() or [])
+                age = time.time() - pr.create_time()
             except (psutil.Error, OSError):
                 proc, cmd, age = (info or {}).get("name", "?"), "", 0
-            owner = own_owner(pid) or own_by_cwd(pid)
+            owner = _own_owner(pid, own, by_pid) or own_by_cwd(pid)
+            zombie, agent = _proc_flags(pid, info, pr, by_pid, age, prev)
+            if pid == os.getpid():
+                zombie = None  # the dashboard itself is detached, not a zombie
             cat, label = be.port_class(proc, port)
             out.append({"port": port, "pid": pid,
                         "proc": proc or "?", "cmd": cmd[:140],
@@ -1850,21 +2517,39 @@ class Dashboard:
                         "cat": cat, "label": be.tr(label),
                         "lan": lan.get(port), "age": int(age),
                         "mine": (proc or "").lower() in mine,
-                        "hidden": (proc or "").lower() in hidden})
-        # page-title только на своих портах — чужие не дёргаем
-        own_ports = [r["port"] for r in out
-                     if r["owner"] or r["self"] or r["mine"]]
-        if own_ports:
-            with ThreadPoolExecutor(6) as ex:
-                titles = dict(zip(own_ports,
-                                  ex.map(be.page_title, own_ports)))
-            for r in out:
-                r["title"] = titles.get(r["port"], "")
-        # фоновые dev-процессы без портов (как `ports ps` у kiri):
-        # node/python/bun…, которые ничего не слушают — «idle-сервера»
+                        "hidden": (proc or "").lower() in hidden,
+                        "zombie": zombie, "agent": agent})
+        # title+favicon: serve the cache, never block on probes — under
+        # ephemeral-port pressure each connect stalls for seconds and the
+        # whole endpoint used to hang. Misses refresh in the background
+        # and surface on the next poll; sys holders / LAN-only not poked.
+        now = time.time()
+        fresh = {p: v for p, (ts, v) in self._sniff.items()
+                 if now - ts < 60}
+        for r in out:
+            r["title"], r["favicon"] = fresh.get(r["port"], ("", ""))
+        miss = [r["port"] for r in out if r["cat"] != "sys"
+                and r["lan"] in (None, "0.0.0.0", "::")
+                and r["port"] not in fresh]
+        if miss and not self._sniff_busy:
+            self._sniff_busy = True
+            threading.Thread(target=self._sniff_ports,
+                             args=(miss,), daemon=True).start()
+        # scoring sort: own on top, then "interesting" foreign ones
+        # (db/dev, LAN-exposed, long-lived, marked), sys at the bottom
+        catw = {"db": 3, "dev": 2, "net": 2, "other": 0, "sys": -50}
+        for r in out:
+            r["score"] = (100 if r["owner"] or r["self"] else 0) \
+                + catw.get(r["cat"], 0) \
+                + (3 if r["mine"] else 0) + (2 if r["lan"] else 0) \
+                + (1 if r.get("title") else 0) \
+                + (1 if r["age"] >= 300 else 0) + (1 if r["age"] >= 3600 else 0)
+        out.sort(key=lambda r: (-r["score"], r["port"]))
+        # background dev processes without ports (like kiri's `ports ps`):
+        # node/python/bun… that listen on nothing — "idle servers"
         busy = set(listeners.values())
-        # предки слушателей тоже заняты (npm -> node-обёртка):
-        # иначе родительский dev-процесс ложно попадает в «без портов»
+        # listener ancestors are busy too (npm -> node wrapper):
+        # otherwise the parent dev process falsely lands in "no ports"
         for pid in list(busy):
             cur = by_pid.get(pid)
             for _ in range(8):
@@ -1882,14 +2567,255 @@ class Dashboard:
                 continue
             try:
                 mb = int(p["proc"].memory_info().rss / 1048576)
+                age = time.time() - p["proc"].create_time()
             except (psutil.Error, OSError):
-                mb = 0
+                mb, age = 0, 0
+            zombie, agent = _proc_flags(p["pid"], p, p["proc"], by_pid,
+                                        age, prev)
             bg.append({"name": p["name"], "pid": p["pid"], "mb": mb,
-                       "owner": own_owner(p["pid"]) or own_by_cwd(p["pid"])})
+                       "owner": _own_owner(p["pid"], own, by_pid)
+                       or own_by_cwd(p["pid"]),
+                       "zombie": zombie, "agent": agent})
+        bg.sort(key=lambda p: -p["mb"])  # hungriest idle processes on top
         return {"ports": out, "bg": bg}
 
+    def _sniff_ports(self, ports):
+        """Fill the title/favicon cache off the request path."""
+        try:
+            vals = list(ThreadPoolExecutor(4).map(
+                lambda pt: (be.page_title(pt), be.port_favicon(pt)), ports))
+            now = time.time()
+            for pt, v in zip(ports, vals):
+                self._sniff[pt] = (now, v)
+        finally:
+            self._sniff_busy = False
+
+    def api_service_candidates(self):
+        """Running foreign processes → service candidates for the "New
+        service" dialog. Scoring: port > category > mark > own path > age."""
+        data = self.api_ports()
+        with self._lock:
+            prjs, svcs = list(self.projects_data), list(self.services_data)
+        dirs = [os.path.normcase(os.path.normpath(p["cwd"])) + os.sep
+                for p in prjs if p.get("cwd")]
+        for s_ in svcs:
+            for f_ in ("cwd", "path"):
+                if s_.get(f_):
+                    dirs.append(os.path.normcase(
+                        os.path.normpath(s_[f_])) + os.sep)
+        deleted = be.load_settings()["svc_deleted"]
+        # autorun entries: needle per entry for matching live candidates,
+        # plus the rows themselves as a source of dormant candidates
+        ar_rows = self._ar_mine + self._ar_other
+        ar_used = set()
+
+        def _ar_for(name, cmd):
+            """Autorun entry for this process: registry name or the
+            target basename inside the process name/cmdline."""
+            s = (name + " " + (cmd or "")).lower()
+            for a in ar_rows:
+                tgt = be._autorun_target(a["sub"] or "")
+                needles = (a["name"].lower(),
+                           os.path.basename(tgt).lower() if tgt else "")
+                if any(n and n in s for n in needles):
+                    return a
+            return None
+
+        by_pid = {}
+        for r in data["ports"]:
+            if r["owner"] or r["self"] or r["hidden"] or r["cat"] == "sys":
+                continue
+            c = by_pid.setdefault(
+                r["pid"], {"pid": r["pid"], "name": r["proc"],
+                           "cmd": r["cmd"], "ports": [], "cat": r["cat"],
+                           "label": r["label"], "mine": r["mine"],
+                           "age": r["age"], "mb": 0,
+                           "zombie": r["zombie"], "agent": r["agent"]})
+            c["ports"].append(r["port"])
+        for r in data["bg"]:  # portless dev processes — bots/watchers
+            if not r["owner"]:
+                by_pid.setdefault(
+                    r["pid"], {"pid": r["pid"], "name": r["name"], "cmd": "",
+                               "ports": [], "cat": "dev", "label": "",
+                               "mine": False, "age": 0, "mb": r["mb"],
+                               "zombie": r["zombie"], "agent": r["agent"]})
+        out, used_deleted = [], set()
+        for c in by_pid.values():
+            try:
+                p_ = psutil.Process(c["pid"])
+            except (psutil.Error, OSError):
+                p_ = None
+            argv = []
+            if p_:
+                try:  # arg list, not joined string — quoted args stay whole
+                    argv = p_.cmdline() or []
+                except (psutil.Error, OSError):
+                    pass  # SYSTEM gives no cmdline — proc alone suffices
+            cmd = c["cmd"] or " ".join(_shq(x) for x in argv)
+            proc = (c["name"] or "").lower()
+            interp = proc.removesuffix(".exe") in be.INTERPRETERS
+            toks = argv or cmd.split()
+            frag, script, si = "", "", -1
+            for i, t_ in enumerate(toks):
+                if _SCRIPT_EXT_RE.search(t_):
+                    script, si = t_, i
+                    frag = os.path.basename(t_)
+                    nxt = toks[i + 1] if i + 1 < len(toks) else ""
+                    if nxt and not nxt.startswith("-") \
+                            and "\\" not in nxt and "/" not in nxt:
+                        frag += " " + nxt
+                    break
+            try:
+                cwd = p_.cwd() if p_ else ""
+            except (psutil.Error, OSError):
+                cwd = ""
+            try:
+                exe_p = p_.exe() if p_ else ""
+            except (psutil.Error, OSError):
+                exe_p = ""
+            # launcher in the parent chain (npm run / go run / x.cmd) is the
+            # real start recipe; else interpreter + absolute script anchors
+            # to the script file; else the live snapshot
+            lstart, lcwd, lstem = _find_launcher(p_) or ("", "", "")
+            if lstart:
+                start, cwd = lstart, lcwd or cwd
+            elif interp and si >= 0 and os.path.isabs(script):
+                cwd = os.path.dirname(script) or cwd
+                exe_b = _shq(exe_p) if _VENV_DIR_RE.search(exe_p) \
+                    else (os.path.basename(toks[0]) if toks else "")
+                if re.search(r"\.tsx?$", script, re.I) \
+                        and exe_b.lower().startswith("node"):
+                    exe_b = _node_runner(cwd) or exe_b
+                start = " ".join(_shq(x) for x in
+                                 [exe_b, os.path.basename(script),
+                                  *toks[si + 1:]] if x)
+            else:
+                start = cmd
+            # name/match from the launcher or script — interpreters only;
+            # for a plain exe an arg like server-ws.mjs is no script sign
+            stem = lstem or (frag if interp else "") \
+                or os.path.splitext(c["name"] or "?")[0]
+            in_dirs = any(d in cmd.lower().replace("/", "\\") for d in dirs) \
+                or any(d in (cwd.lower().replace("/", "\\") + os.sep)
+                       for d in dirs)
+            score, why = 0, []
+            if c["ports"]:
+                score += 3
+            if c["cat"] in ("dev", "db", "net"):
+                score += 2
+            if c["mine"]:
+                score += 2; why.append("WHY_MINE")
+            if in_dirs:
+                score += 2; why.append("WHY_OWN_DIR")
+            if c["age"] >= 300:
+                score += 1; why.append("WHY_AGED")
+            ar = _ar_for(c["name"], cmd)
+            if ar:  # the machine already starts it = strongest infra sign
+                score += 4; why.append("WHY_AUTORUN")
+                ar_used.add(id(ar))
+            name = _SCRIPT_EXT_RE.sub("", stem)
+            name = re.sub(r"[_-](?:x64|x86|amd64|win64)$", "", name)
+            if interp and frag:  # for scripts "my_bot.py serve" → "my bot serve"
+                name = name.replace("_", " ")
+                base = name.split()[0]
+                if base.lower() in _GENERIC_STEMS:
+                    sdir = os.path.dirname(lstart.strip('"')) if lstart \
+                        else (os.path.dirname(script)
+                              if os.path.isabs(script) else cwd)
+                    name = _smart_name(base, sdir) + name[len(base):]
+            elif name.lower() in _GENERIC_STEMS:
+                sdir = os.path.dirname(lstart.strip('"')) if lstart \
+                    else os.path.dirname(exe_p)
+                name = _smart_name(name, sdir)  # exe's folder names it
+            # "index.js" matches every node process — anchor generic match
+            # fragments to their folder: agent\server.mjs is still a
+            # cmdline substring, but unique
+            match = ""
+            if interp and frag:
+                match = frag
+                if os.path.splitext(frag.split()[0])[0].lower() \
+                        in _GENERIC_STEMS:
+                    parts = script.replace("/", "\\").split("\\")
+                    if len(parts) > 1:
+                        tail = "\\".join(parts[-2:])
+                        if tail.lower() in cmd.lower():
+                            match = tail
+            # deleted-service spec restored via proc / match fragment;
+            # if it had neither — via port intersection
+            def _is_old(s):
+                if s.get("proc") and s["proc"].lower() == proc:
+                    return True
+                if s.get("match") and s["match"].lower() in cmd.lower():
+                    return True
+                return not s.get("proc") and not s.get("match") and \
+                    bool(set(s.get("ports") or ()) & set(c["ports"]))
+            old = next((s for s in deleted if _is_old(s)), None)
+            if old:
+                score += 3; why.append("WHY_DELETED")
+                used_deleted.add(id(old))
+            label = c["label"]
+            if c["cat"] == "other" and exe_p:
+                try:  # unknown proc — let the exe describe itself
+                    label = be.exe_label(exe_p) or label
+                except (psutil.Error, OSError):
+                    pass
+            out.append({"name": name, "pid": c["pid"],
+                        "proc": c["name"], "match": match,
+                        "ports": sorted(c["ports"]), "start": start,
+                        "cwd": cwd, "cat": c["cat"], "label": label,
+                        "hint": dict(old) if old else None,
+                        "alive": True, "why": why, "score": score,
+                        "zombie": c["zombie"], "agent": c["agent"]})
+        # dormant candidates: deleted specs no live process matched (delete
+        # stops the service — it stays discoverable for one-click restore)
+        for s in deleted:
+            if id(s) in used_deleted:
+                continue
+            out.append({"name": s.get("name", "?"), "pid": 0,
+                        "proc": s.get("proc", ""), "match": s.get("match", ""),
+                        "ports": [int(p) for p in (s.get("ports") or [])],
+                        "start": s.get("start", ""), "cwd": s.get("cwd", ""),
+                        "cat": "other", "label": "", "hint": dict(s),
+                        "alive": False, "why": ["WHY_DELETED"], "score": 9,
+                        "zombie": None, "agent": None})
+        # unbound autorun entries — dormant infra the machine starts itself;
+        # bound ones (live service / project dir / live candidate) skipped
+        svc_names = {s["name"].lower() for s in svcs}
+        for a in ar_rows:
+            if id(a) in ar_used:
+                continue
+            an, cmd = a["name"].lower(), a["sub"] or ""
+            s_cmd = an + " " + cmd.lower()
+            if an in svc_names \
+                    or any((s.get("proc") and s["proc"].lower() in s_cmd) or
+                           (s.get("match") and s["match"].lower() in s_cmd) or
+                           s["name"].lower() in s_cmd for s in svcs) \
+                    or any(d in s_cmd for d in dirs) \
+                    or any(  # the deleted-spec row is the richer twin
+                        (s.get("proc") and s["proc"].lower() in s_cmd) or
+                        (s.get("match") and s["match"].lower() in s_cmd) or
+                        s["name"].lower() in s_cmd for s in deleted):
+                continue
+            tgt = be._autorun_target(cmd) or ""
+            stem = os.path.splitext(os.path.basename(tgt))[0] if tgt else ""
+            out.append({"name": a["name"], "pid": 0,
+                        "proc": os.path.basename(tgt)
+                        if tgt.lower().endswith(".exe") else "",
+                        "match": stem,
+                        "ports": [int(p) for p in
+                                  re.findall(r":(\d{2,5})\b", cmd)],
+                        "start": cmd,
+                        "cwd": os.path.dirname(tgt) if tgt else "",
+                        "cat": "other", "label": be.exe_label(tgt),
+                        "hint": None, "alive": a["state"] == "up",
+                        "why": ["WHY_AUTORUN"]
+                        + ([] if a["state"] == "up" else ["WHY_STOPPED"]),
+                        "score": 7, "zombie": None, "agent": None})
+        out.sort(key=lambda c: -c["score"])
+        return out[:15]
+
     def api_state(self):
-        """Всё, что нужно UI одним запросом."""
+        """Everything the UI needs in one request."""
         with self._lock:
             locals_ = [self._svc_row(s) for s in self.services_data
                        if not s.get("type")]
@@ -1900,7 +2826,7 @@ class Dashboard:
                         for p in self.projects_data]
             mem = sum(r.get("m", {}).get("mb", 0)
                       for r in locals_ + remotes + projects)
-            # сервис «в автозапуске»: имя записи Run, относящейся к нему
+            # service "in autorun": name of the Run entry belonging to it
             entries = self._ar_mine + self._ar_other
             for r in locals_ + remotes:
                 spec = self._service(r["name"]) or {}
@@ -1916,6 +2842,7 @@ class Dashboard:
                     "infraUp": up_infra, "infraTotal": len(locals_) + len(remotes),
                     "platform": pi.PLATFORM,
                     "version": be.VERSION,
+                    "updChannel": be.update_channel(),
                     "lang": be.lang(),
                     "api_port": self.api_port,
                     "memMb": mem, "ts": time.time()}
@@ -1938,7 +2865,7 @@ class Dashboard:
         return [e["raw"] for e in (entries[-n:] if n > 0 else [])]
 
     def api_service_log(self, name, n):
-        """Логи сервиса: файл logs/<name>.log, иначе — событийный лог по тегу."""
+        """Service logs: logs/<name>.log file, otherwise the event log by tag."""
         spec = self._service(name)
         path = self._log_path(spec) if spec else ""
         if path and os.path.exists(path):
@@ -1947,7 +2874,7 @@ class Dashboard:
                     f.seek(0, 2)
                     size = f.tell()
                     f.seek(max(0, size - 262144))
-                    tail = f.read().decode("utf-8", errors="replace")
+                    tail = be.decode_log(f.read())
                 lines = tail.splitlines()
                 lines = lines[-int(n):] if int(n) > 0 else []
                 return {"kind": "file",
@@ -1962,7 +2889,7 @@ class Dashboard:
                 "path": path}
 
     def api_services(self):
-        """Сервисы для агентов: то же состояние, что видит UI."""
+        """Services for agents: the same state the UI sees."""
         out = []
         for s in self.services_data:
             st, detail = self._last_services.get(s["name"], ("check", ""))
@@ -1992,6 +2919,7 @@ class Dashboard:
 
     def clear_issues(self):
         self._issues.clear()
+        st.clear_issues()
         return True, ""
 
     def api_runs(self, name):
@@ -2002,7 +2930,7 @@ class Dashboard:
         return {n: [strip(r) for r in dq] for n, dq in self._runs.items()}
 
     def api_action(self, name, action, kind="projects"):
-        """Совместимость со старым API: /api/(projects|services)/X/start|stop|restart"""
+        """Old-API compat: /api/(projects|services)/X/start|stop|restart"""
         if kind == "services":
             spec = self._service(name)
             if not spec or spec.get("monitor_only") or spec.get("type"):
@@ -2028,23 +2956,23 @@ class Dashboard:
             self.restart_project(name)
         return True
 
-    # ---------- сервер ----------
+    # ---------- server ----------
 
     def _start_api(self):
         _ApiHandler.dash = self
         want = be.load_settings()["api_port"]
         self.api = None
-        for cand in range(want, want + 10):  # порт занят → следующие 9
+        for cand in range(want, want + 10):  # port busy → try the next 9
             try:
                 self.api = _ApiServer(("127.0.0.1", cand), _ApiHandler)
                 self.api_port = cand
                 break
-            except (OSError, OverflowError):  # OSError=занят, Overflow=мусор
+            except (OSError, OverflowError):  # OSError=busy, Overflow=garbage
                 pass
         if self.api:
-            # дочерние процессы (mcp_server и т.п.) узнают реальный порт
+            # child processes (mcp_server etc.) learn the real port
             os.environ["DEVDASH_PORT"] = str(self.api_port)
-            try:  # маркер bound-порта: второй инстанс/MCP пингуют его
+            try:  # bound-port marker: second instance/MCP ping it
                 with open(os.path.join(be.DATA_DIR, "api.port"), "w",
                           encoding="ascii") as f:
                     f.write(str(self.api_port))

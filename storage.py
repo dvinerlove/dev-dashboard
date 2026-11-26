@@ -1,14 +1,16 @@
-"""Персистентность runs/issues в SQLite (state.db, WAL). Без секретов — их в БД нет."""
+"""Persistence of runs/issues in SQLite (state.db, WAL). No secrets — they are not in the DB."""
 import os
+import random
 import sqlite3
 import threading
+import time
 
 DB = os.path.join(__import__("backend").DATA_DIR, "state.db")
-_KEEP_RUNS = 50     # на сервис/проект
-_KEEP_ISSUES = 200  # всего
+_KEEP_RUNS = 50     # per service/project
+_KEEP_ISSUES = 200  # total
 
 _con = None
-_lock = threading.Lock()  # check_same_thread=False + одно соединение → сериализуем записи
+_lock = threading.Lock()  # check_same_thread=False + single connection → serialize writes
 
 
 def _c():
@@ -17,17 +19,21 @@ def _c():
     if _con is None:
         _con = sqlite3.connect(DB, check_same_thread=False)
         _con.execute("PRAGMA journal_mode=WAL")
-        _con.execute("PRAGMA busy_timeout=2000")  # писатели из разных потоков
+        _con.execute("PRAGMA busy_timeout=2000")  # writers from different threads
         _con.execute("CREATE TABLE IF NOT EXISTS runs"
                      "(name TEXT, t0 REAL, t1 REAL, exit TEXT)")
         _con.execute("CREATE INDEX IF NOT EXISTS runs_name ON runs(name)")
         _con.execute("CREATE TABLE IF NOT EXISTS issues"
                      "(t REAL, kind TEXT, name TEXT, text TEXT, count INT)")
+        _con.execute("CREATE TABLE IF NOT EXISTS remote_probes"
+                     "(name TEXT, t REAL, up INT)")
+        _con.execute("CREATE INDEX IF NOT EXISTS remote_probes_name"
+                     " ON remote_probes(name)")
     return _con
 
 
 def save_run(name, r):
-    """r — dict {t0,t1,exit}; повторный вызов обновляет по _rid."""
+    """r — dict {t0,t1,exit}; a repeated call updates by _rid."""
     c = _c()
     with _lock:
         if r.get("_rid"):
@@ -60,8 +66,15 @@ def save_issue(it):
         c.commit()
 
 
+def clear_issues():
+    c = _c()
+    with _lock:
+        c.execute("DELETE FROM issues")
+        c.commit()
+
+
 def load():
-    """-> (runs {name: [dict]}, issues [dict]) в порядке возрастания времени."""
+    """-> (runs {name: [dict]}, issues [dict]) in ascending time order."""
     c = _c()
     runs = {}
     for name, t0, t1, ex, rid in c.execute(
@@ -72,3 +85,26 @@ def load():
               for t, k, n, x, cnt, rid in c.execute(
                   "SELECT t,kind,name,text,count,rowid FROM issues ORDER BY t")]
     return runs, issues
+
+
+def remote_probe(name, up):
+    """One availability sample of a remote monitor. ~2% of calls also prune
+    samples older than 48h — amortized cleanup, no separate timer."""
+    c = _c()
+    with _lock:
+        c.execute("INSERT INTO remote_probes VALUES(?,?,?)",
+                  (name, time.time(), 1 if up else 0))
+        if random.random() < 0.02:
+            c.execute("DELETE FROM remote_probes WHERE t<?",
+                      (time.time() - 48 * 3600,))
+        c.commit()
+
+
+def uptime_pct(name, hours=24):
+    """% of up-samples for the remote in the last `hours` hours.
+    None — fewer than 3 samples, the number would be noise."""
+    n, ups = _c().execute(
+        "SELECT COUNT(*), COALESCE(SUM(up),0) FROM remote_probes"
+        " WHERE name=? AND t>?",
+        (name, time.time() - hours * 3600)).fetchone()
+    return ups / n * 100 if n >= 3 else None

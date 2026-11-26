@@ -21,7 +21,9 @@ import { Inspector } from "./components/Inspector";
 import { OverviewView } from "./components/OverviewView";
 import { PortsView } from "./components/PortsView";
 import { ProjectsGrid } from "./components/ProjectCards";
+import { ProjectsStrip } from "./components/ProjectsStrip";
 import { ServiceList } from "./components/ServiceRows";
+import { CandidatesStrip } from "./components/CandidatesStrip";
 import { Sidebar } from "./components/Sidebar";
 import { Topbar } from "./components/Topbar";
 import { SectionTitle, SkeletonRows } from "./components/bits";
@@ -32,7 +34,7 @@ import {
   ConfirmDialog,
   KillPortDialog,
   PortConflictDialog,
-  ScanDialog,
+
   TokenDialog,
 } from "./components/dialogs/SimpleDialogs";
 import { OnboardingDialog } from "./components/dialogs/OnboardingDialog";
@@ -61,8 +63,8 @@ export default function App() {
   const [dlg, setDlg] = useState<Dlg>(null);
   const autoSelected = useRef(false);
 
-  // сайдбар: авто-rail на узком окне + ручной оверрайд, который живёт до
-  // следующего пересечения порога (паттерн VS Code/shadcn)
+  // sidebar: auto-rail on narrow windows + manual override that lives until
+  // the next threshold crossing (VS Code/shadcn pattern)
   const RAIL_AUTO = 1150;
   const [railNarrow, setRailNarrow] = useState(
     () => window.innerWidth < RAIL_AUTO,
@@ -85,10 +87,10 @@ export default function App() {
   const rail =
     theme === "console" || (railOverride ?? (railAuto && railNarrow));
 
-  // paper-инспектор: док пока главной колонке хватает места —
-  // winW − sidebar − inspector ≥ minMain текущей страницы; иначе —
-  // плавающий «лист». minMain — минимальная полезная ширина контента
-  // (как aux panel у VS Code/Notion: док живёт до fit-границы контента).
+  // paper inspector: docked while the main column has room —
+  // winW − sidebar − inspector ≥ minMain of the current page; otherwise —
+  // a floating "sheet". minMain is the minimum usable content width
+  // (like the aux panel in VS Code/Notion: dock lives until the content fit boundary).
   const INSP_W = { min: 300, def: 380, max: 560 };
   const MIN_MAIN: Partial<Record<Section, number>> = {
     overview: 620,
@@ -111,9 +113,9 @@ export default function App() {
   const inspDock =
     winW - sidebarW - inspW >= (MIN_MAIN[section] ?? 560);
 
-  // ручка ресайза дока (как PanelResizeHandle у graphite/console):
-  // ширина живо следует за курсором, клэмп не даёт вытеснить контент —
-  // дальше maxW док сам уйдёт в оверлей при сужении окна
+  // dock resize handle (like PanelResizeHandle in graphite/console):
+  // width follows the cursor live, the clamp keeps it from pushing content out —
+  // past maxW the dock itself goes overlay as the window shrinks
   const inspDragStart = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
     e.preventDefault();
@@ -147,7 +149,7 @@ export default function App() {
   };
 
   const lang = useLang();
-  // язык бэкенда (settings.json) — источник истины; state-полл тащит его
+  // backend language (settings.json) is the source of truth; the state poll carries it
   useEffect(() => {
     if (st?.lang === "ru" || st?.lang === "en") {
       setLang(st.lang);
@@ -159,7 +161,7 @@ export default function App() {
     document.title = `${t(SECTION_TITLES[section])} — Dev Dashboard`;
   }, [section, lang]);
 
-  // первый сервис выбирается автоматически при первой загрузке
+  // the first service is auto-selected on first load
   useEffect(() => {
     if (!autoSelected.current && st?.services.length) {
       autoSelected.current = true;
@@ -167,8 +169,8 @@ export default function App() {
     }
   }, [st]);
 
-  // первый запуск с пустой конфигурацией — мастер настройки (один раз,
-  // флаг onboarded + ref держат против повторного открытия на поллах)
+  // first run with an empty config — setup wizard (once,
+  // the onboarded flag + ref guard against reopening on polls)
   const onboardedShown = useRef(false);
   useEffect(() => {
     if (
@@ -186,8 +188,8 @@ export default function App() {
   }, [st, dlg]);
 
   const app = useMemo<AppApi>(() => {
-    // state читаем лениво через getDash() — иначе каждый 2с-полл
-    // менял бы identity app и ре-рендерил всё дерево контекста
+    // state is read lazily via getDash() — otherwise every 2s poll
+    // would change the app identity and re-render the whole context tree
     const findSvc = (name: string, remote?: boolean) => {
       const s = getDash();
       return [...(s?.services ?? []), ...(s?.remotes ?? [])].find(
@@ -292,20 +294,6 @@ export default function App() {
           true,
         );
       },
-      scan() {
-        const tid = toast.loading(t("SCANNING"));
-        api
-          .scan()
-          .then((r) => {
-            toast.dismiss(tid);
-            if (!r.found.length) toast(t("NO_NEW_PROJECTS"));
-            else setDlg({ t: "scan", items: r.found });
-          })
-          .catch(() => {
-            toast.dismiss(tid);
-            toast(t("SCAN_FAILED"));
-          });
-      },
       async killPortFlow(port) {
         const tg = await api.portTargets(port);
         const run = () =>
@@ -380,7 +368,7 @@ export default function App() {
     };
   }, [section, sel, inspector, inspectorTab, palette, theme, railAuto]);
 
-  // навигация стрелками по списку
+  // arrow-key list navigation
   useEffect(() => {
     const nav = (dir: 1 | -1) => {
       const s = getDash();
@@ -405,14 +393,16 @@ export default function App() {
       const el = e.target as HTMLElement;
       const tag = el?.tagName;
       const typing = tag === "INPUT" || tag === "TEXTAREA";
-      // стрелки не трогаем, если фокус внутри меню/палитры/диалога — Radix сам
+      // leave arrows alone when focus is inside a menu/palette/dialog — Radix handles it
       const inOverlay =
         e.defaultPrevented ||
         !!el?.closest?.('[role="menu"],[role="listbox"],[role="dialog"],[cmdk-root]');
-      if (e.ctrlKey && e.key.toLowerCase() === "k") {
+      // e.code is layout-independent — Ctrl+Л on a Russian layout
+      // still reports code "KeyK" while e.key would be "л"
+      if (e.ctrlKey && e.code === "KeyK") {
         e.preventDefault();
         setPalette((v) => !v);
-      } else if (e.ctrlKey && e.key.toLowerCase() === "i") {
+      } else if (e.ctrlKey && e.code === "KeyI") {
         e.preventDefault();
         setInspector(!inspector);
       } else if (!typing && !inOverlay && (e.key === "ArrowDown" || e.key === "ArrowUp") && !dlg && !palette) {
@@ -427,7 +417,7 @@ export default function App() {
   return (
     <AppCtx.Provider value={app}>
       <TooltipProvider delayDuration={350}>
-        {/* inert глушит фокус/клики под палитрой — дешёвый аналог aria-modal */}
+        {/* inert kills focus/clicks under the palette — cheap aria-modal analog */}
         <div className="flex h-full flex-col bg-(--bg-base)" inert={palette}>
           <Topbar />
           <div
@@ -464,6 +454,7 @@ export default function App() {
                       >
                         {t("INFRASTRUCTURE")}
                       </SectionTitle>
+                      {st && <CandidatesStrip />}
                       {st ? (
                         <ServiceList rows={st.services} />
                       ) : (
@@ -494,6 +485,7 @@ export default function App() {
                       >
                         {t("SECTION_PROJECTS")}
                       </SectionTitle>
+                      <ProjectsStrip />
                       {st ? (
                         <ProjectsGrid rows={st.projects} />
                       ) : (
@@ -542,15 +534,15 @@ export default function App() {
                 </>
               )}
             </PanelGroup>
-            {/* paper: на узком окне инспектор — плавающий «лист» поверх
-                контента, на широком — док; морф анимируется инсетами,
-                радиусом и тенью, элемент не перемонтируется */}
+            {/* paper: on a narrow window the inspector is a floating "sheet" over
+                the content, on a wide one — a dock; the morph is animated via insets,
+                radius and shadow, the element is not remounted */}
             {inspector && theme.startsWith("paper") && (
               <div
                 className={`absolute z-30 overflow-hidden bg-(--bg-surface) ${inspDrag ? "" : "transition-[top,right,bottom,border-width,border-color,border-radius,box-shadow] duration-300 ease-(--ease-out)"} ${
                   inspDock
                     ? "top-0 right-0 bottom-0 rounded-none border-l border-(--border-hairline)"
-                    : "top-3 right-3 bottom-3 rounded-xl border border-(--border-strong) shadow-[-18px_0_44px_-14px_rgba(40,38,60,0.3)]"
+                    : "top-3 right-3 bottom-3 rounded-xl border border-(--border-strong) elev"
                 }`}
                 style={{ width: inspW }}
               >
@@ -572,20 +564,27 @@ export default function App() {
         {dlg?.t === "killport" && <KillPortDialog />}
         {dlg?.t === "autorun" && <AutorunDialog d={dlg} />}
         {dlg?.t === "token" && <TokenDialog d={dlg} />}
-        {dlg?.t === "scan" && <ScanDialog d={dlg} />}
-        {dlg?.t === "service" && <ServiceDialog spec={dlg.spec} />}
-        {dlg?.t === "project" && <ProjectDialog spec={dlg.spec} />}
+
+        {dlg?.t === "service" && (
+          <ServiceDialog spec={dlg.spec} isNew={dlg.isNew} />
+        )}
+        {dlg?.t === "project" && (
+          <ProjectDialog spec={dlg.spec} isNew={dlg.isNew} />
+        )}
         {dlg?.t === "onboarding" && <OnboardingDialog />}
 
         <Toaster
           theme={theme === "paper" ? "light" : "dark"}
           position="bottom-right"
+          style={{ fontFamily: "inherit" }}
           toastOptions={{
             style: {
               background: "var(--bg-surface)",
               border: "1px solid var(--border-strong)",
               color: "var(--text-primary)",
               fontSize: "12px",
+              borderRadius: "var(--radius-lg, 8px)",
+              boxShadow: "var(--elev-shadow)",
             },
           }}
         />

@@ -7,9 +7,7 @@ import {
   PanelLeftClose,
   Settings,
   PanelLeftOpen,
-  Radar,
   Server,
-  Skull,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect, useRef } from "react";
@@ -43,8 +41,8 @@ export function Sidebar({
   const st = useDash();
   const navRef = useRef<HTMLElement | null>(null);
 
-  // страховка: после смены режима залипшая инлайн-ширина драга
-  // снимается — управление шириной всегда возвращается классу
+  // insurance: after a mode switch the stuck inline drag width
+  // is cleared — width control always returns to the class
   useEffect(() => {
     const t = setTimeout(() => {
       const n = navRef.current;
@@ -56,9 +54,9 @@ export function Sidebar({
     return () => clearTimeout(t);
   }, [rail]);
 
-  // кромка-ручка (resizable-sidebar): во время драга ширина живо следует
-  // за курсором (transition выключен), на отпускании — снап к ближайшему
-  // режиму с анимацией; клик без движения — toggle
+  // edge handle (resizable sidebar): during drag the width follows the cursor
+  // live (transition off), on release — snap to the nearest mode with
+  // animation; a click without movement — toggle
   const railDrag = (e: React.PointerEvent<HTMLDivElement>) => {
     const el = e.currentTarget;
     const nav = el.parentElement as HTMLElement;
@@ -73,12 +71,12 @@ export function Sidebar({
       w = Math.min(Math.max(w0 + ev.clientX - x0, 48), 320);
       nav.style.width = `${w}px`;
     };
-    // отпускание/отмена: инлайн-ширину снимаем на следующем кадре — когда
-    // класс-режим уже новый; transition-[width] сам анимирует снап.
-    // lostpointercapture — страховка: если захват отняли без pointerup,
-    // pointerup придёт элементу под курсором, а не нам — без этого
-    // слушателя инлайн-ширина залипала навсегда (широкая панель + иконки
-    // рельса). finished делает done() идемпотентным.
+    // release/cancel: inline width is cleared on the next frame — once the
+    // mode class is already new; transition-[width] animates the snap itself.
+    // lostpointercapture — insurance: if the capture is taken without pointerup,
+    // pointerup lands on the element under the cursor, not us — without this
+    // listener the inline width would stick forever (wide panel + rail icons).
+    // finished makes done() idempotent.
     let finished = false;
     const done = (ev: PointerEvent | null) => {
       if (finished) return;
@@ -100,13 +98,13 @@ export function Sidebar({
       });
     };
     const up = (ev: PointerEvent) => {
-      // done() раньше release: lostpointercapture от снятия захвата
-      // иначе съест реальный pointerup и toggle не сработает
+      // done() before release: lostpointercapture from releasing the capture
+      // would otherwise eat the real pointerup and toggle would not fire
       done(ev);
       try {
         el.releasePointerCapture(e.pointerId);
       } catch {
-        /* захват уже снят */
+        /* capture already released */
       }
     };
     const cancel = () => done(null);
@@ -156,9 +154,9 @@ export function Sidebar({
         aria-current={active ? "page" : undefined}
         onClick={() => app.setSection(id)}
         className={cn(
-          // px-2 + justify-start во всех режимах: центр иконки 23.5 ≈
-          // центру рельса 24 — иконка не двигается при смене режима,
-          // меняется только лейбл
+          // px-2 + justify-start in all modes: icon center 23.5 ≈ rail center 24 —
+          // the icon does not move on mode switch, only the label changes
+          // only the label changes
           "relative flex h-8 w-full cursor-pointer items-center justify-start rounded-md px-2 text-[12.5px] transition-colors",
           active
             ? "text-(--text-primary)"
@@ -180,9 +178,9 @@ export function Sidebar({
             active && "text-(--accent)",
           )}
         />
-        {/* лейбл схлопывается шириной+opacity — по ширине контейнера,
-            не по rail: появляется посреди драга на пороге 122px;
-            при разворачивании кнопкой стаггер читается каскадом */}
+        {/* the label collapses via width+opacity — driven by the container width,
+            not the rail: appears mid-drag at the 122px threshold;
+            on button-expand the stagger reads as a cascade */}
         <span
           style={{ transitionDelay: rail ? "0ms" : `${40 + i * 18}ms` }}
           className={cn(
@@ -201,8 +199,8 @@ export function Sidebar({
         </span>
       </button>
     );
-    // Tip всегда в обёртке — смена rail↔wide не пересоздаёт кнопку,
-    // иначе лейбл маунтится новым узлом и transition не срабатывает
+    // Tip is always wrapped — the rail↔wide switch does not recreate the button,
+    // otherwise the label mounts as a new node and the transition does not fire
     return (
       <Tip key={id} label={rail ? t(label) : null} side="right">
         {btn}
@@ -214,9 +212,9 @@ export function Sidebar({
     <nav
       ref={navRef}
       className={cn(
-        // @container: лейблы/выравнивание следуют РЕАЛЬНОЙ ширине nav —
-        // во время драга кромки они переключаются живьём на пороге 122px,
-        // не дожидаясь отпускания и смены rail
+        // @container: labels/alignment follow the REAL nav width —
+        // while dragging the edge they switch live at the 122px threshold,
+        // without waiting for release and the rail switch
         "@container relative flex shrink-0 flex-col border-r border-(--border-hairline) bg-(--bg-base) p-2 transition-[width] duration-200 ease-out",
         rail ? "w-12" : "w-[196px]",
       )}
@@ -225,34 +223,6 @@ export function Sidebar({
 
       <div className="mt-auto">
         <Separator className="mb-2" />
-        <Tip label={rail ? t("SCAN_PROJECTS") : null} side="right">
-          <button
-            onClick={app.scan}
-            className={cn(
-              "flex h-8 w-full cursor-pointer items-center justify-start rounded-md px-2 text-[12.5px] text-(--text-secondary) transition-colors hover:bg-(--bg-hover) hover:text-(--text-primary)",
-            )}
-          >
-            <Radar size={15} strokeWidth={1.75} className="shrink-0" />
-            <span className="min-w-0 w-0 flex-none overflow-hidden whitespace-nowrap opacity-0 transition-[flex-grow,opacity,transform,margin] duration-200 @min-[122px]:ml-2 @min-[122px]:flex-1 @min-[122px]:opacity-100">
-              <span className="block truncate text-left">
-                {t("SCAN_PROJECTS")}
-              </span>
-            </span>
-          </button>
-        </Tip>
-        <Tip label={t("KILL_PORT_HOLDER")} side="right">
-          <button
-            onClick={() => app.openDlg({ t: "killport" })}
-            className={cn(
-              "flex h-8 w-full cursor-pointer items-center justify-start rounded-md px-2 text-[12.5px] text-(--text-secondary) transition-colors hover:bg-(--status-red)/10 hover:text-(--status-red)",
-            )}
-          >
-            <Skull size={15} strokeWidth={1.75} className="shrink-0" />
-            <span className="min-w-0 w-0 flex-none overflow-hidden whitespace-nowrap opacity-0 transition-[flex-grow,opacity,transform,margin] duration-200 @min-[122px]:ml-2 @min-[122px]:flex-1 @min-[122px]:opacity-100">
-              <span className="block truncate text-left">{t("KILL_PORT")}</span>
-            </span>
-          </button>
-        </Tip>
         {navItem(
           { id: "settings", label: "SECTION_SETTINGS", icon: Settings },
           ITEMS.length,

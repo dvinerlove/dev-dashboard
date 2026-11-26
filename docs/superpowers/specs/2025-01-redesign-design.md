@@ -19,8 +19,8 @@ spec `type: http|tcp|docker`; нет type = локальный (как сейч�
 - http: urlopen, status code, латентность, keyword, дни до cert-expiry.
 - tcp: create_connection + latency.
 - docker: docker ps --format json, состояния cli-нет/engine-выкл/статус контейнера.
-- supabase = http + header из env-токена (PAT → Z:\pet\dashboard\.env).
-- Пробы — ThreadPoolExecutor(4) внутри _probe_worker, per-spec interval (remote 30с, docker 15с, supabase 60с).
+- http + env_key: Bearer + apikey-дубль из env-токена (PAT → Z:\pet\dashboard\.env).
+- Пробы — ThreadPoolExecutor(4) внутри _probe_worker, per-spec interval (remote 30с, docker 15с).
 - Remote = monitor_only; «ожидаемо выкл» через note — не считается проблемой.
 
 ## Визуал

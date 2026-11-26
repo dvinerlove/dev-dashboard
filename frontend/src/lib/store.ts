@@ -1,11 +1,11 @@
-import { useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { api, type DashState } from "./api";
 
 let state: DashState | null = null;
 const subs = new Set<() => void>();
 let timer: number | undefined;
 
-// optimistic UI: name -> ожидаемый state; снимается на следующем тике или по таймауту
+// optimistic UI: name -> expected state; cleared on the next tick or by timeout
 const pend = new Map<string, string>();
 
 export function markPending(name: string, expect: "up" | "down") {
@@ -16,7 +16,7 @@ export function markPending(name: string, expect: "up" | "down") {
   }, 10000);
 }
 
-/** Хук: ожидаемый state сервиса/проекта во время действия (optimistic). */
+/** Hook: expected service/project state during an action (optimistic). */
 export function usePending(name: string): "up" | "down" | undefined {
   return useSyncExternalStore(
     (cb) => {
@@ -29,20 +29,20 @@ export function usePending(name: string): "up" | "down" | undefined {
 
 let inflight = false;
 
-// история RAM (последние 30 тиков) для спарклайна инспектора
+// RAM history (last 30 ticks) for the inspector sparkline
 const ramHist = new Map<string, number[]>();
 const RAM_KEEP = 30;
-/** Точки спарклайна RAM по имени строки (старейшая → новейшая). */
+/** RAM sparkline points by row name (oldest → newest). */
 export const ramHistory = (n: string): number[] => ramHist.get(n) ?? [];
 
 async function tick() {
-  if (inflight) return; // старый ответ не должен перезаписать новый
+  if (inflight) return; // a stale response must not overwrite a newer one
   inflight = true;
   try {
     state = await api.state();
     if (state) {
       const rows = [...state.services, ...state.remotes, ...state.projects];
-      // pending снимается, как только реальное состояние догнало ожидание
+      // pending clears once the real state catches up with the expected
       if (pend.size)
         for (const [n, want] of pend)
           if (rows.find((r) => r.name === n)?.state === want)
@@ -58,7 +58,7 @@ async function tick() {
         if (!rows.some((r) => r.name === k)) ramHist.delete(k);
     }
   } catch {
-    /* API ещё не поднялся — повторит интервал */
+    /* API not up yet — retries the interval */
   } finally {
     inflight = false;
   }
@@ -75,8 +75,47 @@ export function startPolling(ms = 2000) {
   return () => window.clearInterval(timer);
 }
 
-/** Текущий state вне React — для акций, которым не нужна подписка. */
+/** Current state outside React — for actions that need no subscription. */
 export const getDash = () => state;
+
+// stale-while-revalidate for per-view GETs: a remount renders the last
+// response instantly, the refetch silently replaces it — no skeleton flash
+const viewCache = new Map<string, unknown>();
+
+// persisted across restarts: strips render warm data from frame 0 and
+// self-heal when the rescan lands. shortcut: shape-drift guard only —
+// bump CACHE_VER when a cached payload changes shape incompatibly
+const CACHE_VER = 1;
+
+export function useCached<T>(key: string): [T | null, (v: T) => void] {
+  const [v, setV] = useState<T | null>(() => {
+    const mem = (viewCache.get(key) as T) ?? null;
+    if (mem !== null) return mem;
+    try {
+      const raw = localStorage.getItem(`vcache:${key}`);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed?.v === CACHE_VER) return parsed.data as T;
+      }
+    } catch {
+      /* corrupted or unavailable — cold start */
+    }
+    return null;
+  });
+  const set = (nv: T) => {
+    viewCache.set(key, nv);
+    try {
+      localStorage.setItem(
+        `vcache:${key}`,
+        JSON.stringify({ v: CACHE_VER, data: nv }),
+      );
+    } catch {
+      /* quota/serialization — cache is best-effort */
+    }
+    setV(nv);
+  };
+  return [v, set];
+}
 
 export function useDash(): DashState | null {
   return useSyncExternalStore(

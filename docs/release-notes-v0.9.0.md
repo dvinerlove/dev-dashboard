@@ -8,7 +8,7 @@ First public release of Dev Dashboard, a local control panel for dev services on
 - **Crash recovery that backs off** — auto-restart with 2→5→10→20 s delays plus a circuit breaker that flags a `crash_loop` after 5 crashes per minute
 - **Ordered startup** — `depends_on` waits for a health URL, a TCP port, or a stable process before starting dependents
 - **Ports inventory** — every TCP listener attributed to your services, with LAN-exposure flags
-- **Remote monitors** — HTTP, TCP, and Docker probes (Supabase and ZeroTier variants included)
+- **Remote monitors** — HTTP, TCP, and Docker probes
 - **Env editor** — per-service env overrides; secrets masked in API responses
 - **Issues feed + SQLite history** — crashes, port conflicts, dep timeouts, and log errors, deduplicated and persisted
 - **MCP server** — zero-dependency stdio server (7 tools) so AI agents can list services, read logs, and restart things

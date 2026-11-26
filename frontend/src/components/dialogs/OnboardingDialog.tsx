@@ -9,31 +9,55 @@ import {
   Loader2,
   PanelLeft,
   PanelRight,
+  SearchX,
   X,
 } from "lucide-react";
-import { api, type ScannedProject } from "../../lib/api";
+import {
+  api,
+  candidateToSpec,
+  type ScannedProject,
+  type ServiceCandidate,
+  type SvcState,
+} from "../../lib/api";
 import { useApp } from "../../lib/ctx";
 import { useT } from "../../lib/i18n";
 import { setUiSetting } from "../../lib/settings";
+import { markPending, useDash } from "../../lib/store";
 import { cn } from "../../lib/utils";
-import { ThemePicker } from "../bits";
+import { StatusDot, ThemePicker } from "../bits";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogTitle } from "../ui/dialog";
 
-const STEPS = ["THEME", "PROJECT_FOLDERS", "DONE"] as const;
+const STEPS = ["THEME", "PROJECT_FOLDERS", "LAUNCH", "DONE"] as const;
 
-/** Первый запуск: мастер настройки в 3 шага (choices, not questions —
-   всё предвыбрано, «Далее» проходит насквозь). */
+const STATE_LABEL: Record<SvcState, string> = {
+  up: "STATE_RUNNING",
+  dead: "STATE_CRASHED",
+  failed: "STATE_CRASHED",
+  off: "STATE_STOPPED",
+  down: "STATE_DOWN",
+  check: "STATE_CHECKING",
+};
+
+/** First run: 4-step setup wizard (choices, not questions —
+   everything is preselected, "Next" sails through). */
 export function OnboardingDialog() {
   const app = useApp();
   const t = useT();
+  const dash = useDash();
   const [step, setStep] = useState(0);
   const [roots, setRoots] = useState<string[] | null>(null);
+  const [autoRoots, setAutoRoots] = useState<string[]>([]);
   const [found, setFound] = useState<ScannedProject[] | null>(null);
   const [scanning, setScanning] = useState(false);
+  const [launched, setLaunched] = useState<Set<string>>(new Set());
+  const [cands, setCands] = useState<ServiceCandidate[] | null>(null);
 
   useEffect(() => {
-    api.settings().then((s) => setRoots(s.scan_roots));
+    api.settings().then((s) => {
+      setRoots(s.scan_roots);
+      setAutoRoots(s.scan_roots_auto ?? []);
+    });
   }, []);
 
   const rescan = () => {
@@ -41,12 +65,61 @@ export function OnboardingDialog() {
     api
       .scan()
       .then((r) => setFound(r.found))
+      .catch(() => {})
       .finally(() => setScanning(false));
   };
-  // счёт «N проектов» свежий при входе на шаг папок и в финал
+  // the "N projects" count is fresh when entering the folders step and the final
   useEffect(() => {
     if (step >= 1) rescan();
   }, [step]);
+
+  // fallback for the launch step: a process scan (~1s) — fetch once, only
+  // when the folder scan found nothing to run
+  useEffect(() => {
+    if (step === 2 && found !== null && found.length === 0 && cands === null)
+      api
+        .serviceCandidates()
+        .then(setCands)
+        .catch(() => setCands([]));
+  }, [step, found, cands]);
+
+  const launch = async (p: ScannedProject) => {
+    setLaunched((s) => new Set(s).add(p.name));
+    markPending(p.name, "up");
+    await api.addProjects([p]).catch(() => {});
+    api.prjAction(p.name, "start").catch(() => {});
+  };
+  const launchCand = async (c: ServiceCandidate) => {
+    setLaunched((s) => new Set(s).add(c.name));
+    markPending(c.name, "up");
+    await api.saveService("", candidateToSpec(c)).catch(() => {});
+    api.svcAction(c.name, "start").catch(() => {});
+  };
+
+  const liveOf = (name: string) =>
+    dash?.projects.find((x) => x.name === name)?.state ??
+    dash?.services.find((x) => x.name === name)?.state ??
+    dash?.remotes.find((x) => x.name === name)?.state;
+
+  // launch rows: scanned projects first, detected service candidates when empty
+  const launchItems = found?.length
+    ? found
+        .slice(0, 3)
+        .map((p) => ({ name: p.name, cmd: p.cmd, start: () => launch(p) }))
+    : (cands ?? [])
+        .filter((c) => c.start)
+        .sort(
+          (a, b) =>
+            Number(b.why?.includes("WHY_AUTORUN") ?? false) -
+              Number(a.why?.includes("WHY_AUTORUN") ?? false) ||
+            b.score - a.score,
+        )
+        .slice(0, 2)
+        .map((c) => ({
+          name: c.name,
+          cmd: c.start,
+          start: () => launchCand(c),
+        }));
 
   const saveRoots = (next: string[]) => {
     setRoots(next);
@@ -59,7 +132,7 @@ export function OnboardingDialog() {
     });
 
   const countFor = (root: string) => {
-    // +sep: root C:\apps не должен считать проекты из C:\apps2
+    // +sep: root C:\apps must not count projects from C:\apps2
     const r = root.replaceAll("/", "\\").replace(/\\+$/, "").toLowerCase() + "\\";
     return (
       found?.filter((p) =>
@@ -68,10 +141,15 @@ export function OnboardingDialog() {
     );
   };
 
+  // Esc/backdrop just marks done — only the finish CTA navigates
   const done = () => {
     setUiSetting("onboarded", true);
     app.closeDlg();
-    if (found?.length) app.openDlg({ t: "scan", items: found });
+  };
+  const finish = () => {
+    done();
+    // strip on the projects tab shows the same scan results
+    if (found?.length) app.setSection("projects");
   };
 
   return (
@@ -79,7 +157,7 @@ export function OnboardingDialog() {
       <DialogContent className="max-w-xl gap-0 p-0">
         <DialogTitle className="sr-only">{t("INITIAL_SETUP")}</DialogTitle>
 
-        {/* прогресс: шаги + точки — всегда видно, сколько осталось */}
+        {/* progress: steps + dots — always visible how much is left */}
         <div className="flex items-center justify-between border-b border-(--border-hairline) px-5 py-3.5">
           <span className="text-[13px] font-medium text-(--text-primary)">
             {t("SETUP_TITLE")}
@@ -89,12 +167,12 @@ export function OnboardingDialog() {
               <span
                 key={i}
                 className={cn(
-                  "h-1.5 rounded-full transition-[width,background-color] duration-300",
+                  "h-1.5 w-1.5 rounded-full transition-colors",
                   i === step
-                    ? "w-5 bg-(--accent)"
+                    ? "bg-(--accent)"
                     : i < step
-                      ? "w-1.5 bg-(--accent)/60"
-                      : "w-1.5 bg-(--border-strong)",
+                      ? "bg-(--accent)/60"
+                      : "bg-(--border-strong)",
                 )}
               />
             ))}
@@ -131,7 +209,7 @@ export function OnboardingDialog() {
                     {t("PROJECT_FOLDERS")}
                   </h2>
                   <p className="mt-1 text-[12.5px] text-(--text-muted)">
-                    {t("DASHBOARD_SEARCHES")} <code className="kbd">package.json</code>{" "}
+                    {t("DASHBOARD_SEARCHES")} <code>package.json</code>{" "}
                     {t("SEARCH_FOLDERS_HINT")}
                   </p>
                   <div className="mt-3 space-y-1.5">
@@ -140,7 +218,15 @@ export function OnboardingDialog() {
                         <Loader2 size={14} className="animate-spin" /> {t("LOADING")}
                       </div>
                     ) : (
-                      roots.map((r) => (
+                      <>
+                        {roots.length === 0 && autoRoots.length > 0 && (
+                          <div className="rounded-md border border-(--border-hairline) bg-(--bg-surface)/20 px-3 py-2 font-mono text-[11.5px] text-(--text-muted)">
+                            {t("SCAN_ROOTS_AUTO", {
+                              dirs: autoRoots.join(", "),
+                            })}
+                          </div>
+                        )}
+                        {roots.map((r) => (
                         <div
                           key={r}
                           className="flex items-center gap-2.5 rounded-md border border-(--border-hairline) bg-(--bg-surface)/40 px-3 py-2"
@@ -156,14 +242,7 @@ export function OnboardingDialog() {
                           >
                             {r}
                           </span>
-                          <span
-                            className={cn(
-                              "tnum shrink-0 rounded px-1.5 py-0.5 text-[10.5px]",
-                              countFor(r) > 0
-                                ? "bg-(--status-green)/15 text-(--status-green)"
-                                : "text-(--text-muted)",
-                            )}
-                          >
+                          <span className="tnum shrink-0 text-[10.5px] text-(--text-muted)">
                             {scanning && !found
                               ? "…"
                               : countFor(r) > 0
@@ -180,7 +259,8 @@ export function OnboardingDialog() {
                             <X size={13} strokeWidth={2} />
                           </button>
                         </div>
-                      ))
+                      ))}
+                      </>
                     )}
                     <button
                       onClick={addRoot}
@@ -195,6 +275,68 @@ export function OnboardingDialog() {
               {step === 2 && (
                 <>
                   <h2 className="text-[15px] font-semibold text-(--text-primary)">
+                    {t("LAUNCH_FIRST_SERVICE")}
+                  </h2>
+                  <p className="mt-1 text-[12.5px] text-(--text-muted)">
+                    {t("LAUNCH_FIRST_HINT")}
+                  </p>
+                  <div className="mt-3 space-y-1.5">
+                    {found === null || (!found.length && cands === null) ? (
+                      <div className="flex items-center gap-2 py-4 text-[12px] text-(--text-muted)">
+                        <Loader2 size={14} className="animate-spin" />{" "}
+                        {t("LOADING")}
+                      </div>
+                    ) : launchItems.length === 0 ? (
+                      <div className="flex items-center gap-2.5 rounded-md border border-dashed border-(--border-strong) px-3 py-4 text-[12px] text-(--text-muted)">
+                        <SearchX size={15} strokeWidth={1.5} className="shrink-0" />
+                        {t("NOTHING_TO_LAUNCH")}
+                      </div>
+                    ) : (
+                      launchItems.map((it) => {
+                        const on = launched.has(it.name);
+                        const live = liveOf(it.name);
+                        return (
+                          <div
+                            key={it.name}
+                            className="flex items-center gap-2.5 rounded-md border border-(--border-hairline) bg-(--bg-surface)/40 px-3 py-2"
+                          >
+                            {/* off dot pre-launch keeps the 8px slot stable — no shift on start */}
+                            <StatusDot state={live ?? (on ? "check" : "off")} />
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate text-[12.5px] font-medium text-(--text-primary)">
+                                {it.name}
+                              </div>
+                              <div
+                                className="truncate font-mono text-[11px] text-(--text-muted)"
+                                title={it.cmd}
+                              >
+                                {it.cmd}
+                              </div>
+                            </div>
+                            {on ? (
+                              <span className="shrink-0 text-[11.5px] text-(--text-muted)">
+                                {live ? t(STATE_LABEL[live] ?? live) : t("STATE_CHECKING")}
+                              </span>
+                            ) : (
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={it.start}
+                              >
+                                {t("ADD_AND_RUN")}
+                              </Button>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </>
+              )}
+
+              {step === 3 && (
+                <>
+                  <h2 className="text-[15px] font-semibold text-(--text-primary)">
                     {t("ALL_DONE")}
                   </h2>
                   <p className="mt-1 text-[12.5px] text-(--text-muted)">
@@ -204,6 +346,22 @@ export function OnboardingDialog() {
                         ? t("FOUND_PROJECTS_HINT", { n: found.length })
                         : t("HOTKEYS_LEFT")}
                   </p>
+                  {launched.size > 0 && (
+                    <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg border border-(--border-hairline) bg-(--bg-surface)/40 px-3 py-2.5">
+                      <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-(--text-muted)">
+                        {t("SETUP_RUNNING_NOW")}
+                      </span>
+                      {[...launched].map((n) => (
+                        <span
+                          key={n}
+                          className="inline-flex items-center gap-1.5 text-[12px] text-(--text-secondary)"
+                        >
+                          <StatusDot state={liveOf(n) ?? "check"} />
+                          {n}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   <div className="mt-3 space-y-2 rounded-lg border border-(--border-hairline) bg-(--bg-surface)/40 p-3 text-[12.5px] text-(--text-secondary)">
                     <div className="flex items-center gap-2.5">
                       <Command
@@ -242,7 +400,7 @@ export function OnboardingDialog() {
           </AnimatePresence>
         </div>
 
-        {/* футер визарда: пропуск слева, навигация справа */}
+        {/* wizard footer: skip on the left, navigation on the right */}
         <div className="flex items-center justify-between border-t border-(--border-hairline) px-5 py-3">
           <button
             onClick={done}
@@ -261,10 +419,10 @@ export function OnboardingDialog() {
                 {t("NEXT")} <ChevronRight size={14} strokeWidth={1.75} />
               </Button>
             ) : (
-              <Button size="sm" onClick={done}>
+              <Button size="sm" onClick={finish}>
                 {found?.length
                   ? t("START_ADD_PROJECTS", { n: found.length })
-                  : t("GET_STARTED")}
+                  : t("DONE")}
               </Button>
             )}
           </div>

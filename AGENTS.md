@@ -1,5 +1,17 @@
 # Dev Dashboard — архитектура и сборка
 
+## Язык
+
+- **English — язык проекта**: код, комментарии, docstrings, коммит-сообщения
+  и пользовательские доки (README и т.п.) — только на английском.
+- **Русский живёт только в `locales/ru.json`** (UI/server/detail/tpl).
+  UI-строки — через `t()`/`be.tr()`, никакого хардкода.
+- **Разрешённые исключения** — русский как данные, не текст:
+  `CommandPalette.tsx` (поисковые алиасы `сервис`, `запустить`… в `value=`)
+  и `OverviewView.tsx` (regex `ключ` матчит локализованный runtime-текст бэка).
+- Внутренние доки могут быть на русском: `AGENTS.md`, `DESIGN.md`,
+  `research/`, `docs/superpowers/` — рабочие заметки, не код.
+
 ## Стек
 
 - **UI**: pywebview (Edge WebView2) + React 19 + TS + Tailwind v4, исходники в
@@ -18,14 +30,15 @@
   `/api/state.platform` → UI скрывает window-controls не на Windows.
 - **Персистентность**: `storage.py` — SQLite `state.db` (WAL): история runs
   и issues переживает перезапуск. Секреты ENV туда не пишутся.
-- **i18n**: семантические `SCREAMING_SNAKE_CASE`-ключи, русского текста в
-  коде нет — весь RU живёт в словарях. Фронт — `frontend/src/lib/i18n.ts`
-  (`t()`/`useT()`) + `locales.ts` (RU/EN); промах отдаёт сам ключ. Бэк —
-  `be.tr(key, **kw)` по `RU`/`EN` в backend.py; внутренний канонический
-  формат строк проб/details — **английский**, `be.tr_detail()` переводит
-  его в RU для lang=ru (RU_DETAIL + regex-шаблоны RU_TPL_*). `lang` в
-  settings.json: `auto`→язык ОС, не-ru/сбой→en. Чек покрытия:
-  `python _t/i18n_check.py`.
+- **i18n**: `locales/<lang>.json` в корне — один файл на язык
+  (auto-discovery: добавить язык = положить файл, код не трогаем).
+  Семантические `SCREAMING_SNAKE_CASE`-ключи, русского текста в коде нет.
+  Плоские ключи — UI-строки фронта (`t()`/`useT()` в i18n.ts грузит все
+  файлы через `import.meta.glob`); секция `server` — строки API
+  (`be.tr`); `detail`/`tpl` — перевод runtime-текста проб (`be.tr_detail`,
+  канонический формат — английский). Промах → en → сам ключ. `lang` в
+  settings.json: `auto`→язык ОС (system_lang знает только ru/en). Чек
+  покрытия: `python _t/i18n_check.py`.
 - **MCP**: `mcp_server.py` — stdio JSON-RPC прокси к API (7 tools), см.
   `README_MCP.md`.
 - **Процессы**: `process_tree.py` — Windows Job Objects (ctypes): запуск

@@ -3,14 +3,15 @@ import { CheckCircle2, Trash2 } from "lucide-react";
 import { api, type Issue } from "../lib/api";
 import { useApp } from "../lib/ctx";
 import { useT, localeTag } from "../lib/i18n";
-import { refresh, useDash } from "../lib/store";
+import { refresh, useCached, useDash } from "../lib/store";
 import { cn } from "../lib/utils";
-import { SectionTitle } from "./bits";
+import { AttentionList, SectionTitle } from "./bits";
 import { Button } from "./ui/button";
 
-// группы фильтров; kinds — сырые kind бэкенда
+// filter groups; kinds are raw backend kinds
 const KINDS: { id: string; label: string; cls: string; kinds: string[] }[] = [
   { id: "all", label: "ALL", cls: "", kinds: [] },
+  { id: "now", label: "NOW_SECTION", cls: "text-(--status-amber)", kinds: [] },
   { id: "crash", label: "FILTER_CRASHES", cls: "text-(--status-red)", kinds: ["crash", "crash_loop"] },
   { id: "port", label: "SECTION_PORTS", cls: "text-(--status-amber)", kinds: ["port"] },
   { id: "restart", label: "FILTER_RESTARTS", cls: "text-(--text-secondary)", kinds: ["restart"] },
@@ -18,7 +19,7 @@ const KINDS: { id: string; label: string; cls: string; kinds: string[] }[] = [
   { id: "log", label: "LOGS", cls: "text-(--status-amber)", kinds: ["log_error"] },
 ];
 
-// отображение сырых kind'ов в UI — бэкенд-ключи не трогаем (state.db, API)
+// rendering raw kinds in the UI — do not touch backend keys (state.db, API)
 const KIND_LABEL: Record<string, string> = {
   crash: "KIND_CRASH",
   crash_loop: "CRASH_LOOP",
@@ -34,6 +35,12 @@ const kindMeta = (k: string) =>
   KINDS.find((x) => x.kinds.includes(k)) ??
   { cls: "text-(--text-secondary)" };
 
+// alert kinds = something actually broken; the rest is routine log noise
+const ALERT_KINDS = new Set([
+  "crash", "crash_loop", "port", "deps_timeout", "dep_cycle",
+  "log_error", "inet",
+]);
+
 function fmt(ts: number) {
   const d = new Date(ts * 1000);
   const today = new Date().toDateString() === d.toDateString();
@@ -46,8 +53,9 @@ export function EventsView() {
   const app = useApp();
   const t = useT();
   const st = useDash();
-  const [issues, setIssues] = useState<Issue[]>([]);
-  const [kind, setKind] = useState("all");
+  const [issues, setIssues] = useCached<Issue[]>("issues");
+  const [kind, setKind] = useState(() =>
+    localStorage.getItem("dd-ui-events-kind") || "now");
 
   useEffect(() => {
     api.issues().then(setIssues).catch(() => {});
@@ -55,10 +63,21 @@ export function EventsView() {
 
   const list = useMemo(() => {
     const g = KINDS.find((x) => x.id === kind);
-    return issues
+    return (issues ?? [])
       .filter((i) => kind === "all" || g?.kinds.includes(i.kind))
       .reverse();
   }, [issues, kind]);
+
+  // "all" mode → two sections: alerts about broken things, then the log;
+  // "now" → live problems only, no log noise
+  const groups = useMemo<[string, Issue[]][]>(() => {
+    if (kind === "now") return [];
+    if (kind !== "all") return [["", list]];
+    const a = list.filter((i) => ALERT_KINDS.has(i.kind));
+    const rest = list.filter((i) => !ALERT_KINDS.has(i.kind));
+    return ([["ALERTS_SECTION", a], ["LOG_SECTION", rest]] as const)
+      .filter(([, r]) => r.length) as [string, Issue[]][];
+  }, [list, kind]);
 
   return (
     <div>
@@ -69,7 +88,10 @@ export function EventsView() {
               <button
                 key={k.id}
                 aria-pressed={kind === k.id}
-                onClick={() => setKind(k.id)}
+                onClick={() => {
+                  setKind(k.id);
+                  localStorage.setItem("dd-ui-events-kind", k.id);
+                }}
                 className={cn(
                   "h-6 cursor-pointer rounded-md px-2 text-[11.5px] transition-colors",
                   kind === k.id
@@ -102,36 +124,55 @@ export function EventsView() {
         {t("SECTION_EVENTS")}
       </SectionTitle>
 
+      {/* "now" tab → the same live-problems block as on Overview (shared
+          component); the rest show the log */}
+      {kind === "now" && st ? (
+        <AttentionList st={st} />
+      ) : (
       <div className="overflow-hidden rounded-lg border border-(--border-hairline) bg-(--bg-surface)/40">
-        {list.map((i) => (
-          <div
-            key={`${i.t}-${i.name}`}
-            className="flex h-[34px] items-center gap-3 border-b border-(--border-hairline) px-3.5 last:border-b-0"
-          >
-            <span className="font-mono w-[92px] shrink-0 text-[11px] text-(--text-muted)">
-              {fmt(i.t)}
-            </span>
-            <span
-              className={cn(
-                "w-[132px] shrink-0 truncate font-mono text-[11px]",
-                kindMeta(i.kind).cls,
-              )}
-              title={t(KIND_LABEL[i.kind] || i.kind)}
-            >
-              {t(KIND_LABEL[i.kind] || i.kind)}
-            </span>
-            <span
-              title={`${i.name} — ${i.text}`}
-              className="min-w-0 flex-1 truncate text-[12px] text-(--text-primary)"
-            >
-              <span className="font-medium">{i.name}</span>
-              <span className="text-(--text-secondary)"> — {i.text}</span>
-            </span>
-            {i.count > 1 && (
-              <span className="font-mono rounded bg-(--bg-hover) px-1.5 text-[10.5px] text-(--text-secondary)">
-                ×{i.count}
-              </span>
+        {groups.map(([label, rows]) => (
+          <div key={label}>
+            {groups.length > 1 && (
+              <div className={cn(
+                "px-3.5 pt-2 text-[10px] font-medium uppercase tracking-[0.08em]",
+                label === "ALERTS_SECTION"
+                  ? "text-(--status-red)"
+                  : "text-(--text-muted)",
+              )}>
+                {t(label)}
+              </div>
             )}
+            {rows.map((i) => (
+              <div
+                key={`${i.t}-${i.name}`}
+                className="flex h-[34px] items-center gap-3 border-b border-(--border-hairline) px-3.5 last:border-b-0"
+              >
+                <span className="font-mono w-[92px] shrink-0 text-[11px] text-(--text-muted)">
+                  {fmt(i.t)}
+                </span>
+                <span
+                  className={cn(
+                    "w-[132px] shrink-0 truncate font-mono text-[11px]",
+                    kindMeta(i.kind).cls,
+                  )}
+                  title={t(KIND_LABEL[i.kind] || i.kind)}
+                >
+                  {t(KIND_LABEL[i.kind] || i.kind)}
+                </span>
+                <span
+                  title={`${i.name} — ${i.text}`}
+                  className="min-w-0 flex-1 truncate text-[12px] text-(--text-primary)"
+                >
+                  <span className="font-medium">{i.name}</span>
+                  <span className="text-(--text-secondary)"> — {i.text}</span>
+                </span>
+                {i.count > 1 && (
+                  <span className="font-mono rounded bg-(--bg-hover) px-1.5 text-[10.5px] text-(--text-secondary)">
+                    ×{i.count}
+                  </span>
+                )}
+              </div>
+            ))}
           </div>
         ))}
         {list.length === 0 && (
@@ -147,6 +188,7 @@ export function EventsView() {
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }

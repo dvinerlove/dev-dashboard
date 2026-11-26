@@ -5,6 +5,7 @@ import {
   Eraser,
   ExternalLink,
   Eye,
+  KeyRound,
   Pencil,
   Play,
   Plus,
@@ -19,6 +20,7 @@ import {
 import { motion } from "motion/react";
 import {
   api,
+  type AutorunRow,
   type EnvVar,
   type LogLine,
   type ProjectRow,
@@ -54,7 +56,7 @@ function fmtRun(r: Run) {
   return { date, hm, dur };
 }
 
-// ---------- вкладка «Логи» ----------
+// ---------- "Logs" tab ----------
 
 function LogTab({ name }: { name: string }) {
   const t = useT();
@@ -179,7 +181,7 @@ function LogTab({ name }: { name: string }) {
         ref={box}
         onScroll={(e) => {
           const el = e.currentTarget;
-          // юзер отмотал вверх — выключаем автоскролл, вниз — включаем
+          // user scrolled up — autoscroll off, back down — on
           setFollow(el.scrollHeight - el.scrollTop - el.clientHeight < 30);
         }}
         className="selectable min-h-0 flex-1 overflow-auto bg-(--bg-base) p-3 font-mono text-[11.5px] leading-relaxed text-(--text-secondary)"
@@ -208,7 +210,7 @@ function LogTab({ name }: { name: string }) {
   );
 }
 
-// ---------- вкладка «История» ----------
+// ---------- "History" tab ----------
 
 function RunsTab({ name }: { name: string }) {
   const t = useT();
@@ -262,7 +264,7 @@ function RunsTab({ name }: { name: string }) {
   );
 }
 
-// ---------- вкладка «ENV» ----------
+// ---------- "ENV" tab ----------
 
 interface EnvRow {
   key: string;
@@ -286,17 +288,35 @@ function EnvTab({
   const [newKey, setNewKey] = useState("");
   const [dirty, setDirty] = useState(false);
   const [needRestart, setNeedRestart] = useState(false);
+  // env profiles (services only): name -> {KEY: val}, activeProf = applied one
+  const [profiles, setProfiles] = useState<Record<string, Record<string, string>>>({});
+  const [activeProf, setActiveProf] = useState("");
+  const [naming, setNaming] = useState(false);
+  const [profName, setProfName] = useState("");
+  const [warns, setWarns] = useState<Record<string, string>>({});
 
   useEffect(() => {
     setDirty(false);
     setNeedRestart(false);
+    setWarns({});
+    setProfiles({});
+    setActiveProf("");
+    setNaming(false);
+    if (!project)
+      api
+        .serviceSpec(name)
+        .then((s) => {
+          setProfiles(s.env_profiles ?? {});
+          setActiveProf(s.env_profile ?? "");
+        })
+        .catch(() => {});
     if (project) {
       api
         .projectEnv(name)
         .then((r) =>
           setRows([
             ...r.env.map((e) => ({ ...e })),
-            // ключи из .env.example — пустыми строками для заполнения
+            // keys from .env.example — as empty rows to fill in
             ...r.missing.map((m) => ({
               key: m.key,
               value: "",
@@ -315,7 +335,39 @@ function EnvTab({
 
   const set = (i: number, patch: Partial<EnvRow>) => {
     setRows((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+    const k = rows[i]?.key;
+    if (k && warns[k])
+      setWarns((w) => {
+        const n = { ...w };
+        delete n[k];
+        return n;
+      });
     setDirty(true);
+  };
+
+  const toKeystore = async (i: number) => {
+    const r = rows[i];
+    const key = r?.key.trim();
+    if (!r || !key || !r.value || r.value.startsWith("cred:")) return;
+    const res = await api
+      .setEnvSecret(name, key, r.value)
+      .catch(() => null);
+    if (!res) return toast.error(t("ENV_SAVE_FAILED"));
+    setRows((rs) =>
+      rs.map((row, j) =>
+        j === i
+          ? {
+              ...row,
+              value: `cred:DevDashboard/${name}/${key}`,
+              touched: false,
+              revealed: false,
+            }
+          : row,
+      ),
+    );
+    if ("restart_required" in res && res.restart_required)
+      setNeedRestart(true);
+    toast(t("ENV_SECRET_STORED"));
   };
 
   const reveal = async (i: number) => {
@@ -336,8 +388,8 @@ function EnvTab({
   };
 
   const save = async () => {
-    // не тронутые секреты замаскированы — подставляем реальные значения,
-    // чтобы не записать «••••••••» в конфиг; без reveal сохранять нельзя
+    // untouched secrets stay masked — substitute real values
+    // so "••••••••" is not written to the config; saving without reveal is not allowed
     let real: Record<string, string> = {};
     if (rows.some((r) => r.secret && !r.touched)) {
       const rv = await (project
@@ -367,8 +419,63 @@ function EnvTab({
     const restart = !project && "restart_required" in res &&
       res.restart_required;
     setNeedRestart(!!restart);
+    setWarns(
+      Object.fromEntries((res.warnings ?? []).map((w) => [w.key, w.msg])),
+    );
     setDirty(false);
     toast(restart ? t("ENV_SAVED_RESTART") : t("ENV_SAVED"));
+  };
+
+  // rows → env dict; untouched masked secrets resolve to real values so a
+  // profile never stores "••••"
+  const envDict = async (): Promise<Record<string, string> | null> => {
+    let real: Record<string, string> = {};
+    if (rows.some((r) => r.secret && !r.touched)) {
+      const rv = await api.serviceEnv(name, true).catch(() => null);
+      if (!rv) return null;
+      real = Object.fromEntries(rv.map((e) => [e.key, e.value]));
+    }
+    return Object.fromEntries(
+      rows.map((r) => [
+        r.key,
+        r.secret && !r.touched ? (real[r.key] ?? r.value) : r.value,
+      ]),
+    );
+  };
+
+  const activateProfile = async (p: string) => {
+    const next = activeProf === p ? "" : p;
+    const r = await api.setEnvProfile(name, next).catch(() => null);
+    if (!r || r.ok === false) return toast.error(t("ENV_SAVE_FAILED"));
+    setActiveProf(next);
+    if (r.restart_required) setNeedRestart(true);
+    refresh();
+  };
+
+  const saveProfile = async (pname: string) => {
+    const env = await envDict();
+    if (!env) return toast.error(t("ENV_SECRETS_FAIL"));
+    const next = { ...profiles, [pname]: env };
+    const r = await api.saveEnvProfiles(name, next).catch(() => null);
+    if (!r) return toast.error(t("ENV_SAVE_FAILED"));
+    setProfiles(next);
+    if (r.restart_required) setNeedRestart(true);
+    refresh();
+    toast(t("ENV_SAVED"));
+  };
+
+  const delProfile = async (p: string) => {
+    const next = { ...profiles };
+    delete next[p];
+    const r = await api.saveEnvProfiles(name, next).catch(() => null);
+    if (!r) return toast.error(t("ENV_SAVE_FAILED"));
+    setProfiles(next);
+    if (r.restart_required) setNeedRestart(true);
+    if (activeProf === p) {
+      setActiveProf("");
+      api.setEnvProfile(name, "").catch(() => {});
+    }
+    refresh();
   };
 
   return (
@@ -378,6 +485,71 @@ function EnvTab({
           {t("ENV_RESTART_NOTICE")}
         </div>
       )}
+      {!project && (
+        <div className="mx-3 mt-3 flex shrink-0 flex-wrap items-center gap-1.5">
+          <span className="text-[11px] text-(--text-muted)">
+            {t("ENV_PROFILES")}
+          </span>
+          {Object.keys(profiles).map((p) => (
+            <span
+              key={p}
+              className={cn(
+                "group/chip inline-flex h-6 items-center gap-0.5 rounded-md border pr-1 pl-1.5 font-mono text-[11px] transition-colors",
+                activeProf === p
+                  ? "border-(--accent) bg-(--accent)/15 text-(--text-primary)"
+                  : "border-(--border-strong) text-(--text-muted)",
+              )}
+            >
+              <button
+                onClick={() => activateProfile(p)}
+                className="cursor-pointer hover:text-(--text-primary)"
+              >
+                {p}
+              </button>
+              <button
+                aria-label={t("DELETE")}
+                title={t("DELETE")}
+                onClick={() => delProfile(p)}
+                className="cursor-pointer rounded p-0.5 text-(--text-muted) opacity-0 transition-opacity group-hover/chip:opacity-100 focus-visible:opacity-100 hover:text-(--status-red)"
+              >
+                <X size={10} strokeWidth={2} />
+              </button>
+            </span>
+          ))}
+          {naming ? (
+            <input
+              autoFocus
+              value={profName}
+              onChange={(e) => setProfName(e.target.value)}
+              placeholder={t("PROFILE_NAME_PROMPT")}
+              spellCheck={false}
+              aria-label={t("PROFILE_NAME_PROMPT")}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && profName.trim()) {
+                  saveProfile(profName.trim());
+                  setProfName("");
+                  setNaming(false);
+                } else if (e.key === "Escape") {
+                  setProfName("");
+                  setNaming(false);
+                }
+              }}
+              onBlur={() => {
+                setProfName("");
+                setNaming(false);
+              }}
+              className="h-6 w-28 rounded-md border border-(--border-strong) bg-(--bg-surface) px-1.5 font-mono text-[11px] text-(--text-primary) outline-none placeholder:text-(--text-muted) focus:border-(--accent)"
+            />
+          ) : (
+            <button
+              onClick={() => setNaming(true)}
+              className="h-6 cursor-pointer rounded-md px-1.5 text-[11px] text-(--text-muted) transition-colors hover:bg-(--bg-hover) hover:text-(--text-secondary)"
+            >
+              + {t("SAVE_AS_PROFILE")}
+            </button>
+          )}
+        </div>
+      )}
       <div className="min-h-0 flex-1 overflow-y-auto p-3">
         {rows.length === 0 && (
           <p className="text-[11.5px] text-(--text-muted)">
@@ -385,7 +557,7 @@ function EnvTab({
           </p>
         )}
         {rows.map((r, i) => (
-          <div key={i} className="mb-1.5 flex items-center gap-1.5">
+          <div key={i} className="mb-1.5 flex flex-wrap items-center gap-1.5">
             <input
               aria-label={t("VAR_NAME")}
               value={r.key}
@@ -407,6 +579,17 @@ function EnvTab({
               spellCheck={false}
               className="h-7 min-w-0 flex-1 rounded-md border border-(--border-strong) bg-(--bg-surface) px-2 font-mono text-[11.5px] text-(--text-primary) outline-none focus:border-(--accent)"
             />
+            {!project && r.secret && !!r.value &&
+              !r.value.startsWith("cred:") && (
+                <button
+                  aria-label={t("STORE_IN_KEYSTORE")}
+                  onClick={() => toKeystore(i)}
+                  className="cursor-pointer rounded-md p-1 text-(--text-muted) hover:bg-(--bg-hover) hover:text-(--text-secondary)"
+                  title={t("STORE_IN_KEYSTORE")}
+                >
+                  <KeyRound size={13} strokeWidth={1.75} />
+                </button>
+              )}
             {r.secret && !r.touched && (
               <button
                 aria-label={t("REVEAL_VALUE")}
@@ -428,6 +611,11 @@ function EnvTab({
             >
               <Trash2 size={13} strokeWidth={1.75} />
             </button>
+            {warns[r.key] && (
+              <div className="w-full rounded-md border border-(--status-amber)/25 bg-(--status-amber)/10 px-2 py-1 text-[11px] text-(--status-amber)">
+                {warns[r.key]}
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -447,7 +635,7 @@ function EnvTab({
           onClick={() => {
             setRows((rs) => [
               ...rs,
-              { key: newKey.trim(), value: "", secret: /TOKEN|SECRET|KEY|PASSWORD|PASS|AUTH/i.test(newKey), touched: true },
+              { key: newKey.trim(), value: "", secret: /TOKEN|SECRET|KEY|PASSWORD|PASS|AUTH|CREDENTIAL|JWT|SESSION/i.test(newKey), touched: true },
             ]);
             setNewKey("");
             setDirty(true);
@@ -463,7 +651,7 @@ function EnvTab({
   );
 }
 
-// ---------- вкладка «Конфиг» ----------
+// ---------- "Config" tab ----------
 
 function Kv({ k, v, mono }: { k: string; v?: React.ReactNode; mono?: boolean }) {
   if (v === undefined || v === null || v === "") return null;
@@ -478,6 +666,197 @@ function Kv({ k, v, mono }: { k: string; v?: React.ReactNode; mono?: boolean }) 
       >
         {v}
       </span>
+    </div>
+  );
+}
+
+// depends_on mini-graph: BFS columns (deps left, dependents right) + SVG edges
+const DEP_MAX = 24; // node cap — beyond it the plain indent list stays
+const DEP_COL_W = 132;
+const DEP_NODE_W = 104;
+const DEP_NODE_H = 26;
+const DEP_GAP = 10;
+const DEP_PAD = 6;
+
+function DepsGraph({
+  name,
+  deps,
+  rows,
+  onSelectDep,
+}: {
+  name: string;
+  deps: string[];
+  rows: ServiceRow[];
+  onSelectDep: (dep: string) => void;
+}) {
+  const t = useT();
+  const depsOf = (n: string) =>
+    n === name ? deps : (rows.find((r) => r.name === n)?.deps ?? []);
+  const stateOf = (n: string) =>
+    rows.find((r) => r.name === n)?.state ?? "off";
+  // can `from` reach `goal` by walking depends_on — the cycle test
+  const reaches = (from: string, goal: string) => {
+    const seen = new Set<string>();
+    const stack = [...depsOf(from)];
+    while (stack.length && seen.size < DEP_MAX * 2) {
+      const n = stack.pop()!;
+      if (n === goal) return true;
+      if (seen.has(n)) continue;
+      seen.add(n);
+      stack.push(...depsOf(n));
+    }
+    return false;
+  };
+
+  // node → column: upstream closure walks deps leftward, dependents rightward
+  const colOf = new Map<string, number>([[name, 0]]);
+  for (
+    let fringe = [name], depth = -1;
+    fringe.length && colOf.size <= DEP_MAX;
+    depth--
+  ) {
+    const next: string[] = [];
+    for (const n of fringe)
+      for (const d of depsOf(n))
+        if (!colOf.has(d)) {
+          colOf.set(d, depth);
+          next.push(d);
+        }
+    fringe = next;
+  }
+  for (
+    let fringe = [name], depth = 1;
+    fringe.length && colOf.size <= DEP_MAX;
+    depth++
+  ) {
+    const next: string[] = [];
+    for (const n of fringe)
+      for (const r of rows)
+        if (!colOf.has(r.name) && depsOf(r.name).includes(n)) {
+          colOf.set(r.name, depth);
+          next.push(r.name);
+        }
+    fringe = next;
+  }
+  const nodes = [...colOf.keys()];
+
+  // complexity guard: too many nodes → keep the old indent list
+  if (nodes.length > DEP_MAX)
+    return (
+      <div className="mt-1.5 ml-1 space-y-1 border-l border-(--border-strong)">
+        {deps.map((d) => {
+          const bad = reaches(d, name);
+          return (
+            <button
+              key={d}
+              onClick={() => onSelectDep(d)}
+              title={bad ? t("KIND_DEP_CYCLE") : undefined}
+              className={cn(
+                "relative ml-2 flex w-fit cursor-pointer items-center gap-1.5 rounded border px-1.5 py-0.5 font-mono text-[11px]",
+                bad
+                  ? "border-(--status-red)/40 bg-(--status-red)/10 text-(--status-red)"
+                  : "border-(--border-hairline) bg-(--bg-canvas) text-(--text-secondary) hover:border-(--accent) hover:text-(--text-primary)",
+              )}
+            >
+              <span className="absolute top-1/2 -left-2 h-px w-2 bg-(--border-strong)" />
+              <StatusDot state={stateOf(d)} />
+              {d}
+            </button>
+          );
+        })}
+      </div>
+    );
+
+  // columns sorted left→right; each column's nodes centered vertically
+  const colIds = [...new Set(colOf.values())].sort((a, b) => a - b);
+  const cols = colIds.map(() => [] as string[]);
+  for (const n of nodes) cols[colIds.indexOf(colOf.get(n)!)].push(n);
+  const rowsMax = Math.max(...cols.map((c) => c.length));
+  const H = DEP_PAD * 2 + rowsMax * DEP_NODE_H + (rowsMax - 1) * DEP_GAP;
+  const W = DEP_PAD * 2 + colIds.length * DEP_COL_W;
+  const pos = new Map<string, { x: number; y: number }>();
+  cols.forEach((ns, ci) => {
+    const colH = ns.length * DEP_NODE_H + (ns.length - 1) * DEP_GAP;
+    ns.forEach((n, i) =>
+      pos.set(n, {
+        x: DEP_PAD + ci * DEP_COL_W,
+        y: (H - colH) / 2 + i * (DEP_NODE_H + DEP_GAP),
+      }),
+    );
+  });
+
+  // every visible dep→dependent pair is an edge; cyclic ones go red
+  const edges = nodes.flatMap((n) =>
+    depsOf(n)
+      .filter((d) => colOf.has(d) && d !== n)
+      .map((d) => ({ d, n, cyc: reaches(d, n) })),
+  );
+
+  return (
+    <div
+      className="mt-1.5 overflow-x-auto"
+      role="group"
+      aria-label={t("DEP_GRAPH")}
+    >
+      <div className="relative" style={{ width: W, height: H }}>
+        <svg
+          width={W}
+          height={H}
+          className="absolute inset-0"
+          aria-hidden="true"
+        >
+          {edges.map((e, i) => {
+            const a = pos.get(e.d)!;
+            const b = pos.get(e.n)!;
+            const x1 = a.x + DEP_NODE_W;
+            const y1 = a.y + DEP_NODE_H / 2;
+            const x2 = b.x;
+            const y2 = b.y + DEP_NODE_H / 2;
+            const mx = (x1 + x2) / 2;
+            return (
+              <path
+                key={i}
+                d={`M${x1} ${y1}C${mx} ${y1} ${mx} ${y2} ${x2} ${y2}`}
+                fill="none"
+                stroke={
+                  e.cyc ? "var(--status-red)" : "var(--border-strong)"
+                }
+                strokeWidth={e.cyc ? 1.5 : 1}
+              />
+            );
+          })}
+        </svg>
+        {nodes.map((n) => {
+          const p = pos.get(n)!;
+          const cyc = reaches(n, n);
+          const sel = n === name;
+          return (
+            <button
+              key={n}
+              onClick={() => onSelectDep(n)}
+              title={cyc ? t("KIND_DEP_CYCLE") : n}
+              style={{
+                left: p.x,
+                top: p.y,
+                width: DEP_NODE_W,
+                height: DEP_NODE_H,
+              }}
+              className={cn(
+                "absolute flex cursor-pointer items-center gap-1.5 rounded-md border px-2 font-mono text-[11px] transition-colors",
+                cyc
+                  ? "border-(--status-red)/50 bg-(--status-red)/10 text-(--status-red)"
+                  : sel
+                    ? "border-(--accent) bg-(--bg-selected) text-(--text-primary)"
+                    : "border-(--border-hairline) bg-(--bg-canvas) text-(--text-secondary) hover:border-(--accent)/60 hover:text-(--text-primary)",
+                sel && "ring-1 ring-(--accent)/50",
+              )}
+            >
+              <StatusDot state={stateOf(n)} />
+              <span className="min-w-0 truncate">{n}</span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -501,6 +880,7 @@ function ConfigTab({
       .then(setSpec)
       .catch(() => {});
   }, [kind, name]);
+
   if (!spec) return <div className="p-4 text-[12px] text-(--text-muted)">…</div>;
 
   const s = spec as ServiceSpec;
@@ -508,7 +888,7 @@ function ConfigTab({
   const svc = kind === "svc" ? (row as ServiceRow) : null;
   const prjSpec = spec as ProjectSpec;
 
-  // запись автозагрузки, относящаяся к сервису (матчит бэкенд: arName)
+  // the autorun entry belonging to the service (matches the backend: arName)
   const arEntry = svc
     ? [...(st?.autorunMine ?? []), ...(st?.autorunOther ?? [])].find(
         (a) => a.name === svc.arName,
@@ -519,10 +899,11 @@ function ConfigTab({
     else if (v && s.start)
       api.autorunSave(name, s.start, "").then(() => refresh());
   };
+  const allRows = [...(st?.services ?? []), ...(st?.remotes ?? [])];
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto p-2">
-      {/* автоматика — бывшие тумблеры из шапки инспектора */}
+      {/* automation — former toggles from the inspector header */}
       {((svc && !svc.remote && !svc.monitor) || kind === "prj") && (
         <div className="m-1 mb-3 space-y-2.5 rounded-md border border-(--border-hairline) bg-(--bg-canvas) p-2.5">
           {svc && !svc.remote && !svc.monitor && (
@@ -583,22 +964,18 @@ function ConfigTab({
           <Kv k={t("FOLDER")} v={s.path} mono />
           <Kv k={t("NOTE")} v={s.note} />
           <Kv k="ENV" v={s.env_key && `${s.env_key} → ${s.env_file}`} mono />
-          {!!s.depends_on?.length && (
-            <div className="flex gap-2 px-2 py-1">
-              <span className="w-[110px] shrink-0 text-[11.5px] text-(--text-muted)">
+          {(!!s.depends_on?.length ||
+            allRows.some((r) => r.name !== name && !!r.deps?.includes(name))) && (
+            <div className="px-2 py-1">
+              <span className="text-[11.5px] text-(--text-muted)">
                 {t("DEPENDS_ON")}
               </span>
-              <span className="flex flex-wrap gap-1">
-                {s.depends_on.map((d) => (
-                  <button
-                    key={d}
-                    onClick={() => onSelectDep(d)}
-                    className="cursor-pointer rounded border border-(--border-hairline) bg-(--bg-canvas) px-1.5 py-0.5 font-mono text-[11px] text-(--text-secondary) hover:border-(--accent) hover:text-(--text-primary)"
-                  >
-                    {d}
-                  </button>
-                ))}
-              </span>
+              <DepsGraph
+                name={name}
+                deps={s.depends_on ?? []}
+                rows={allRows}
+                onSelectDep={onSelectDep}
+              />
             </div>
           )}
         </>
@@ -624,9 +1001,107 @@ function ConfigTab({
   );
 }
 
-// ---------- сам инспектор ----------
+// ---------- the inspector itself ----------
+
+/** Autorun entry details — same drawer shell, autorun-specific actions. */
+function AutorunPane({ name }: { name: string }) {
+  const app = useApp();
+  const t = useT();
+  const st = useDash();
+  const row: AutorunRow | undefined = [
+    ...(st?.autorunMine ?? []),
+    ...(st?.autorunOther ?? []),
+  ].find((r) => r.name === name);
+
+  if (!row) {
+    return (
+      <div className="flex h-full items-center justify-center bg-(--bg-surface) text-[12px] text-(--text-muted)">
+        {t("SELECT_ITEM")}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-full flex-col bg-(--bg-surface)">
+      <div className="shrink-0 border-b border-(--border-hairline) p-4">
+        <div className="flex items-start justify-between gap-2">
+          <h2
+            title={row.name}
+            className="min-w-0 flex-1 truncate text-[13px] font-semibold text-(--text-primary)"
+          >
+            {row.name}
+          </h2>
+          <button
+            aria-label={t("CLOSE_INSPECTOR")}
+            onClick={() => app.setInspector(false)}
+            className="cursor-pointer rounded-md p-1 text-(--text-muted) hover:bg-(--bg-hover) hover:text-(--text-primary)"
+          >
+            <X size={14} strokeWidth={1.75} />
+          </button>
+        </div>
+        <div className="mt-1.5 flex items-center gap-2 text-[12px]">
+          <StatusDot state={row.arEnabled ? row.state : "off"} />
+          <span className="text-(--text-secondary)">
+            {row.pillText}
+            {row.metrics && row.metrics !== "—" && ` · ${row.metrics}`}
+          </span>
+          <span className="ml-auto text-[11px] text-(--text-muted)">
+            {row.mine ? t("DASHBOARD_SERVICES") : t("THIRD_PARTY")}
+          </span>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2">
+            <Switch
+              aria-label={t("AUTORUN_SWITCH", { name: row.name })}
+              checked={row.arEnabled}
+              onCheckedChange={(v) =>
+                api.autorunToggle(row.name, v).then(() => refresh())
+              }
+            />
+            <span className="text-[11.5px] text-(--text-secondary)">
+              {t("SECTION_AUTORUN")}
+            </span>
+          </div>
+          <Tip label={t("EDIT")}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => app.editAutorun(row.name, row.sub, row.mine)}
+            >
+              <Pencil size={13} strokeWidth={1.75} />
+            </Button>
+          </Tip>
+          <Tip label={t("REMOVE_FROM_AUTORUN")}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-(--status-red)"
+              onClick={() => app.deleteAutorun(row.name)}
+            >
+              <Trash2 size={13} strokeWidth={1.75} />
+            </Button>
+          </Tip>
+        </div>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto p-4">
+        <div className="text-[10px] font-medium uppercase tracking-[0.08em] text-(--text-muted)">
+          {t("COMMAND")}
+        </div>
+        <div className="mt-1.5 break-all rounded-md border border-(--border-hairline) bg-(--bg-base) px-2.5 py-2 font-mono text-[11.5px] text-(--text-secondary)">
+          {row.sub}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function Inspector() {
+  const sel = useApp().sel;
+  if (sel?.kind === "autorun") return <AutorunPane name={sel.name} />;
+  return <InspectorBody />;
+}
+
+function InspectorBody() {
   const app = useApp();
   const t = useT();
   const st = useDash();
@@ -641,7 +1116,7 @@ export function Inspector() {
         st?.remotes.find((r) => r.name === sel.name)
       : st?.projects.find((r) => r.name === sel.name);
 
-  // svc-спек для свитчей (autorun запись нужна для «Автозапуск вместе с Windows»)
+  // svc spec for the switches (autorun entry needed for the "Launch with Windows" toggle)
   const [spec, setSpec] = useState<ServiceSpec | null>(null);
   useEffect(() => {
     setSpec(null);
@@ -719,7 +1194,7 @@ export function Inspector() {
 
   return (
     <div className="flex h-full flex-col bg-(--bg-surface)">
-      {/* шапка */}
+      {/* header */}
       <div className="shrink-0 border-b border-(--border-hairline) p-4">
         <div className="flex items-start justify-between gap-2">
           <h2
@@ -815,10 +1290,10 @@ export function Inspector() {
         </div>
       </div>
 
-      {/* телеметрия — одна строка, логам достаётся вся остальная высота */}
+      {/* telemetry — one line, the logs get all the remaining height */}
       <div className="tnum flex h-8 shrink-0 items-center gap-1 overflow-hidden border-b border-(--border-hairline) px-2.5 font-mono text-[11.5px] text-(--text-secondary)">
         <span className="min-w-0 truncate whitespace-nowrap">
-          PID {row.m?.pid ?? "—"} · CPU {row.m ? `${row.m.cpu.toFixed(1)}%` : "—"} · RAM {row.m ? `${row.m.mb} MB` : "—"}
+          PID {row.m?.pid ?? "—"} · CPU {row.m ? `${row.m.cpu.toFixed(1)}%` : "—"} · {row.m ? `${row.m.mb}MB` : "—"}
         </span>
         {row.chip && (
           <>
@@ -842,7 +1317,7 @@ export function Inspector() {
         </span>
       </div>
 
-      {/* вкладки */}
+      {/* tabs */}
       <Tabs
         value={activeTab}
         onValueChange={app.setInspectorTab}
@@ -888,7 +1363,7 @@ export function Inspector() {
         )}
         <TabsContent value="config" className="mt-0 flex min-h-0 flex-1 flex-col">
           <ConfigTab
-            kind={sel.kind}
+            kind={sel.kind === "prj" ? "prj" : "svc"}
             name={row.name}
             row={row}
             onSelectDep={(d) => app.select({ kind: "svc", name: d })}
@@ -899,7 +1374,7 @@ export function Inspector() {
   );
 }
 
-// ---------- спарклайн RAM ----------
+// ---------- RAM sparkline ----------
 
 function RamSpark({ data }: { data: number[] }) {
   const w = 56;

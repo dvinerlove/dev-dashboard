@@ -1,7 +1,7 @@
-"""Платформенный слой: Win32 vs POSIX (macOS/Linux).
+"""Platform layer: Win32 vs POSIX (macOS/Linux).
 
-Всё, что зависит от ОС — здесь; вызывающий код ветвится через функции,
-не через if sys.platform разбросанный по файлам.
+Everything OS-dependent lives here; callers branch through functions,
+not via if sys.platform scattered across files.
 """
 import os
 import subprocess
@@ -13,10 +13,10 @@ PLATFORM = "windows" if IS_WIN else ("macos" if IS_MAC else "linux")
 
 
 def shell_argv(cmd):
-    """argv для запуска пользовательской команды.
-    POSIX — login shell: подхватывает PATH/version-managers профиля
-    (тот же приём, что у getlocalhost.app). `/bin/sh -l` не катит:
-    на Debian/Ubuntu sh=dash без -l → каждый старт падал бы."""
+    """argv for launching a user command.
+    POSIX — login shell: picks up PATH/version-managers from the profile
+    (same trick as getlocalhost.app). `/bin/sh -l` does not work:
+    on Debian/Ubuntu sh=dash without -l → every start would fail."""
     if IS_WIN:
         return ["cmd.exe", "/c", cmd]
     sh = os.environ.get("SHELL") or "/bin/sh"
@@ -25,17 +25,17 @@ def shell_argv(cmd):
 
 
 def popen_kwargs():
-    """kwargs для subprocess.Popen при старте сервиса.
-    POSIX — своя сессия → killpg добивает дерево (аналог Job Objects)."""
+    """kwargs for subprocess.Popen when starting a service.
+    POSIX — own session → killpg finishes the tree (Job Objects analog)."""
     if IS_WIN:
         return {"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0)}
     return {"start_new_session": True}
 
 
 def open_path(path):
-    """Открыть папку/файл системным ассоциированным приложением."""
+    """Open a folder/file with the system-associated application."""
     if IS_WIN:
-        os.startfile(path)  # noqa: attr-defined — только на Windows
+        os.startfile(path)  # noqa: attr-defined — Windows only
     else:
         subprocess.Popen(["open" if IS_MAC else "xdg-open", path])
 
@@ -45,8 +45,8 @@ def open_url(url):
 
 
 def system_lang():
-    """UI-язык ОС -> 'ru'|'en'. Любая не-ru локаль или ошибка определения
-    дают 'en' — английский как дефолт."""
+    """OS UI language -> 'ru'|'en'. Any non-ru locale or a detection
+    failure yields 'en' — English as the default."""
     try:
         if IS_WIN:
             import ctypes
@@ -58,7 +58,7 @@ def system_lang():
         return "en"
 
 
-# --- автозагрузка: реестр HKCU\...\Run vs ~/Library/LaunchAgents --------
+# --- autostart: HKCU\...\Run registry vs ~/Library/LaunchAgents --------
 
 def _plist_path(label):
     from pathlib import Path
@@ -66,7 +66,7 @@ def _plist_path(label):
 
 
 def autorun_entries():
-    """[(name, cmd)] — записи автозагрузки текущего пользователя."""
+    """[(name, cmd)] — autostart entries of the current user."""
     out = []
     if IS_WIN:
         import winreg
@@ -104,9 +104,9 @@ def autorun_entries():
 
 
 def autorun_disabled_names():
-    """Имена записей, выключенных юзером без удаления.
-    Windows — StartupApproved; macOS не хранит «disabled но present»
-    в user-visible виде → пусто (disable у нас = delete)."""
+    """Names of entries the user disabled without deleting.
+    Windows — StartupApproved; macOS does not keep "disabled but present"
+    in a user-visible form → empty (disable for us = delete)."""
     if not IS_WIN:
         return set()
     import winreg
@@ -131,7 +131,7 @@ def autorun_disabled_names():
 
 
 def autorun_write(name, cmd):
-    """Создать/перезаписать запись автозагрузки."""
+    """Create/overwrite an autostart entry."""
     if IS_WIN:
         import winreg
         with winreg.OpenKey(
@@ -166,16 +166,15 @@ def autorun_delete(name):
 
 
 def autorun_set_enabled(name, enabled):
-    """Вкл/выкл без удаления (аналог Диспетчера задач).
-    macOS: user-visible disabled-состояния нет — noop."""
+    """Enable/disable without deleting (Task Manager style).
+    macOS: no user-visible disabled state — noop."""
     if not IS_WIN:
         return
     import winreg
-    with winreg.OpenKey(
+    with winreg.CreateKey(
             winreg.HKEY_CURRENT_USER,
             r"Software\Microsoft\Windows\CurrentVersion\Explorer"
-            r"\StartupApproved\Run",
-            0, winreg.KEY_SET_VALUE | winreg.KEY_WOW64_64KEY) as k:
+            r"\StartupApproved\Run") as k:
         winreg.SetValueEx(k, name, 0, winreg.REG_BINARY,
                           (b"\x02" if enabled else b"\x03") + b"\x00" * 11)
 
@@ -183,14 +182,14 @@ def autorun_set_enabled(name, enabled):
 # --- single instance -----------------------------------------------------
 
 def acquire_single_instance(name="devdashboard"):
-    """Хендл блокировки или None если уже занято (второй инстанс).
-    Windows — mutex; POSIX — flock на lockfile в tmp."""
+    """Lock handle or None if already held (second instance).
+    Windows — mutex; POSIX — flock on a lockfile in tmp."""
     if IS_WIN:
         import ctypes
         ctypes.windll.kernel32.CreateMutexW(None, False, f"{name}Mutex")
         if ctypes.windll.kernel32.GetLastError() == 183:  # ALREADY_EXISTS
             return None
-        return True  # хендл держит ОС до выхода процесса
+        return True  # the OS holds the handle until process exit
     import fcntl
     import tempfile
     lock = open(os.path.join(tempfile.gettempdir(), f"{name}.lock"), "w")
@@ -199,4 +198,85 @@ def acquire_single_instance(name="devdashboard"):
     except OSError:
         lock.close()
         return None
-    return lock  # файл держим открытым — ОС отпустит на выходе
+    return lock  # keep the file open — the OS releases it on exit
+
+
+# --- OS credential store: Windows Credential Manager via advapi32 --------
+# Secrets live outside the configs; spec.env keeps only "cred:<target>".
+# POSIX: no stdlib keystore — read returns None, writes raise OSError.
+
+if IS_WIN:
+    import ctypes
+    from ctypes import wintypes
+
+    _CRED_TYPE_GENERIC = 1
+    _CRED_PERSIST_LOCAL_MACHINE = 2
+
+    class _CREDENTIAL(ctypes.Structure):
+        _fields_ = [("Flags", wintypes.DWORD),
+                    ("Type", wintypes.DWORD),
+                    ("TargetName", wintypes.LPWSTR),
+                    ("Comment", wintypes.LPWSTR),
+                    ("LastWritten", wintypes.FILETIME),
+                    ("CredentialBlobSize", wintypes.DWORD),
+                    ("CredentialBlob", ctypes.c_void_p),
+                    ("Persist", wintypes.DWORD),
+                    ("AttributeCount", wintypes.DWORD),
+                    ("Attributes", ctypes.c_void_p),
+                    ("TargetAlias", wintypes.LPWSTR),
+                    ("UserName", wintypes.LPWSTR)]
+
+    _advapi = ctypes.windll.advapi32
+    _advapi.CredReadW.argtypes = [
+        wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD,
+        ctypes.POINTER(ctypes.POINTER(_CREDENTIAL))]
+    _advapi.CredReadW.restype = wintypes.BOOL
+    _advapi.CredWriteW.argtypes = [ctypes.POINTER(_CREDENTIAL),
+                                   wintypes.DWORD]
+    _advapi.CredWriteW.restype = wintypes.BOOL
+    _advapi.CredDeleteW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD,
+                                    wintypes.DWORD]
+    _advapi.CredDeleteW.restype = wintypes.BOOL
+    _advapi.CredFree.argtypes = [ctypes.c_void_p]
+    _advapi.CredFree.restype = None
+
+
+def cred_read(target):
+    """Secret text for `target` (e.g. "DevDashboard/svc/KEY") or None —
+    also None on POSIX, where no stdlib keystore exists."""
+    if not IS_WIN:
+        return None
+    p = ctypes.POINTER(_CREDENTIAL)()
+    if not _advapi.CredReadW(str(target), _CRED_TYPE_GENERIC, 0,
+                             ctypes.byref(p)):
+        return None
+    try:
+        size = p.contents.CredentialBlobSize
+        blob = ctypes.string_at(p.contents.CredentialBlob, size) \
+            if size else b""
+        # errors=replace: a foreign cred target with a non-UTF16 blob
+        # must not crash env resolution
+        return blob.decode("utf-16-le", errors="replace")
+    finally:
+        _advapi.CredFree(p)
+
+
+def cred_write(target, secret):
+    """Write/update a generic credential -> True/False. POSIX: OSError."""
+    if not IS_WIN:
+        raise OSError("credential store is supported on Windows only")
+    blob = str(secret).encode("utf-16-le")
+    buf = ctypes.create_string_buffer(blob, len(blob))
+    cred = _CREDENTIAL(Type=_CRED_TYPE_GENERIC, TargetName=str(target),
+                       LastWritten=wintypes.FILETIME(0, 0),
+                       CredentialBlobSize=len(blob),
+                       CredentialBlob=ctypes.addressof(buf),
+                       Persist=_CRED_PERSIST_LOCAL_MACHINE)
+    return bool(_advapi.CredWriteW(ctypes.byref(cred), 0))
+
+
+def cred_delete(target):
+    """Delete a generic credential -> True/False. POSIX: OSError."""
+    if not IS_WIN:
+        raise OSError("credential store is supported on Windows only")
+    return bool(_advapi.CredDeleteW(str(target), _CRED_TYPE_GENERIC, 0))
