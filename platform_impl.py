@@ -186,8 +186,12 @@ def acquire_single_instance(name="devdashboard"):
     Windows — mutex; POSIX — flock on a lockfile in tmp."""
     if IS_WIN:
         import ctypes
-        ctypes.windll.kernel32.CreateMutexW(None, False, f"{name}Mutex")
-        if ctypes.windll.kernel32.GetLastError() == 183:  # ALREADY_EXISTS
+        # use_last_error: ctypes.windll reads TLS error state through
+        # shared libraries — intervening ctypes calls can clobber it and
+        # a false 183 means a silent second-instance exit
+        k = ctypes.WinDLL("kernel32", use_last_error=True)
+        k.CreateMutexW(None, False, f"{name}Mutex")
+        if ctypes.get_last_error() == 183:  # ALREADY_EXISTS
             return None
         return True  # the OS holds the handle until process exit
     import fcntl

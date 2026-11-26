@@ -1773,29 +1773,56 @@ def download_update_zip(zip_url, dest_dir, timeout=180):
     return os.path.join(dest_dir, "DevDashboard.exe")
 
 
-def write_update_helper(target_exe, pid, action, ps1_path):
+def write_update_helper(target_exe, pid, action, ps1_path, port=0):
     """Detached helper: wait for the app to die, apply the update, relaunch.
     `action` is either ("copy", src_exe) or ("cmd", shell_command).
     PowerShell, not .bat — cmd's `find`/`timeout` get shadowed by Git/MSYS
-    binaries on dev machines and the wait loop silently breaks."""
+    binaries on dev machines and the wait loop silently breaks.
+    `port` — verify the relaunched instance actually serves the API and
+    restart it once if it hung; 0 skips verification."""
     if action[0] == "copy":
-        do = ("Copy-Item -LiteralPath '{}' -Destination '{}' -Force"
-              .format(action[1], target_exe))
+        # retry: the bootloader parent of the dying exe holds the file
+        # locked for seconds after the python child exits (_MEI cleanup) —
+        # a single Copy-Item can hit sharing violation and silently fail
+        do = [
+            "$ok = $false",
+            "for ($i = 0; $i -lt 20 -and -not $ok; $i++) {",
+            "  try { Copy-Item -LiteralPath '%s' -Destination '%s' -Force"
+            " -ErrorAction Stop; $ok = $true }" % (action[1], target_exe),
+            "  catch { Start-Sleep 1 }",
+            "}",
+        ]
     else:
-        do = action[1]
+        do = [action[1]]
     lines = [
-        f"while (Get-Process -Id {pid} -ErrorAction SilentlyContinue)"
-        " { Start-Sleep 1 }",
+        "while (Get-Process -Id %d -ErrorAction SilentlyContinue)"
+        " { Start-Sleep 1 }" % pid,
         "Start-Sleep 1",
-        do,
-        # the dying instance's WebView2 children release the user-data
-        # folder lock a beat after the host exits — relaunching into the
-        # lock window can hang the new instance silently
+    ] + do + [
         "Start-Sleep 4",
-        f"Start-Process -FilePath '{target_exe}'",
-        "Remove-Item -LiteralPath $MyInvocation.MyCommand.Path -Force"
-        " -ErrorAction SilentlyContinue",
+        "$p = Start-Process -FilePath '%s' -PassThru" % target_exe,
     ]
+    if port:
+        # root-cause-agnostic self-healing: whatever stalls the first start
+        # (AV scan of the fresh unsigned binary, extraction races) — the
+        # second one goes through, same as a manual launch always did
+        lines += [
+            "$up = $false",
+            "for ($i = 0; $i -lt 25 -and -not $up; $i++) {",
+            "  Start-Sleep 1",
+            "  try { $null = Invoke-WebRequest -Uri"
+            " 'http://127.0.0.1:%d/api/state' -TimeoutSec 2"
+            " -UseBasicParsing; $up = $true } catch {}" % port,
+            "}",
+            "if (-not $up) {",
+            "  taskkill /PID $p.Id /T /F | Out-Null",
+            "  Start-Sleep 2",
+            "  Start-Process -FilePath '%s'" % target_exe,
+            "}",
+        ]
+    lines.append(
+        "Remove-Item -LiteralPath $MyInvocation.MyCommand.Path -Force"
+        " -ErrorAction SilentlyContinue")
     with open(ps1_path, "w", encoding="utf-8-sig") as f:
         f.write("\r\n".join(lines) + "\r\n")
     return ps1_path

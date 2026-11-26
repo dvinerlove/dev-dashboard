@@ -144,6 +144,9 @@ def _cli(argv):
 
 
 def main():
+    # first line, before anything can hang — tells bootloader/OS stalls
+    # (no line at all) from python-level deaths in the incident log
+    be.append_dashboard_log(f"[SYSTEM] start pid={os.getpid()}")
     if pi.IS_WIN:
         # own AppUserModelID — otherwise Windows groups the window with
         # other python processes and ignores the taskbar icon
@@ -169,6 +172,7 @@ def main():
                 data=b"{}"), timeout=3)
         except Exception:
             pass
+        be.append_dashboard_log("[SYSTEM] second instance, exiting")
         return
 
     dash = Dashboard()

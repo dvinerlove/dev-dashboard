@@ -1406,7 +1406,8 @@ class Dashboard:
                 action = ("cmd", "scoop update dev-dashboard")
             ps1 = be.write_update_helper(target, pid, action,
                                          os.path.join(tmp,
-                                                      "apply-update.ps1"))
+                                                      "apply-update.ps1"),
+                                         port=self.api_port)
         except (OSError, ValueError, urllib.error.URLError) as e:
             return False, str(e)[:200]
         # CREATE_NO_WINDOW only: DETACHED_PROCESS leaves powershell.exe
