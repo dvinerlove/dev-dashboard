@@ -1788,6 +1788,10 @@ def write_update_helper(target_exe, pid, action, ps1_path):
         " { Start-Sleep 1 }",
         "Start-Sleep 1",
         do,
+        # the dying instance's WebView2 children release the user-data
+        # folder lock a beat after the host exits — relaunching into the
+        # lock window can hang the new instance silently
+        "Start-Sleep 4",
         f"Start-Process -FilePath '{target_exe}'",
         "Remove-Item -LiteralPath $MyInvocation.MyCommand.Path -Force"
         " -ErrorAction SilentlyContinue",
