@@ -66,3 +66,4 @@ webview/
 
 # --- One-off config backups ---
 *.backup-*
+build-stage/

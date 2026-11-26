@@ -262,7 +262,7 @@ button, nav, label, [data-slot="switch"], [cmdk-item] { user-select: none; }
    to every theme automatically (light theme → dark icon) */
 .app-icon {
   display: inline-block;
-  aspect-ratio: 22 / 24;
+  aspect-ratio: 14 / 16;
   background-color: currentColor;
   -webkit-mask: url(/icon.svg) center / contain no-repeat;
   mask: url(/icon.svg) center / contain no-repeat;
