@@ -1793,7 +1793,7 @@ def write_update_helper(target_exe, pid, action, ps1_path, port=0):
             "}",
         ]
     else:
-        do = [action[1]]
+        do = [action[1]] if action[1] else []
     lines = [
         "while (Get-Process -Id %d -ErrorAction SilentlyContinue)"
         " { Start-Sleep 1 }" % pid,

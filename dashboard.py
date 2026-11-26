@@ -3,6 +3,7 @@ UI: built React frontend from frontend/dist, served by the local API (port
 from the api_port setting, default 4850).
 Run: python dashboard.py  (old QtQuick core — bridge.py + ui/Main.qml)"""
 import os
+import subprocess
 import sys
 import threading
 
@@ -494,6 +495,40 @@ def main():
         win.hide()
         return False
     win.events.closing += on_closing
+
+    # watchdog: WebView2 init can fail silently (its own renderer processes
+    # of the previous instance still holding the user-data lock, pythonnet
+    # print crash — both seen in the wild): the form stays dark forever
+    # while the API answers fine, so the port-based relaunch verification
+    # cannot see it. `loaded` never fires in that state. Self-heal once
+    # through the same relaunch helper as self-update; the marker file
+    # breaks restart loops and is cleared by the first successful load.
+    loaded_ok = threading.Event()
+    win.events.loaded += lambda *_: loaded_ok.set()
+
+    def _webview_watchdog():
+        marker = os.path.join(be.DATA_DIR, "wv-restart.once")
+        if loaded_ok.wait(40):
+            try:
+                os.remove(marker)
+            except OSError:
+                pass
+            return
+        be.append_dashboard_log("[SYSTEM] webview never loaded in 40s")
+        if os.path.exists(marker) or not getattr(sys, "frozen", False):
+            return                # already restarted once, or dev mode
+        open(marker, "w").close()
+        be.append_dashboard_log("[SYSTEM] restarting once to recover")
+        ps1 = be.write_update_helper(
+            sys.executable, os.getpid(), ("cmd", ""),
+            os.path.join(be.DATA_DIR, "wv-restart.ps1"), dash.api_port)
+        subprocess.Popen(["powershell", "-NoProfile", "-ExecutionPolicy",
+                          "Bypass", "-File", ps1],
+                         creationflags=getattr(subprocess,
+                                               "CREATE_NO_WINDOW", 0),
+                         close_fds=True)
+        quit_app()
+    threading.Thread(target=_webview_watchdog, daemon=True).start()
 
     try:
         # private_mode — pywebview default True: profile in temp and localStorage
