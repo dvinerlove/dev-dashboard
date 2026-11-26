@@ -4,6 +4,13 @@ import { api, type AppSettings } from "../lib/api";
 import { useApp } from "../lib/ctx";
 import { LANGS, setLang, useT } from "../lib/i18n";
 import { useCached, useDash } from "../lib/store";
+import {
+  fetchLatestRelease,
+  getUpdateInfo,
+  installUpdate,
+  isNewer,
+  setUpdateInfo,
+} from "../lib/update";
 import { cn } from "../lib/utils";
 import { toast } from "sonner";
 import { SectionTitle, ThemePicker } from "./bits";
@@ -92,7 +99,10 @@ export function SettingsView() {
   const [backoff, setBackoff] = useState(() => srv?.backoff.join(", ") ?? "");
   const [roots, setRoots] = useState<string[]>(() => srv?.scan_roots ?? []);
   // update check: "wait" → fetching; {tag,url} → newer release found
-  const [upd, setUpd] = useState<{ tag: string; url: string } | "wait" | null>(null);
+  // (a passive startup check may have found one before settings opened)
+  const [upd, setUpd] = useState<{ tag: string; url: string } | "wait" | null>(
+    () => getUpdateInfo(),
+  );
   const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
@@ -149,39 +159,17 @@ export function SettingsView() {
 
   const doUpdate = async () => {
     setUpdating(true);
-    const r = await api.selfUpdate().catch(() => null);
-    if (r?.ok) {
-      toast(t("UPDATE_RESTARTING"));
-      // the app exits and relaunches itself — nothing more to do
-    } else {
-      setUpdating(false);
-      toast.error(r?.msg || t("UPDATE_FAILED"));
-    }
+    if (!(await installUpdate())) setUpdating(false);
   };
 
   const checkUpdates = async () => {
     setUpd("wait");
     try {
-      const r = await fetch(
-        "https://api.github.com/repos/dvinerlove/dev-dashboard/releases/latest",
-        { signal: AbortSignal.timeout(8000) },
-      );
-      if (!r.ok) throw new Error(`${r.status}`);
-      const j = (await r.json()) as { tag_name?: string; html_url?: string };
-      const tag = String(j.tag_name ?? "").replace(/^v/, "");
-      if (!tag || !j.html_url) throw new Error("bad release");
-      const cur = (st?.version ?? "0").split(".").map((x) => parseInt(x, 10) || 0);
-      const nxt = tag.split(".").map((x) => parseInt(x, 10) || 0);
-      let newer = false;
-      for (let i = 0; i < Math.max(cur.length, nxt.length); i++) {
-        const d = (nxt[i] ?? 0) - (cur[i] ?? 0);
-        if (d) {
-          newer = d > 0;
-          break;
-        }
-      }
-      if (newer) setUpd({ tag, url: j.html_url });
-      else {
+      const rel = await fetchLatestRelease();
+      if (isNewer(st?.version ?? "0", rel.tag)) {
+        setUpdateInfo(rel);
+        setUpd(rel);
+      } else {
         setUpd(null);
         toast(t("UPDATE_LATEST"));
       }

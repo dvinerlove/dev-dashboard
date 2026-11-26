@@ -336,6 +336,7 @@
   "UNIT_MIN": "m",
   "UNMARK_MINE": "Remove «mine» mark",
   "UPDATE_AVAILABLE": "v{v} available",
+  "UPDATE_CONFIRM_BODY": "The update will be downloaded and installed, then the app will restart.",
   "UPDATE_FAILED": "Update failed",
   "UPDATE_LATEST": "You're on the latest version",
   "UPDATE_NOW": "Update",

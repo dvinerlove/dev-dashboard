@@ -11,6 +11,7 @@ import {
   type Sel,
 } from "./lib/ctx";
 import { getDash, markPending, refresh, useDash } from "./lib/store";
+import { startupUpdateCheck } from "./lib/update";
 import { applyTheme, initTheme, type ThemeId } from "./lib/theme";
 import { setLang, t, useLang } from "./lib/i18n";
 import { setUiSetting, uiSetting } from "./lib/settings";
@@ -160,6 +161,11 @@ export default function App() {
   useEffect(() => {
     document.title = `${t(SECTION_TITLES[section])} — Dev Dashboard`;
   }, [section, lang]);
+
+  // passive update check — one background fetch per session, silent
+  useEffect(() => {
+    if (st?.version) startupUpdateCheck(st.version);
+  }, [st?.version]);
 
   // the first service is auto-selected on first load
   useEffect(() => {

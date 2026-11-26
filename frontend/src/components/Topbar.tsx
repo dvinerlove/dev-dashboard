@@ -1,14 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  CircleArrowDown,
   Minus,
   PanelRight,
   Search,
   Square,
   X,
 } from "lucide-react";
+import { api } from "../lib/api";
 import { SECTION_TITLES, useApp } from "../lib/ctx";
 import { useT } from "../lib/i18n";
 import { useDash } from "../lib/store";
+import { installUpdate, useUpdateInfo } from "../lib/update";
 import { cn, winCtl } from "../lib/utils";
 import { Button } from "./ui/button";
 import { Tip } from "./ui/tooltip";
@@ -38,6 +41,19 @@ export function Topbar() {
   const issues = st?.issues ?? 0;
   const problems = st?.problems.length ?? 0;
   const bad = problems > 0;
+  const upd = useUpdateInfo();
+
+  const installClick = () => {
+    if (!upd) return;
+    // dev runs can't self-update — the release page is the next best thing
+    if (st?.updChannel === "dev") return void api.openUrl(upd.url);
+    app.confirm(
+      t("UPDATE_AVAILABLE", { v: upd.tag }),
+      t("UPDATE_CONFIRM_BODY"),
+      t("UPDATE_NOW"),
+      () => void installUpdate(),
+    );
+  };
 
   // search strictly centered in the window: absolute + measured free space
   // between the edge blocks (ResizeObserver catches both resizes and
@@ -140,6 +156,21 @@ export function Topbar() {
         onMouseDown={noDrag}
         className="ml-auto flex items-center gap-1.5"
       >
+        {/* update available — passive startup check found a newer release */}
+        {upd && (
+          <Tip label={t("UPDATE_AVAILABLE", { v: upd.tag })}>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={t("UPDATE_AVAILABLE", { v: upd.tag })}
+              className="text-(--accent)"
+              onClick={installClick}
+            >
+              <CircleArrowDown size={15} strokeWidth={1.75} />
+            </Button>
+          </Tip>
+        )}
+
         {/* live status */}
         <button
           onClick={() => app.setSection("events")}
