@@ -1111,6 +1111,13 @@ def env_diff(directory):
     return None
 
 
+def canon_path(p):
+    """Path key for cross-source comparison: realpath expands 8.3 short
+    names and symlinks, so a scan root in one form and a git-reported
+    path in another still compare equal."""
+    return os.path.normcase(os.path.realpath(p))
+
+
 def git_dir_of(directory):
     """Real git dir for a checkout: the .git dir as-is, or the
     "gitdir: <path>" pointer target of a worktree/submodule .git file.
@@ -1549,13 +1556,12 @@ def scan_project_dirs(root, known_cwds, run_dirs=None, run_ports=None):
                 has_git = os.path.exists(gitdir)  # worktree .git is a file
                 # worktree checkouts of one repo share repo_key — the main
                 # repo root — so core can fold them into a single row
-                repo_key, worktree = nc, False
+                repo_key, worktree = canon_path(dirpath), False
                 gdir = git_dir_of(dirpath) if has_git else ""
                 if os.path.basename(os.path.dirname(gdir)) == "worktrees":
                     # <main>/.git/worktrees/<w> → repo root is 3 levels up
-                    repo_key = os.path.normcase(os.path.normpath(
-                        os.path.dirname(os.path.dirname(
-                            os.path.dirname(gdir)))))
+                    repo_key = canon_path(os.path.dirname(
+                        os.path.dirname(os.path.dirname(gdir))))
                     worktree = True
                 branch = git_branch(dirpath)
                 # score without hardcoding — only observable signals:

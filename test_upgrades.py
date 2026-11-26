@@ -249,18 +249,27 @@ def test7_scan_worktree_compose():
     git("commit", "-m", "x")
     wt = os.path.join(root, "repo-wt")
     git("worktree", "add", wt, "-b", "wt-branch")
-    be.save_settings({"scan_roots": [root]})
+    # CI repro: %TEMP% arrives in 8.3 short form while git writes the .git
+    # worktree pointer in long form — the fold must hold either way
+    scan_root = root
+    if sys.platform.startswith("win"):
+        import ctypes
+        buf = ctypes.create_unicode_buffer(512)
+        n = ctypes.windll.kernel32.GetShortPathNameW(root, buf, 512)
+        if n and buf.value.lower() != root.lower():
+            scan_root = buf.value
+    be.save_settings({"scan_roots": [scan_root]})
     d = core.Dashboard.__new__(core.Dashboard)
     d.__init__()
+    canon = lambda s: os.path.normcase(os.path.realpath(s))
     rows = [p for p in d.scan_projects()["found"]
-            if os.path.normcase(os.path.normpath(p["cwd"])).startswith(
-                os.path.normcase(os.path.normpath(root)))]
+            if canon(p["cwd"]).startswith(canon(scan_root))]
     assert len(rows) == 1, f"worktrees must fold into one row: {rows}"
     row = rows[0]
-    nc = lambda s: os.path.normcase(os.path.normpath(s))
-    assert nc(row["cwd"]) == nc(repo), "primary must be the main checkout"
-    assert {nc(w["cwd"]) for w in row["worktrees"]} == {nc(repo), nc(wt)}, \
-        row["worktrees"]
+    assert canon(row["cwd"]) == canon(repo), \
+        "primary must be the main checkout"
+    assert {canon(w["cwd"]) for w in row["worktrees"]} == \
+        {canon(repo), canon(wt)}, row["worktrees"]
     assert row["compose_services"] == ["web", "db"], row["compose_services"]
     print("  ok: 2 checkouts -> 1 row, worktrees listed, "
           "compose_services parsed")
