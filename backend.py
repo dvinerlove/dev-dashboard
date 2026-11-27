@@ -361,7 +361,8 @@ def find_project_pid(project, proc_cwds=None):
             if proc_cwds is not None:
                 cwd = proc_cwds.get(info["pid"], "")
             else:
-                cwd = os.path.normcase(os.path.normpath(p.cwd() or ""))
+                cwd = os.path.normcase(os.path.normpath(
+                    os.path.realpath(p.cwd() or "")))
             if exe.startswith(target) or target in cl \
                     or cwd == tdir or cwd.startswith(target):
                 rank = (0 if cwd == tdir else

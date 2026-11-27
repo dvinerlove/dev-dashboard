@@ -753,7 +753,7 @@ class Dashboard:
                         c = pr_.cwd()
                         if c:
                             proc_cwds[pr_.pid] = os.path.normcase(
-                                os.path.normpath(c))
+                                os.path.normpath(os.path.realpath(c)))
                     except (psutil.NoSuchProcess, psutil.AccessDenied):
                         pass
             projects = {}
