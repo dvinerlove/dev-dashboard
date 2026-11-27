@@ -3,10 +3,16 @@
 **One window for every dev service running on your machine.**
 
 [![Release](https://img.shields.io/github/v/release/dvinerlove/dev-dashboard)](https://github.com/dvinerlove/dev-dashboard/releases)
+[![Downloads](https://img.shields.io/github/downloads/dvinerlove/dev-dashboard/total)](https://github.com/dvinerlove/dev-dashboard/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![CI](https://github.com/dvinerlove/dev-dashboard/actions/workflows/ci.yml/badge.svg)](https://github.com/dvinerlove/dev-dashboard/actions/workflows/ci.yml)
 
 ![Dev Dashboard](docs/screenshot.png)
+
+<p align="center">
+  <img src="docs/screenshot-ports.png" width="49%" alt="Ports view — every listener on the machine, attributed">
+  <img src="docs/screenshot-events.png" width="49%" alt="Events view — crashes, restarts, port conflicts">
+</p>
 
 Dev Dashboard is a local control panel for dev services on Windows: dev servers, databases, tunnels, containers. It shows what's up and what's down, restarts what crashes, and tells you which process owns which port. It also exposes all of it to AI agents over MCP. Everything runs and stays on your machine — no account, no telemetry.
 
@@ -18,7 +24,8 @@ Dev Dashboard is a local control panel for dev services on Windows: dev servers,
 - **Answer "what's holding this port?" at a glance** — every TCP listener on the machine, attributed to your services, flagged when it's reachable from the LAN
 - **Watch what you don't run locally** — HTTP (keyword + token auth from env), TCP, and Docker monitors for remote services
 - **Edit env vars without leaking secrets** — per-service env overrides in the UI; values whose names look secret (`TOKEN`, `SECRET`, `KEY`, `PASSWORD`, `PASS`, `AUTH`, `CREDENTIAL`, `JWT`, `SESSION`) are masked in API responses
-- **Know why something is red** — an issues feed collects crashes, port conflicts, dependency timeouts, and errors parsed from service logs; run and issue history persists in SQLite
+- **Know why something is red** — an issues feed collects crashes, port conflicts, dependency timeouts, and errors parsed from service logs; every event clicks through to the entity it is about, on the tab with the evidence; run and issue history persists in SQLite
+- **Adopt what you started by hand** — a dev server launched from your own terminal is detected by its working directory and tracked as the project's process; starting it again adopts instead of double-starting
 - **Let AI agents operate it** — a zero-dependency stdio MCP server (7 tools) lets Cursor, Cline, or Codex list services, read logs, and restart things — [setup](README_MCP.md)
 - **Lives on the desktop** — system tray, launch-at-login manager, single instance, RU/EN UI, six themes
 - **Works headless too** — `python dashboard.py --web` serves the same UI and API in a browser
@@ -64,21 +71,18 @@ Config files are plain JSON in the [data directory](#data-location) — edit by 
 
 ## Security model
 
-The API binds to **127.0.0.1 only** and is meant for exactly one trust
-domain: you, on your own machine. Its POST endpoints start, stop and
-restart processes by design — that is the product, not a bug — so treat
-anything that can reach localhost as able to run commands through the
-dashboard:
+The API binds to **127.0.0.1 only** and has no authentication. Any program
+running as your user can use it to reconfigure services and run commands.
 
-- POSTs require an `Origin`/`Host` match against the actual bound API
-  port, which blocks drive-by requests from browsers on other ports.
-- That guard does **not** stop other local processes — any program
-  running as your user can POST to the API. Do not run the dashboard
-  with services you would not want co-opted by other local software.
-- Never expose the port through a tunnel or a reverse proxy, and do not
+- A POST that sends `Origin` is rejected unless that origin is loopback
+  on the actual API port; `Host` must be a loopback host with a port.
+  This blocks drive-by POSTs from browser pages on other localhost ports.
+  POSTs without `Origin` are accepted as local clients.
+- Do not expose the port through a tunnel or a reverse proxy, and do not
   change the bind address away from loopback.
-- ENV secrets are masked in API responses unless `?reveal=1` is passed —
-  masking is a display convenience, not access control.
+- The env endpoints mask secret-looking values unless `?reveal=1` is
+  passed — masking is a display convenience, not access control.
+
 
 ## Configuration
 

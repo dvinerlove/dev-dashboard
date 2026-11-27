@@ -22,7 +22,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(
     sys.executable if getattr(sys, "frozen", False) else __file__))
 # read-only resources (frontend/dist, icon.ico): _MEIPASS in a onefile bundle
 RESOURCE_DIR = getattr(sys, "_MEIPASS", BASE_DIR)
-VERSION = "0.9.2"
+VERSION = "0.10.0"
 
 
 def _default_data_dir():

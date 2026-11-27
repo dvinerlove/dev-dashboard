@@ -10,10 +10,19 @@
   `Microsoft\WinGet`) → `winget upgrade --id Dvinerlove.DevDashboard`,
   `scoop` → `scoop update dev-dashboard`, zip → прямое скачивание релиза
   и подмена exe; `dev` (из исходников) — отказ с объяснением.
-- Механика: detached ps1-хелпер ждёт смерти pid, применяет обновление,
-  перезапускает exe. Не `.bat` — `find`/`timeout` перехватываются
+- Механика: detached ps1-хелпер ждёт смерти pid (bounded, 1ч — pid-reuse
+  не вешает), применяет обновление, перезапускает exe с исходными
+  аргументами запуска. Не `.bat` — `find`/`timeout` перехватываются
   Git/MSYS-бинарниками на dev-машинах; не `DETACHED_PROCESS` — powershell
   без консоли не стартует. Сервисы переживают обновление (disarm jobs).
+- Верификация релиза: sha256 из `.zip.sha256`-ассета сверяется до распаковки,
+  mismatch — hard fail.
+- Верификация перезапуска: shaped JSON с ключом `services` на реальном
+  порту из `api.port`-маркера (не любой HTTP 200); до 3 попыток, kill
+  только по имени образа (не tree — autostart-проекты не страдают);
+  backup `.bak` + rollback после трёх провалов.
+- In-progress lock от параллельных обновлений; `--web` режим имеет quit_cb;
+  non-Windows — явный отказ.
 - UI: в настройках при наличии новой версии — кнопка «Обновить» рядом
   со ссылкой на релиз; в dev-режиме скрыта.
 
@@ -62,10 +71,19 @@
 - Start: `popen_in_job` в Job Object, stdout/stderr → event-log с тегом `[name]`/`[name ERR]`; error-строки → issue `log_error`
 - Stop: pid обнуляется до kill (не считается крашем), terminate + Job.terminate + добивка дерева
 - Autostart: проекты с `autostart` стартуют при запуске дашборда
-- Ре-адопция: поиск процесса по cwd (минимальный pid, без шеллов), `pid_ctime` защита от pid-reuse
+- Ре-адопция: поиск процесса по cwd с ранжированием доказательств (точный
+  cwd → cwd внутри → exe → упоминание пути в cmdline; npm/pnpm/yarn/bun/шеллы
+  исключены), арбитраж вложенных проектов к более глубокому cwd,
+  `pid_ctime` защита от pid-reuse
+- Witnessed-crash: crash-событие + dead-пилюля только для смерти, которую
+  дашборд видел (pid был подтверждён живым в этой сессии — включая
+  персист без перехода); старт проекта на уже работающем процессе
+  усыновляет его вместо дабл-старта
 - Авто-url: первый LISTEN-порт дерева процесса → `http://localhost:<port>` если url не задан
 - Env проекта: `.env` из cwd с маскированием секретов + `missing` из `env_diff`; сохранение перезаписывает `.env` с сохранением комментариев
-- `delete_project` не убивает процесс — только память удаления + убрать из списка
+- `delete_project` не убивает процесс — disarm job (дерево переживает),
+  чистка всего runtime-state; rename мигрирует runtime-state (и у сервисов
+  тоже: backoff, circuit breaker, log offsets)
 - `NAME_TAKEN` на дубль имени при create; dedup по имени и cwd в `add_projects`
 - Открыть папку (Explorer), открыть в IDE (cursor/code/codium/insiders/sublime через PATH)
 
@@ -137,7 +155,12 @@
 - Секция «Сейчас»: живые problems (мёртвые сервисы/автозапуск) над логом — то, что входит в бейдж
 - «Очистить» → `DELETE FROM issues` (персистентно, не воскресает)
 - Runs-история: deque 10 на имя `{t0,t1,exit}`, `_run_start` на up, `_run_end` на exit/down/dead
-- `problems`: сервисы down/dead без `note` + свои-незапущенные autorun → бейдж `max(issues, problems)`
+- `problems`: сервисы down/dead без `note` + свои-незапущенные autorun →
+  бейдж `max(issues, problems)`; строки несут typed kind (svc/autorun)
+- Каждое событие несёт типизированный `sel` (svc+remote/prj/autorun) —
+  клик открывает инспектор сущности на табе-доказательстве (log_error→Логи,
+  crash→История); legacy-строки без sel не кликабельны
+- kill-pid из портов сверяет ctime со снапшотом скана — pid-reuse отвергается
 
 ## ENV и секреты
 
@@ -220,7 +243,8 @@
 ## Безопасность
 
 - Host allowlist: только `127.0.0.1|localhost|::1` — anti-DNS-rebinding
-- CSRF: Origin обязан localhost при наличии; тело ≤1MB, обязан JSON-объект
+- CSRF: Origin обязан localhost при наличии и пинится к реальному порту API;
+  тело ≤1MB, обязан JSON-объект
 - Path traversal: нормализация + prefix-check на статике
 - `_protected_pid`: sys/db-процессы не принадлежащие сервисам нельзя убить
 - `allow_reuse_address` off на Windows — второй инстанс не перехватит порт
