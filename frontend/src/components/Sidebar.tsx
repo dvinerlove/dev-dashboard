@@ -40,10 +40,10 @@ function HexIcon({
       className={className}
       aria-hidden
     >
-      <path d="M12 1.6 21 7.1 21 16.9 12 22.4 3 16.9 3 7.1Z" />
-      <circle cx="12" cy="8.6" r="2.2" fill="currentColor" stroke="none" />
-      <circle cx="7.8" cy="14.3" r="2.2" fill="currentColor" stroke="none" />
-      <circle cx="16.2" cy="14.3" r="2.2" fill="currentColor" stroke="none" />
+      <path d="M22 16.2V7.8a2 2 0 0 0-1-1.73l-8-4.55a2 2 0 0 0-2 0l-8 4.55A2 2 0 0 0 2 7.8v8.4a2 2 0 0 0 1 1.73l8 4.55a2 2 0 0 0 2 0l8-4.55a2 2 0 0 0 1-1.73z" />
+      <circle cx="12" cy="8.6" r="1.6" fill="currentColor" stroke="none" />
+      <circle cx="7.8" cy="14.3" r="1.6" fill="currentColor" stroke="none" />
+      <circle cx="16.2" cy="14.3" r="1.6" fill="currentColor" stroke="none" />
     </svg>
   );
 }
