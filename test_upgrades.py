@@ -518,6 +518,79 @@ def test15_i18n_fallback():
     print("  ok: key/en fallback, placeholders, templated detail localization")
 
 
+
+
+def test16_witnessed_transitions():
+    """Project pid write-back in _apply_probe: witnessed deaths report,
+    unwitnessed stay silent, dashboard-owned deaths are left to _wait_proc,
+    direct pidA->pidB transitions never crash."""
+    d = core.Dashboard.__new__(core.Dashboard)
+    d.__init__()
+    s1 = subprocess.Popen([sys.executable, "-c", "import time;time.sleep(30)"],
+                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    s2 = subprocess.Popen([sys.executable, "-c", "import time;time.sleep(30)"],
+                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        def tick(projs):
+            d._apply_probe(({}, projs, [], {}, set()))
+
+        # A. pid persisted through a dashboard restart — no transition on
+        # the first tick, yet the death must still report (the regression)
+        pa = {"name": "wit-a", "cmd": "x", "cwd": tempfile.gettempdir(),
+              "pid": s1.pid, "pid_ctime": be.pid_ctime(s1.pid)}
+        d.projects_data = [pa]
+        d._issues.clear()
+        tick({"wit-a": {"pid": s1.pid, "running": True}})  # no transition
+        assert "wit-a" in d._proj_seen, "persisted pid never witnessed"
+        tick({"wit-a": {"pid": None, "running": False}})   # death
+        assert d._proj_dead.get("wit-a") is True, "no dead pill"
+        crashes = [i for i in d._issues
+                   if i["kind"] == "crash" and i["name"] == "wit-a"]
+        assert crashes and crashes[0]["sel"]["kind"] == "prj",             "witnessed death produced no typed crash event"
+
+        # B. same death but NEVER witnessed alive — silent by design:
+        # a pid that vanished while the dashboard was down is just
+        # "not running", not a crash
+        pb = {"name": "wit-b", "cmd": "x", "cwd": tempfile.gettempdir(),
+              "pid": s1.pid, "pid_ctime": be.pid_ctime(s1.pid)}
+        d.projects_data = [pb]
+        d._proj_seen.discard("wit-b")
+        d._proj_dead.pop("wit-b", None)
+        d._issues.clear()
+        tick({"wit-b": {"pid": None, "running": False}})
+        assert not d._proj_dead.get("wit-b"), "unwitnessed death got a pill"
+        assert not [i for i in d._issues
+                    if i["kind"] == "crash" and i["name"] == "wit-b"],             "unwitnessed death reported as crash"
+
+        # C. dashboard-started project: probe death observations are
+        # skipped entirely — _wait_proc owns that lifecycle
+        pc = {"name": "wit-c", "cmd": "x", "cwd": tempfile.gettempdir(),
+              "pid": s1.pid, "pid_ctime": be.pid_ctime(s1.pid)}
+        d.projects_data = [pc]
+        d._procs["wit-c"] = object()  # stand-in for the Popen handle
+        tick({"wit-c": {"pid": None, "running": False}})
+        assert pc.get("pid") == s1.pid, "probe clobbered a tracked pid"
+        assert not d._proj_dead.get("wit-c"), "tracked death double-reported"
+        del d._procs["wit-c"]
+
+        # D. external restart pidA -> pidB without a dead tick in between:
+        # pid follows, no crash, no dead pill, run continuity preserved
+        pd = {"name": "wit-d", "cmd": "x", "cwd": tempfile.gettempdir(),
+              "pid": s1.pid, "pid_ctime": be.pid_ctime(s1.pid)}
+        d.projects_data = [pd]
+        d._issues.clear()
+        d._proj_dead.pop("wit-d", None)
+        tick({"wit-d": {"pid": s2.pid, "running": True}})
+        assert pd.get("pid") == s2.pid, "direct transition not followed"
+        assert not d._proj_dead.get("wit-d"), "direct transition marked dead"
+        assert not [i for i in d._issues
+                    if i["kind"] == "crash" and i["name"] == "wit-d"],             "direct transition reported as crash"
+    finally:
+        s1.kill(); s2.kill()
+        d.projects_data = []
+    print("  ok: witnessed/unwitnessed/tracked/direct — all four correct")
+
+
 if __name__ == "__main__":
     print("step1: job objects")
     test1_job_kills_tree()
@@ -549,4 +622,6 @@ if __name__ == "__main__":
     test14_dep_cycle()
     print("step15: i18n fallback")
     test15_i18n_fallback()
+    print("step16: witnessed transitions")
+    test16_witnessed_transitions()
     print("ALL PASS")
