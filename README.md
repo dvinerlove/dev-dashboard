@@ -1,3 +1,5 @@
+<div align="center">
+
 # Dev Dashboard
 
 **One window for every dev service running on your machine.**
@@ -7,14 +9,28 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![CI](https://github.com/dvinerlove/dev-dashboard/actions/workflows/ci.yml/badge.svg)](https://github.com/dvinerlove/dev-dashboard/actions/workflows/ci.yml)
 
-![Dev Dashboard](docs/screenshot.png)
+<img src="docs/screenshot.png" alt="Dev Dashboard — overview with service inspector" width="880">
 
-<p align="center">
-  <img src="docs/screenshot-ports.png" width="49%" alt="Ports view — every listener on the machine, attributed">
-  <img src="docs/screenshot-events.png" width="49%" alt="Events view — crashes, restarts, port conflicts">
-</p>
+</div>
 
 Dev Dashboard is a local control panel for dev services on Windows: dev servers, databases, tunnels, containers. It shows what's up and what's down, restarts what crashes, and tells you which process owns which port. It also exposes all of it to AI agents over MCP. Everything runs and stays on your machine — no account, no telemetry.
+
+## Themes and views
+
+Six themes, same density — pick yours in Settings:
+
+<div align="center">
+  <img src="docs/theme-paper.png" width="32%" alt="Paper — light theme">
+  <img src="docs/theme-console.png" width="32%" alt="Console — terminal green theme">
+  <img src="docs/theme-retro.png" width="32%" alt="Retro — classic theme">
+</div>
+
+Every TCP listener on the machine, attributed to its service — and the event feed that explains itself:
+
+<div align="center">
+  <img src="docs/screenshot-ports.png" width="49%" alt="Ports view — every listener on the machine, attributed">
+  <img src="docs/screenshot-events.png" width="49%" alt="Events view — crashes, restarts, port conflicts">
+</div>
 
 ## Features
 
