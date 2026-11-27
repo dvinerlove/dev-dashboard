@@ -383,8 +383,8 @@ export default function App() {
           true,
         );
       },
-      showRuns(name, kind) {
-        setSel({ kind, name });
+      showRuns(name, kind, remote) {
+        setSel({ kind, name, remote });
         setInspector(true);
         setInspectorTab("runs");
       },

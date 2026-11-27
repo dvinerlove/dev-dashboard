@@ -62,6 +62,24 @@ python dashboard.py --web   # UI + API at http://127.0.0.1:4850
 
 Config files are plain JSON in the [data directory](#data-location) — edit by hand or through the UI. First run starts empty: there are no bundled services, what you see is yours.
 
+## Security model
+
+The API binds to **127.0.0.1 only** and is meant for exactly one trust
+domain: you, on your own machine. Its POST endpoints start, stop and
+restart processes by design — that is the product, not a bug — so treat
+anything that can reach localhost as able to run commands through the
+dashboard:
+
+- POSTs require an `Origin`/`Host` match against the actual bound API
+  port, which blocks drive-by requests from browsers on other ports.
+- That guard does **not** stop other local processes — any program
+  running as your user can POST to the API. Do not run the dashboard
+  with services you would not want co-opted by other local software.
+- Never expose the port through a tunnel or a reverse proxy, and do not
+  change the bind address away from loopback.
+- ENV secrets are masked in API responses unless `?reveal=1` is passed —
+  masking is a display convenience, not access control.
+
 ## Configuration
 
 ### `services_config.json` — array of service specs

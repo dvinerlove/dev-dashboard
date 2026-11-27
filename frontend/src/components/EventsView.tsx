@@ -4,7 +4,7 @@ import { api, type Issue } from "../lib/api";
 import { useApp } from "../lib/ctx";
 import { useT, localeTag } from "../lib/i18n";
 import { refresh, useCached, useDash } from "../lib/store";
-import { cn } from "../lib/utils";
+import { rowKeys, cn } from "../lib/utils";
 import { AttentionList, SectionTitle } from "./bits";
 import { Button } from "./ui/button";
 
@@ -158,6 +158,15 @@ export function EventsView() {
             {rows.map((i) => (
               <div
                 key={`${i.t}-${i.name}`}
+                {...rowKeys(
+                  i.sel
+                    ? () => {
+                        app.openItem(i.sel!);
+                        const tab = KIND_TAB[i.kind];
+                        if (tab) app.setInspectorTab(tab);
+                      }
+                    : undefined,
+                )}
                 onClick={(e) => {
                   if (!i.sel || (e.target as HTMLElement).closest("button"))
                     return;

@@ -4,7 +4,7 @@ import { api } from "../lib/api";
 import { useApp } from "../lib/ctx";
 import { useT } from "../lib/i18n";
 import { refresh } from "../lib/store";
-import { cn } from "../lib/utils";
+import { rowKeys, cn } from "../lib/utils";
 import { SectionTitle, StatusDot } from "./bits";
 import { Button } from "./ui/button";
 import {
@@ -20,11 +20,16 @@ function ArRow({ row }: { row: AutorunRow }) {
   const t = useT();
   return (
     <div
+      {...rowKeys(() => app.openItem({ kind: "autorun", name: row.name }))}
       onClick={(e) => {
         if ((e.target as HTMLElement).closest("button")) return;
         app.openItem({ kind: "autorun", name: row.name });
       }}
-      className="group flex h-[42px] cursor-pointer items-center gap-3 border-b border-(--border-hairline) px-3.5 select-none last:border-b-0 hover:bg-(--bg-hover)"
+      className={cn(
+        "group flex h-[42px] cursor-pointer items-center gap-3 border-b border-(--border-hairline) px-3.5 select-none last:border-b-0 hover:bg-(--bg-hover)",
+        app.sel?.kind === "autorun" && app.sel.name === row.name &&
+          "bg-(--bg-selected)",
+      )}
     >
       <Switch
         aria-label={t("AUTORUN_SWITCH", { name: row.name })}

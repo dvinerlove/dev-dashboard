@@ -17,7 +17,7 @@ import { api } from "../lib/api";
 import { useApp } from "../lib/ctx";
 import { useT } from "../lib/i18n";
 import { usePending } from "../lib/store";
-import { cn } from "../lib/utils";
+import { rowKeys, cn } from "../lib/utils";
 import { Chip, StatusDot } from "./bits";
 import { Button } from "./ui/button";
 import { Tip } from "./ui/tooltip";
@@ -45,6 +45,7 @@ export function ProjectCard({ row }: { row: ProjectRow }) {
 
   return (
     <div
+      {...rowKeys(() => app.openItem({ kind: "prj", name: row.name }))}
       onClick={() => app.openItem({ kind: "prj", name: row.name })}
       className={cn(
         "group relative flex h-[46px] cursor-pointer items-center gap-3 border-b border-(--border-hairline) px-3.5 last:border-b-0 select-none hover:bg-(--bg-hover)",

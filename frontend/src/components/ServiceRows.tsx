@@ -19,7 +19,7 @@ import { api } from "../lib/api";
 import { useApp } from "../lib/ctx";
 import { useT } from "../lib/i18n";
 import { usePending } from "../lib/store";
-import { cn } from "../lib/utils";
+import { rowKeys, cn } from "../lib/utils";
 import { Chip, StatusDot, WarnBadge } from "./bits";
 import { Button } from "./ui/button";
 import {
@@ -48,6 +48,7 @@ function ServiceRowItem({
 
   return (
     <div
+      {...rowKeys(() => app.openItem({ kind: "svc", name: row.name, remote }))}
       onClick={() => app.openItem({ kind: "svc", name: row.name, remote })}
       className={cn(
         "group relative flex h-[46px] cursor-pointer items-center gap-3 border-b border-(--border-hairline) px-3.5 last:border-b-0 select-none hover:bg-(--bg-hover)",
@@ -235,7 +236,7 @@ function ServiceRowItem({
               </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={() => app.showRuns(row.name, "svc")}>
+            <DropdownMenuItem onSelect={() => app.showRuns(row.name, "svc", row.remote)}>
               <History size={14} strokeWidth={1.75} /> {t("RUN_HISTORY")}
             </DropdownMenuItem>
             {!row.monitor && (

@@ -64,7 +64,7 @@ export interface AppApi {
   editProject: (name: string) => void;
   editAutorun: (name: string, cmd: string, mine: boolean) => void;
   deleteAutorun: (name: string) => void;
-  showRuns: (name: string, kind: SelKind) => void;
+  showRuns: (name: string, kind: SelKind, remote?: boolean) => void;
   confirm: (
     title: string,
     body: string,

@@ -5,6 +5,7 @@ import json
 import mimetypes
 import os
 import re
+import shlex
 import subprocess
 import sys
 import threading
@@ -1456,6 +1457,8 @@ class Dashboard:
         swaps the exe directly. A detached .bat does the swap after this
         process exits — a running exe cannot overwrite itself."""
         import tempfile
+        if not pi.IS_WIN:
+            return False, be.tr("UPDATE_WIN_ONLY")
         if getattr(self, "_update_in_progress", False):
             return False, be.tr("UPDATE_IN_PROGRESS")
         self._update_in_progress = True
@@ -1476,7 +1479,8 @@ class Dashboard:
         os.makedirs(tmp, exist_ok=True)
         try:
             if ch == "git":
-                action = ("copy", be.download_update_zip(rel["zip_url"], tmp))
+                action = ("copy", be.download_update_zip(
+                    rel["zip_url"], tmp, sha_url=rel.get("sha_url") or ""))
             elif ch == "winget":
                 action = ("cmd",
                           f"winget upgrade --id {be.WINGET_ID} -e --silent"
@@ -1487,6 +1491,7 @@ class Dashboard:
             ps1 = be.write_update_helper(target, pid, action,
                                          os.path.join(tmp,
                                                       "apply-update.ps1"),
+                                         args=" ".join(sys.argv[1:]),
                                          port=self.api_port,
                                          port_file=os.path.join(
                                              be.DATA_DIR, "api.port"))
@@ -2383,7 +2388,8 @@ class Dashboard:
         if what == "open-ide":
             exe = be.find_editor()
             if exe:
-                subprocess.Popen(pi.shell_argv(f'{exe} "{cwd}"'),
+                q = shlex.quote(cwd) if not pi.IS_WIN else '"%s"' % cwd
+                subprocess.Popen(pi.shell_argv(f"{exe} {q}"),
                                  **pi.popen_kwargs())
                 return True, ""
             pi.open_path(cwd)  # no IDE — at least a file manager
@@ -2401,7 +2407,8 @@ class Dashboard:
                     exe = be.find_editor()
                     if exe:
                         try:  # "Open in editor" → otherwise file association
-                            subprocess.Popen(pi.shell_argv(f'{exe} "{path}"'),
+                            q = shlex.quote(path) if not pi.IS_WIN                                 else '"%s"' % path
+                            subprocess.Popen(pi.shell_argv(f"{exe} {q}"),
                                              **pi.popen_kwargs())
                             return True, ""
                         except OSError:

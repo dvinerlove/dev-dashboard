@@ -184,10 +184,22 @@ def main():
     # the dashboard lives in the browser (and on macOS/Linux without pywebview)
     if "--web" in sys.argv:
         print(f"Dev Dashboard -> http://127.0.0.1:{dash.api_port}/")
+        stop_evt = threading.Event()
+        dash.quit_cb = stop_evt.set  # self-update exits through here
         try:
-            threading.Event().wait()
+            while not stop_evt.wait(0.5):
+                pass
         except KeyboardInterrupt:
             pass
+        dash.stop()
+        return
+
+    if not dash.api:
+        # every port in the range is squatted by something foreign — the
+        # window would open a dead URL and every control would silently
+        # no-op; failing loudly beats a hollow shell
+        print("Dev Dashboard: no free API port in the configured range",
+              file=sys.stderr)
         dash.stop()
         return
 
@@ -547,6 +559,52 @@ def main():
         be.append_dashboard_log("[SYSTEM] restarting once to recover")
         quit_app()
     threading.Thread(target=_webview_watchdog, daemon=True).start()
+
+    def _renderer_heartbeat():
+        if not loaded_ok.wait(60):
+            return  # init watchdog owns pre-load failures
+        fails = 0
+        while not quit_evt.wait(30):
+            if quitting["v"]:
+                return
+            done = threading.Event()
+
+            def probe():
+                try:
+                    win.evaluate_js("1")
+                except Exception:
+                    pass
+                finally:
+                    done.set()
+            threading.Thread(target=probe, daemon=True).start()
+            # a live renderer answers in ms; 10s means dead or wedged
+            fails = fails + 1 if not done.wait(10) else 0
+            if fails < 2:
+                continue
+            be.append_dashboard_log(
+                "[SYSTEM] renderer unresponsive after load")
+            if os.path.exists(wv_marker)                     or not getattr(sys, "frozen", False):
+                return
+            try:
+                ps1 = be.write_update_helper(
+                    sys.executable, os.getpid(), ("cmd", ""),
+                    os.path.join(be.DATA_DIR, "wv-restart.ps1"),
+                    dash.api_port,
+                    port_file=os.path.join(be.DATA_DIR, "api.port"),
+                    args=" ".join(sys.argv[1:]))
+                subprocess.Popen(
+                    ["powershell", "-NoProfile", "-ExecutionPolicy",
+                     "Bypass", "-File", ps1],
+                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+                    close_fds=True)
+            except Exception as e:
+                be.append_dashboard_log(
+                    f"[SYSTEM] heartbeat restart failed: {e}")
+                return
+            open(wv_marker, "w").close()
+            quit_app()
+            return
+    threading.Thread(target=_renderer_heartbeat, daemon=True).start()
 
     try:
         # private_mode — pywebview default True: profile in temp and localStorage

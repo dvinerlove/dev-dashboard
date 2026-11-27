@@ -520,6 +520,69 @@ def test15_i18n_fallback():
 
 
 
+def test17_sha256_verify():
+    """download_update_zip verifies the release hash: a tampered archive
+    must fail hard, a matching one extracts."""
+    import hashlib, io, zipfile
+    import backend as be
+    tmp = tempfile.mkdtemp()
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        z.writestr("DevDashboard.exe", "NEW-EXE")
+    payload = buf.getvalue()
+    good = hashlib.sha256(payload).hexdigest()
+
+    class FakeResp:
+        def __init__(self, data):
+            self._d = data
+        def __enter__(self):
+            return self
+        def __exit__(self, *_):
+            return False
+        def read(self, n=-1):
+            if n < 0:
+                out, self._d = self._d, b""
+                return out
+            out, self._d = self._d[:n], self._d[n:]
+            return out
+
+    seen = []
+    def fake_urlopen(req, timeout=0):
+        url = req.full_url if hasattr(req, "full_url") else req
+        seen.append(url)
+        if url.endswith(".sha256"):
+            return FakeResp((good).encode())
+        return FakeResp(payload)
+
+    import urllib.request
+    real = urllib.request.urlopen
+    urllib.request.urlopen = fake_urlopen
+    try:
+        # matching hash — extracts fine
+        out = be.download_update_zip("http://x/update.zip", tmp,
+                                     sha_url="http://x/update.zip.sha256")
+        assert open(out).read() == "NEW-EXE"
+        assert any(u.endswith(".sha256") for u in seen)
+        # mismatched hash — hard failure, nothing extracted
+        tmp2 = tempfile.mkdtemp()
+        real2 = urllib.request.urlopen
+        def fake_bad(req, timeout=0):
+            url = req.full_url if hasattr(req, "full_url") else req
+            if url.endswith(".sha256"):
+                return FakeResp(("0" * 64).encode())
+            return FakeResp(payload)
+        urllib.request.urlopen = fake_bad
+        try:
+            be.download_update_zip("http://x/update.zip", tmp2,
+                                   sha_url="http://x/update.zip.sha256")
+            raise SystemExit("tampered zip must not pass verification")
+        except ValueError as e:
+            assert "sha256 mismatch" in str(e)
+    finally:
+        urllib.request.urlopen = real
+    print("  ok: sha256 match extracts, mismatch fails hard")
+
+
 def test16_witnessed_transitions():
     """Project pid write-back in _apply_probe: witnessed deaths report,
     unwitnessed stay silent, dashboard-owned deaths are left to _wait_proc,
@@ -624,4 +687,5 @@ if __name__ == "__main__":
     test15_i18n_fallback()
     print("step16: witnessed transitions")
     test16_witnessed_transitions()
+    test17_sha256_verify()
     print("ALL PASS")

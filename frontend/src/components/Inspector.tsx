@@ -1062,25 +1062,29 @@ function AutorunPane({ name }: { name: string }) {
               {t("SECTION_AUTORUN")}
             </span>
           </div>
-          <Tip label={t("EDIT")}>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => app.editAutorun(row.name, row.sub, row.mine)}
-            >
-              <Pencil size={13} strokeWidth={1.75} />
-            </Button>
-          </Tip>
-          <Tip label={t("REMOVE_FROM_AUTORUN")}>
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-(--status-red)"
-              onClick={() => app.deleteAutorun(row.name)}
-            >
-              <Trash2 size={13} strokeWidth={1.75} />
-            </Button>
-          </Tip>
+          {!row.self && (
+            <>
+              <Tip label={t("EDIT")}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => app.editAutorun(row.name, row.sub, row.mine)}
+                >
+                  <Pencil size={13} strokeWidth={1.75} />
+                </Button>
+              </Tip>
+              <Tip label={t("REMOVE_FROM_AUTORUN")}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-(--status-red)"
+                  onClick={() => app.deleteAutorun(row.name)}
+                >
+                  <Trash2 size={13} strokeWidth={1.75} />
+                </Button>
+              </Tip>
+            </>
+          )}
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
@@ -1123,10 +1127,19 @@ function InspectorBody() {
     if (sel?.kind === "svc") api.serviceSpec(sel.name).then(setSpec).catch(() => {});
   }, [sel?.kind, sel?.name]);
 
-  if (!sel || !row || !st) {
+  if (!sel || !st) {
     return (
       <div className="flex h-full items-center justify-center bg-(--bg-surface) text-[12px] text-(--text-muted)">
         {t("SELECT_ITEM")}
+      </div>
+    );
+  }
+  if (!row) {
+    // selection points at an entity that no longer exists (deleted or
+    // renamed elsewhere) — say so instead of pretending nothing is selected
+    return (
+      <div className="flex h-full items-center justify-center bg-(--bg-surface) text-[12px] text-(--text-muted)">
+        {t("ENTITY_GONE")}
       </div>
     );
   }

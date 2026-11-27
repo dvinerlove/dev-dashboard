@@ -1768,32 +1768,46 @@ def fetch_latest_release(timeout=15):
     zip_url = next((a["browser_download_url"]
                     for a in j.get("assets", [])
                     if a.get("name", "").endswith(".zip")), None)
+    sha_url = next((a["browser_download_url"]
+                    for a in j.get("assets", [])
+                    if a.get("name", "").endswith(".zip.sha256")), None)
     return {"tag": str(j.get("tag_name", "")).lstrip("v"),
-            "url": j.get("html_url", ""), "zip_url": zip_url}
+            "url": j.get("html_url", ""), "zip_url": zip_url,
+            "sha_url": sha_url}
 
 
-def download_update_zip(zip_url, dest_dir, timeout=180):
+def download_update_zip(zip_url, dest_dir, timeout=180, sha_url=""):
     """Download the release zip and extract DevDashboard.exe next to it.
-    Returns the extracted exe path."""
+    Returns the extracted exe path. When the release publishes a .sha256
+    asset the archive is verified against it — a mismatch fails hard."""
+    import hashlib
     import zipfile
     os.makedirs(dest_dir, exist_ok=True)
     zpath = os.path.join(dest_dir, "update.zip")
     req = urllib.request.Request(
         zip_url, headers={"User-Agent": "dev-dashboard-updater"})
-    with urllib.request.urlopen(req, timeout=timeout) as r, \
-            open(zpath, "wb") as f:
+    with urllib.request.urlopen(req, timeout=timeout) as r,             open(zpath, "wb") as f:
         while True:
             chunk = r.read(1 << 20)
             if not chunk:
                 break
             f.write(chunk)
+    if sha_url:
+        req = urllib.request.Request(
+            sha_url, headers={"User-Agent": "dev-dashboard-updater"})
+        with urllib.request.urlopen(req, timeout=30) as r:
+            want = r.read().decode("ascii", "replace").split()[0].lower()
+        with open(zpath, "rb") as f:
+            got = hashlib.sha256(f.read()).hexdigest()
+        if got != want:
+            raise ValueError(f"sha256 mismatch: {got[:12]} != {want[:12]}")
     with zipfile.ZipFile(zpath) as z:
         z.extract("DevDashboard.exe", dest_dir)
     return os.path.join(dest_dir, "DevDashboard.exe")
 
 
 def write_update_helper(target_exe, pid, action, ps1_path, port=0,
-                        port_file=""):
+                        port_file="", args=""):
     """Detached helper: wait for the app to die, apply the update, relaunch.
     `action` is either ("copy", src_exe) or ("cmd", shell_command).
     PowerShell, not .bat — cmd's `find`/`timeout` get shadowed by Git/MSYS
@@ -1803,6 +1817,9 @@ def write_update_helper(target_exe, pid, action, ps1_path, port=0,
     hung; 0 skips verification."""
     def q(p):  # single-quoted PowerShell literal: ' escapes as ''
         return p.replace("'", "''")
+    # original launch args (--minimized/--web…) survive the update;
+    # single-quoted PowerShell literal, ' escapes as ''
+    args_ps = (" -ArgumentList '" + args.replace("'", "''") + "'")         if args else ""
     tgt, bak = q(target_exe), q(target_exe + ".bak")
     img = q(os.path.splitext(os.path.basename(target_exe))[0])
     if action[0] == "copy":
@@ -1827,8 +1844,10 @@ def write_update_helper(target_exe, pid, action, ps1_path, port=0,
     else:
         do = [action[1]] if action[1] else []
     lines = [
-        "while (Get-Process -Id %d -ErrorAction SilentlyContinue)"
-        " { Start-Sleep 1 }" % pid,
+        # bounded: a recycled pid must not stall the update forever —
+        # after an hour the original process is presumed gone
+        "for ($w = 0; $w -lt 3600 -and (Get-Process -Id %d"
+        " -ErrorAction SilentlyContinue); $w++) { Start-Sleep 1 }" % pid,
         "Start-Sleep 1",
     ] + do + ["Start-Sleep 4"]
     if port:
@@ -1842,7 +1861,7 @@ def write_update_helper(target_exe, pid, action, ps1_path, port=0,
             "$up = $false",
             "for ($try = 0; $try -lt 3 -and -not $up; $try++) {",
             "  if ($try -gt 0) { Start-Sleep 2 }",
-            "  $p = Start-Process -FilePath '%s' -PassThru" % tgt,
+            ("  $p = Start-Process -FilePath '%s' -PassThru" + args_ps) % tgt,
             "  for ($i = 0; $i -lt 40 -and -not $up; $i++) {",
             "    Start-Sleep 1",
             "    $cands = @(%d)" % port,
@@ -1872,7 +1891,7 @@ def write_update_helper(target_exe, pid, action, ps1_path, port=0,
             " | Stop-Process -Force" % img,
             "  try { Copy-Item -LiteralPath '%s' -Destination '%s' -Force"
             " -ErrorAction Stop } catch {}" % (bak, tgt),
-            "  Start-Process -FilePath '%s'" % tgt,
+            ("  Start-Process -FilePath '%s'" + args_ps) % tgt,
             "}",
         ]
         lines += verify
@@ -1881,7 +1900,15 @@ def write_update_helper(target_exe, pid, action, ps1_path, port=0,
             " -ErrorAction SilentlyContinue" % bak)
     else:
         lines.append(
-            "$p = Start-Process -FilePath '%s' -PassThru" % tgt)
+            ("$p = Start-Process -FilePath '%s' -PassThru" + args_ps) % tgt)
+    if action[0] == "copy":
+        lines.append(
+            "Remove-Item -LiteralPath '%s' -Force"
+            " -ErrorAction SilentlyContinue" % q(action[1]))
+        lines.append(
+            "Remove-Item -LiteralPath '%s' -Force"
+            " -ErrorAction SilentlyContinue"
+            % q(os.path.join(os.path.dirname(action[1]), "update.zip")))
     lines.append(
         "Remove-Item -LiteralPath $MyInvocation.MyCommand.Path -Force"
         " -ErrorAction SilentlyContinue")

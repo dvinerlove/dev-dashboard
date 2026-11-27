@@ -1,3 +1,4 @@
+import type React from "react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -16,4 +17,20 @@ export function winCtl(
         pywebview?: { api?: Record<string, () => void> };
       }
     ).pywebview?.api?.[m]?.();
+}
+
+/** Keyboard activation for clickable row divs: Enter/Space fire the
+    click handler, focusable via Tab. Spread next to onClick. */
+export function rowKeys(fn: ((e: React.MouseEvent) => void) | undefined) {
+  if (!fn) return {};
+  return {
+    role: "button" as const,
+    tabIndex: 0,
+    onKeyDown: (e: React.KeyboardEvent) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        fn(e as unknown as React.MouseEvent);
+      }
+    },
+  };
 }

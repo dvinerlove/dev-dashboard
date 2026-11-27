@@ -5,7 +5,7 @@ import {
   OctagonAlert,
   TriangleAlert,
 } from "lucide-react";
-import { cn } from "../lib/utils";
+import { rowKeys, cn } from "../lib/utils";
 import { useT } from "../lib/i18n";
 import { SECTION_TITLES, useApp } from "../lib/ctx";
 import type { Section, Sel } from "../lib/ctx";
@@ -281,6 +281,7 @@ export function AttentionList({ st }: { st: DashState }) {
         return (
           <div
             key={i}
+            {...rowKeys(main)}
             onClick={main}
             className={cn(
               "flex h-[38px] items-center gap-3 border-b border-(--border-hairline) px-3.5 last:border-b-0",

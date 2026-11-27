@@ -15,7 +15,7 @@ import { api, candidateToSpec } from "../lib/api";
 import { useApp } from "../lib/ctx";
 import { useCached } from "../lib/store";
 import { useT } from "../lib/i18n";
-import { cn } from "../lib/utils";
+import { rowKeys, cn } from "../lib/utils";
 import { SectionTitle, SkeletonRows } from "./bits";
 import { Button } from "./ui/button";
 import { Tip } from "./ui/tooltip";
@@ -189,6 +189,14 @@ export function PortsView() {
         {list.map((r) => (
           <div
             key={`${r.port}-${r.pid}`}
+            {...rowKeys(
+              r.owner
+                ? () =>
+                    r.ownerKind
+                      ? app.openItem({ kind: r.ownerKind!, name: r.owner! })
+                      : app.openNamed(r.owner!)
+                : undefined,
+            )}
             onClick={(e) => {
               if (!r.owner || (e.target as HTMLElement).closest("button"))
                 return;

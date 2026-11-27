@@ -471,6 +471,8 @@
   "WATCH_RESTART": "files changed — restarting",
   "WRITE_FAIL": "Failed to write {path}: {e}",
   "UPDATE_IN_PROGRESS": "update already in progress",
-  "PID_RECYCLED": "pid {pid} was recycled — refusing to kill"
- }
+  "PID_RECYCLED": "pid {pid} was recycled — refusing to kill",
+  "UPDATE_WIN_ONLY": "Self-update is supported on Windows only"
+ },
+ "ENTITY_GONE": "This entry no longer exists"
 }
