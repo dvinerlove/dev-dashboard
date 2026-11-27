@@ -1,6 +1,5 @@
 import {
   FolderGit2,
-  LayoutDashboard,
   ListVideo,
   Network,
   OctagonAlert,
@@ -18,8 +17,40 @@ import { cn } from "../lib/utils";
 import { Separator } from "./ui/separator";
 import { Tip } from "./ui/tooltip";
 
+/** app hexagon logo as a lucide-style icon: same 24 grid, strokeWidth
+ *  passthrough — the line weight always matches the neighboring icons */
+function HexIcon({
+  size = 24,
+  strokeWidth = 2,
+  className,
+}: {
+  size?: number;
+  strokeWidth?: number;
+  className?: string;
+}) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={strokeWidth}
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <path d="M12 1.6 21 7.1 21 16.9 12 22.4 3 16.9 3 7.1Z" />
+      <circle cx="12" cy="8.6" r="2.2" fill="currentColor" stroke="none" />
+      <circle cx="7.8" cy="14.3" r="2.2" fill="currentColor" stroke="none" />
+      <circle cx="16.2" cy="14.3" r="2.2" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 const ITEMS: { id: Section; label: string; icon: typeof Server }[] = [
-  { id: "overview", label: "SECTION_OVERVIEW", icon: LayoutDashboard },
+  // accepts the same props it is ever called with — size/strokeWidth/className
+  { id: "overview", label: "SECTION_OVERVIEW", icon: HexIcon as typeof Server },
   { id: "infra", label: "SECTION_INFRA", icon: Server },
   { id: "projects", label: "SECTION_PROJECTS", icon: FolderGit2 },
   { id: "ports", label: "SECTION_PORTS", icon: Network },

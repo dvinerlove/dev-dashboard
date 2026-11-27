@@ -122,10 +122,6 @@ export function Topbar() {
         ref={leftRef}
         className="flex items-center gap-2 whitespace-nowrap"
       >
-        <span
-          aria-hidden
-          className="app-icon h-4 select-none opacity-70 text-(--text-primary)"
-        />
         <h1 className="sr-only">{t(SECTION_TITLES[app.section])}</h1>
       </div>
 

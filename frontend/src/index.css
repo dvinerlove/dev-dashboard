@@ -258,16 +258,6 @@ button, nav, label, [data-slot="switch"], [cmdk-item] { user-select: none; }
 .tnum { font-variant-numeric: tabular-nums; }
 
 /* long log lists: the browser skips offscreen rendering */
-/* app logo: svg as mask — color follows currentColor, so it adapts
-   to every theme automatically (light theme → dark icon) */
-.app-icon {
-  display: inline-block;
-  aspect-ratio: 14 / 16;
-  background-color: currentColor;
-  -webkit-mask: url(/icon.svg) center / contain no-repeat;
-  mask: url(/icon.svg) center / contain no-repeat;
-}
-
 .cv-auto { content-visibility: auto; contain-intrinsic-size: auto 18px; }
 
 /* single curve and duration — snappy, Linear-style */
