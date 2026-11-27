@@ -406,14 +406,14 @@ def test11_find_project_pid_cwd():
     try:
         time.sleep(0.5)  # let cwd settle
         assert be.find_project_pid(proj) == inside.pid
-        cwds = {inside.pid: os.path.normcase(srv)}
+        cwds = {inside.pid: os.path.normcase(os.path.realpath(srv))}
         assert be.find_project_pid(proj, cwds) == inside.pid
         # self-exclusion: our own pid is never adoptable even when its
         # cwd sits inside the project tree
-        cwds_self = {os.getpid(): os.path.normcase(srv),
-                     inside.pid: os.path.normcase(srv)}
+        cwds_self = {os.getpid(): os.path.normcase(os.path.realpath(srv)),
+                     inside.pid: os.path.normcase(os.path.realpath(srv))}
         assert be.find_project_pid(proj, cwds_self) == inside.pid
-        solo = {os.getpid(): os.path.normcase(srv)}
+        solo = {os.getpid(): os.path.normcase(os.path.realpath(srv))}
         assert be.find_project_pid(proj, solo) is None
         assert be.find_project_pid({"cwd": os.path.join(root, "other")}) \
             is None
