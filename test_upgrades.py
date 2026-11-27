@@ -367,6 +367,31 @@ def test10_self_autorun():
     print("  ok: self_autorun_is requires name+cmd, enabled reads live")
 
 
+def test11_find_project_pid_cwd():
+    """find_project_pid: a process whose cwd is inside the project tree
+    counts even when exe/cmdline carry no project path (node src\\x.ts);
+    outside-cwd processes and shells do not."""
+    import tempfile
+    root = tempfile.mkdtemp(prefix="projmatch-")
+    srv = os.path.join(root, "server")
+    os.makedirs(srv)
+    proj = {"cwd": root}
+    inside = subprocess.Popen(
+        [sys.executable, "-c", "import time; time.sleep(30)"], cwd=srv)
+    outside = subprocess.Popen(
+        [sys.executable, "-c", "import time; time.sleep(30)"])
+    try:
+        time.sleep(0.5)  # let cwd settle
+        assert be.find_project_pid(proj) == inside.pid
+        cwds = {inside.pid: os.path.normcase(srv)}
+        assert be.find_project_pid(proj, cwds) == inside.pid
+        assert be.find_project_pid({"cwd": os.path.join(root, "other")}) \
+            is None
+    finally:
+        inside.kill(); outside.kill()
+    print("  ok: cwd inside the project tree adopts the process")
+
+
 if __name__ == "__main__":
     print("step1: job objects")
     test1_job_kills_tree()
@@ -388,4 +413,6 @@ if __name__ == "__main__":
     test9_self_update_mechanics()
     print("step10: self autorun")
     test10_self_autorun()
+    print("step11: project pid by cwd")
+    test11_find_project_pid_cwd()
     print("ALL PASS")

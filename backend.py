@@ -331,11 +331,18 @@ SHELLS = {"cmd.exe", "powershell.exe", "pwsh.exe", "bash.exe", "sh.exe", "zsh.ex
           "sh", "bash", "zsh", "fish", "ssh", "npx"}  # POSIX names without .exe
 
 
-def find_project_pid(project):
-    """pid of the project process: exe or a cmdline path inside the project folder (minus shells/agents)."""
+def find_project_pid(project, proc_cwds=None):
+    """pid of the project process: exe, cmdline or working dir inside the
+    project folder (minus shells/agents). proc_cwds — optional
+    {pid: normcase cwd} map so one process scan serves a whole probe tick;
+    without it cwd is queried per process here."""
     if not project.get("cwd"):
         return None  # '' → normpath('.') matches almost everything
-    target = os.path.normcase(os.path.normpath(project["cwd"])) + os.sep
+    d = os.path.normcase(os.path.normpath(project["cwd"]))
+    if d.endswith(os.sep):
+        target, tdir = d, d[:-1]
+    else:
+        target, tdir = d + os.sep, d
     best = None
     for p in psutil.process_iter(["pid", "exe", "cmdline", "name"]):
         try:
@@ -346,7 +353,12 @@ def find_project_pid(project):
                                   .replace("/", os.sep))
             exe = os.path.normcase((info["exe"] or "")
                                    .replace("/", os.sep))
-            if exe.startswith(target) or target in cl:
+            if proc_cwds is not None:
+                cwd = proc_cwds.get(info["pid"], "")
+            else:
+                cwd = os.path.normcase(os.path.normpath(p.cwd() or ""))
+            if exe.startswith(target) or target in cl \
+                    or cwd == tdir or cwd.startswith(target):
                 if best is None or info["pid"] < best:
                     best = info["pid"]
         except (psutil.NoSuchProcess, psutil.AccessDenied):

@@ -514,6 +514,9 @@ class Dashboard:
         self._procs = {}          # name -> Popen (started by the dashboard)
         self._svc_spawn = {}      # name -> (pid, ctime) of the service shell wrapper
         self._proj_dead = {}      # name -> had a crash ("dead" pill)
+        self._proj_seen = set()   # names witnessed alive this session —
+        # a persisted pid that vanished while we were down is "not
+        # running", not a crash; only witnessed deaths get the dead pill
         self._detected_url = {}   # name -> url
         self._fw_cache = {}      # cwd -> framework label
         self._envinfo = {}       # cwd -> (ts, env+branch fields), TTL 30s
@@ -721,11 +724,23 @@ class Dashboard:
                     s["name"], self._remote_last.get(s["name"], ("check", "…")))
 
             # projects: pid + metrics + ports — heavy scan here, not the GUI tick
+            # one cwd sweep per tick: a dev server started outside the
+            # dashboard (cmd/npm/IDE) often carries no project path in
+            # exe/cmdline, but its working dir sits inside the project tree
+            proc_cwds = {}
+            for pr_ in psutil.process_iter():
+                try:
+                    c = pr_.cwd()
+                    if c:
+                        proc_cwds[pr_.pid] = os.path.normcase(
+                            os.path.normpath(c))
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    pass
             projects = {}
             for p in list(self.projects_data):
                 pid = p.get("pid")
                 if not be.is_pid_running(pid, p.get("pid_ctime")):
-                    pid = be.find_project_pid(p)
+                    pid = be.find_project_pid(p, proc_cwds)
                 entry = {"pid": pid, "running": bool(pid)}
                 if pid:
                     entry["stats"] = be.proc_stats(pid, self._proj_cpu)
@@ -1081,12 +1096,14 @@ class Dashboard:
                     be.save_projects(self.projects_data)
                     if pid:
                         self._proj_dead[p["name"]] = False
+                        self._proj_seen.add(p["name"])
                         self._run_start(p["name"])
                         self._log(f"[{p['name']}] " + be.tr(
                             "PROC_FOUND", pid=pid))
                     elif was:
                         self._run_end(p["name"], "dead")
-                        if p["name"] not in self._procs:
+                        if p["name"] in self._proj_seen \
+                                and p["name"] not in self._procs:
                             # died outside the dashboard — mark "dead"
                             self._proj_dead[p["name"]] = True
                             self._issue("crash", p["name"],
@@ -2063,6 +2080,8 @@ class Dashboard:
         be.note_deleted_project(p)  # scan restores cmd/url by cwd match
         with self._lock:
             self.projects_data.remove(p)
+            self._proj_seen.discard(name)
+            self._proj_dead.pop(name, None)
             be.save_projects(self.projects_data)
         return True, ""
 
