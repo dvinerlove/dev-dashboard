@@ -139,6 +139,9 @@ export interface Issue {
   name: string;
   text: string;
   count: number;
+  /** typed inspector reference emitted with the event; absent in rows
+   *  persisted before the link era — those stay honestly linkless */
+  sel?: { kind: "svc" | "prj"; name: string; remote?: boolean };
 }
 
 export interface Run {

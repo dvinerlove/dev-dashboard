@@ -392,6 +392,43 @@ def test11_find_project_pid_cwd():
     print("  ok: cwd inside the project tree adopts the process")
 
 
+def test12_issue_sel_roundtrip():
+    """Issues carry typed entity refs: sel survives the save/load roundtrip;
+    a legacy 5-column DB migrates in place, its rows stay honestly linkless."""
+    import sqlite3 as sq
+    tmp = os.path.join(tempfile.mkdtemp(), "t.db")
+    old_db, old_con = storage.DB, storage._con
+    try:
+        if old_con:
+            old_con.close()
+        storage._con = None
+        storage.DB = tmp
+        # legacy schema: 5 columns, one pre-migration row
+        c = sq.connect(tmp)
+        c.execute("CREATE TABLE issues"
+                  "(t REAL, kind TEXT, name TEXT, text TEXT, count INT)")
+        c.execute("INSERT INTO issues VALUES(1,'crash','oldsvc','x',1)")
+        c.commit()
+        c.close()
+        # the first open migrates; new rows carry the typed ref
+        sel = {"kind": "svc", "name": "omni", "remote": True}
+        storage.save_issue({"t": 2, "kind": "crash", "name": "omni",
+                            "text": "x", "count": 1, "sel": sel})
+        storage.save_issue({"t": 3, "kind": "k", "name": "plain",
+                            "text": "x", "count": 1})
+        _, issues = storage.load()
+        assert len(issues) == 3, len(issues)
+        by_name = {i["name"]: i for i in issues}
+        assert "sel" not in by_name["oldsvc"]   # legacy rows degrade, not break
+        assert "sel" not in by_name["plain"]
+        assert by_name["omni"]["sel"] == sel    # full roundtrip incl. remote flag
+    finally:
+        if storage._con:
+            storage._con.close()
+        storage.DB, storage._con = old_db, None
+    print("  ok: sel roundtrip, legacy migration, linkless rows degrade")
+
+
 if __name__ == "__main__":
     print("step1: job objects")
     test1_job_kills_tree()
@@ -415,4 +452,6 @@ if __name__ == "__main__":
     test10_self_autorun()
     print("step11: project pid by cwd")
     test11_find_project_pid_cwd()
+    print("step12: issue sel roundtrip")
+    test12_issue_sel_roundtrip()
     print("ALL PASS")

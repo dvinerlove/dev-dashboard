@@ -31,6 +31,19 @@ const KIND_LABEL: Record<string, string> = {
   log_error: "KIND_LOG_ERROR",
 };
 
+/** event kind → the inspector tab holding its evidence:
+ *  log quotes → logs, lifecycle → run history, wiring → config */
+const KIND_TAB: Record<string, string> = {
+  log_error: "logs",
+  crash: "runs",
+  crash_loop: "runs",
+  restart: "runs",
+  port: "config",
+  deps: "config",
+  dep_cycle: "config",
+  deps_timeout: "config",
+};
+
 const kindMeta = (k: string) =>
   KINDS.find((x) => x.kinds.includes(k)) ??
   { cls: "text-(--text-secondary)" };
@@ -145,7 +158,17 @@ export function EventsView() {
             {rows.map((i) => (
               <div
                 key={`${i.t}-${i.name}`}
-                className="flex h-[34px] items-center gap-3 border-b border-(--border-hairline) px-3.5 last:border-b-0"
+                onClick={(e) => {
+                  if (!i.sel || (e.target as HTMLElement).closest("button"))
+                    return;
+                  app.openItem(i.sel);
+                  const tab = KIND_TAB[i.kind];
+                  if (tab) app.setInspectorTab(tab);
+                }}
+                className={cn(
+                  "flex h-[34px] items-center gap-3 border-b border-(--border-hairline) px-3.5 select-none last:border-b-0",
+                  i.sel && "cursor-pointer hover:bg-(--bg-hover)",
+                )}
               >
                 <span className="font-mono w-[92px] shrink-0 text-[11px] text-(--text-muted)">
                   {fmt(i.t)}

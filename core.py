@@ -195,6 +195,18 @@ def _proc_flags(pid, info, pr, by_pid, age, prev):
     return zombie, _agent_of(pid)
 
 
+
+def _svc_sel(spec):
+    """Typed inspector reference for a service spec (local or remote)."""
+    return {"kind": "svc", "name": spec["name"],
+            "remote": bool(spec.get("type"))}
+
+
+def _prj_sel(name):
+    """Typed inspector reference for a project."""
+    return {"kind": "prj", "name": name}
+
+
 def _own_owner(pid, own, by_pid):
     """Our service/project name if pid or an ancestor (<=8) is in own."""
     seen, cur = set(), pid
@@ -841,7 +853,7 @@ class Dashboard:
                 continue
             for line in be.decode_log(data).splitlines():
                 if line and classify_log_line(line) == "error":
-                    self._issue_log_error(spec["name"], line)
+                    self._issue_log_error(spec["name"], line, sel=_svc_sel(spec))
 
     def _svc_row(self, spec, res=None):
         state, detail = res if res else self._last_services.get(
@@ -1040,7 +1052,7 @@ class Dashboard:
                     detail = services.get(name, ("", ""))[1]
                     kind = "port" if " busy" in detail else "crash"
                     self._issue(kind, name, be.tr_detail(detail)
-                                or be.tr("EXITED"))
+                                or be.tr("EXITED"), sel=_svc_sel(spec))
                     self._tray("Dev Dashboard",
                                be.tr("NAME_EXITED",
                                      name=name))
@@ -1071,7 +1083,7 @@ class Dashboard:
                     else:
                         why = None
                     if why:
-                        self._issue("restart", name, why)
+                        self._issue("restart", name, why, sel=_svc_sel(spec))
                         self._log(f"[{name}] {why}")
                         self._stop_service(spec)
                         # mark the planned stop: not a crash on the next tick,
@@ -1107,7 +1119,7 @@ class Dashboard:
                             # died outside the dashboard — mark "dead"
                             self._proj_dead[p["name"]] = True
                             self._issue("crash", p["name"],
-                                        be.tr("EXITED"))
+                                        be.tr("EXITED"), sel=_prj_sel(p["name"]))
                             self._tray("Dev Dashboard", be.tr(
                                 "NAME_EXITED",
                                 name=p["name"]))
@@ -1172,14 +1184,15 @@ class Dashboard:
             self._cb_open.add(name)
             self._issue("crash_loop", name,
                         be.tr("CRASHES_HALT",
-                              n=CIRCUIT_FAILS, w=CIRCUIT_WINDOW))
+                              n=CIRCUIT_FAILS, w=CIRCUIT_WINDOW),
+                        sel=_svc_sel(spec))
             self._tray("Dev Dashboard", be.tr("NAME_CRASH_LOOP", name=name))
             return
         self._quick_fails[name] = self._quick_fails.get(name, 0) + 1
         delay = self._backoff[
             min(self._quick_fails[name] - 1, len(self._backoff) - 1)]
         self._issue("restart", name,
-                    be.tr("AR_IN", d=delay))
+                    be.tr("AR_IN", d=delay), sel=_svc_sel(spec))
         self._log(f"[{name}] " + be.tr(
             "AR_IN_DEAD", d=delay))
         _timer(delay, lambda s=spec: self._autorestart_fire(s))
@@ -1196,8 +1209,11 @@ class Dashboard:
             return
         self._start_service(spec)
 
-    def _issue(self, kind, name, text):
-        """Event into the issues feed; a repeat of the same kind only bumps the count."""
+    def _issue(self, kind, name, text, sel=None):
+        """Event into the issues feed; a repeat of the same kind only bumps the count.
+        `sel` — typed entity reference {kind,name,remote?}: the emitter always
+        knows statically whether the event is about a service or a project,
+        and the frontend jumps straight to it without re-resolving by name."""
         with self._lock:
             it = self._issues[-1] if self._issues else None
             if it and it["kind"] == kind and it["name"] == name:
@@ -1206,13 +1222,15 @@ class Dashboard:
             else:
                 it = {"t": time.time(), "kind": kind,
                       "name": name, "text": text, "count": 1}
+                if sel:
+                    it["sel"] = sel
                 self._issues.append(it)
         try:
             st.save_issue(it)
         except Exception:
             pass
 
-    def _issue_log_error(self, name, text):
+    def _issue_log_error(self, name, text, sel=None):
         """Error from a service/project log: text dedup within a 60s window (×N)."""
         text = text.strip()[:300]
         now = time.time()
@@ -1224,6 +1242,8 @@ class Dashboard:
             else:
                 it = {"t": now, "kind": "log_error", "name": name,
                       "text": text, "count": 1}
+                if sel:
+                    it["sel"] = sel
                 self._err_issues[name] = it
                 self._issues.append(it)
         try:
@@ -1518,7 +1538,8 @@ class Dashboard:
         for dep in spec.get("depends_on", ()):
             if dep in _seen:
                 self._issue("dep_cycle", spec["name"],
-                            be.tr("DEP_CYCLE_VIA", dep=dep))
+                            be.tr("DEP_CYCLE_VIA", dep=dep),
+                            sel=_svc_sel(spec))
                 self._log(f"[{spec['name']} ERR] " + be.tr(
                     "DEP_CYCLE", dep=dep))
                 continue
@@ -1541,7 +1562,8 @@ class Dashboard:
             if not self._wait_ready(dep, self._dep_timeout):
                 self._issue("deps_timeout", spec["name"],
                             be.tr("DEP_TIMEOUT",
-                                  dep=dep["name"], t=self._dep_timeout))
+                                  dep=dep["name"], t=self._dep_timeout),
+                            sel=_svc_sel(spec))
                 self._log(f"[{spec['name']} ERR] " + be.tr(
                     "DEP_FAIL",
                     dep=dep["name"]))
@@ -1645,7 +1667,7 @@ class Dashboard:
                                       DEVDASH_PORT=str(free)))
                 msg = be.tr("PORT_REMAPPED",
                             old=spec["ports"][0], new=free)
-                self._issue("port", spec["name"], msg)
+                self._issue("port", spec["name"], msg, sel=_svc_sel(spec))
                 self._log(f"[{spec['name']}] {msg}")
             ok, err, proc = be.start_service_process(
                 lspec, self._log, job=job)
@@ -1809,7 +1831,8 @@ class Dashboard:
             if s["name"] in done:
                 return
             if s["name"] in stack:
-                self._issue("deps", s["name"], be.tr("DEP_CYCLE_IN"))
+                self._issue("deps", s["name"], be.tr("DEP_CYCLE_IN"),
+                            sel=_svc_sel(s))
                 return
             stack = stack | {s["name"]}
             for dep in s.get("depends_on", ()):
@@ -1986,7 +2009,7 @@ class Dashboard:
                 if line:
                     self._log(f"[{name}{' ERR' if err else ''}] {line}")
                     if classify_log_line(line) == "error":
-                        self._issue_log_error(name, line)
+                        self._issue_log_error(name, line, sel=_prj_sel(name))
         except (OSError, ValueError):
             pass
 
@@ -2003,7 +2026,7 @@ class Dashboard:
                 p["pid_ctime"] = None
                 if was:
                     self._proj_dead[name] = True
-                    self._issue("crash", name, f"exit {rc}")
+                    self._issue("crash", name, f"exit {rc}", sel=_prj_sel(name))
                     self._tray("Dev Dashboard", be.tr(
                         "NAME_EXITED", name=name))
                 be.save_projects(self.projects_data)

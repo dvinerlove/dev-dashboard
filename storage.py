@@ -1,6 +1,7 @@
 """Persistence of runs/issues in SQLite (state.db, WAL). No secrets — they are not in the DB."""
 import os
 import random
+import json
 import sqlite3
 import threading
 import time
@@ -24,7 +25,14 @@ def _c():
                      "(name TEXT, t0 REAL, t1 REAL, exit TEXT)")
         _con.execute("CREATE INDEX IF NOT EXISTS runs_name ON runs(name)")
         _con.execute("CREATE TABLE IF NOT EXISTS issues"
-                     "(t REAL, kind TEXT, name TEXT, text TEXT, count INT)")
+                     "(t REAL, kind TEXT, name TEXT, text TEXT, count INT,"
+                     " sel TEXT)")
+        # existing DBs: typed entity refs arrive as a new nullable column —
+        # rows without it simply have no link, no data rewrite needed
+        cols = [r[1] for r in
+                _con.execute("PRAGMA table_info(issues)")]
+        if "sel" not in cols:
+            _con.execute("ALTER TABLE issues ADD COLUMN sel TEXT")
         _con.execute("CREATE TABLE IF NOT EXISTS remote_probes"
                      "(name TEXT, t REAL, up INT)")
         _con.execute("CREATE INDEX IF NOT EXISTS remote_probes_name"
@@ -56,9 +64,11 @@ def save_issue(it):
             c.execute("UPDATE issues SET count=? WHERE rowid=?",
                       (it.get("count", 1), it["_rid"]))
         else:
-            cur = c.execute("INSERT INTO issues VALUES(?,?,?,?,?)",
+            cur = c.execute("INSERT INTO issues VALUES(?,?,?,?,?,?)",
                             (it["t"], it["kind"], it["name"], it["text"],
-                             it.get("count", 1)))
+                             it.get("count", 1),
+                             json.dumps(it["sel"], separators=(",", ":"))
+                             if it.get("sel") else None))
             it["_rid"] = cur.lastrowid
             c.execute("DELETE FROM issues WHERE rowid NOT IN"
                       "(SELECT rowid FROM issues ORDER BY t DESC LIMIT ?)",
@@ -81,9 +91,17 @@ def load():
             "SELECT name,t0,t1,exit,rowid FROM runs ORDER BY t0"):
         runs.setdefault(name, []).append(
             {"t0": t0, "t1": t1, "exit": ex, "_rid": rid})
-    issues = [{"t": t, "kind": k, "name": n, "text": x, "count": cnt, "_rid": rid}
-              for t, k, n, x, cnt, rid in c.execute(
-                  "SELECT t,kind,name,text,count,rowid FROM issues ORDER BY t")]
+    issues = []
+    for t, k, n, x, cnt, selj, rid in c.execute(
+            "SELECT t,kind,name,text,count,sel,rowid FROM issues ORDER BY t"):
+        it = {"t": t, "kind": k, "name": n, "text": x, "count": cnt,
+              "_rid": rid}
+        if selj:
+            try:
+                it["sel"] = json.loads(selj)
+            except ValueError:
+                pass  # corrupt row — the link degrades, the event survives
+        issues.append(it)
     return runs, issues
 
 
