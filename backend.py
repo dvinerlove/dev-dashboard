@@ -1,6 +1,7 @@
 """Dashboard logic without UI: configs, process/port probes,
 remote health checks, autostart (registry), env helpers.
 Moved out of dashboard.py; Qt is not imported."""
+import ctypes
 import json
 import os
 import re
@@ -523,17 +524,57 @@ def append_dashboard_log(text):
         pass
 
 
+def _oem_cp():
+    """OEM codepage name (cp866 on ru Windows) or None off Windows —
+    cached: decode_log runs per log line."""
+    global _oem_cp
+    cp = None
+    if pi.IS_WIN:
+        try:
+            cp = "cp%d" % ctypes.windll.kernel32.GetOEMCP()
+        except (AttributeError, OSError):
+            pass
+    _oem_cp = lambda: cp  # noqa: E731 — one-time resolution
+    return cp
+
+
+def _mojibake_score(t):
+    """Wrong-codepage markers: cp1251 read as OEM yields box-drawing and
+    Greek, OEM read as cp1251 yields Cyrillic letters rare in running text
+    (ўЇєґ…). The right decode scores zero on ordinary text."""
+    score = 0
+    for ch in t:
+        o = ord(ch)
+        if 0x2500 <= o <= 0x259F or 0x0370 <= o <= 0x03FF:
+            score += 2
+        elif ch in "ўЎЇїЄєІіҐґЉљЊњЋћЏџ":
+            score += 1
+    return score
+
+
 def decode_log(data):
-    """Log bytes → text. Run markers are UTF-8, child stdout arrives raw —
-    on Windows that's the ANSI codepage (cp1251 here). Decode per line:
-    strict UTF-8, ANSI fallback — a mixed file keeps both halves readable."""
+    """Log bytes → text. Run markers are UTF-8, child stdout arrives raw in
+    TWO wild codepages on Windows: console tools (cmd errors) write OEM
+    (cp866 on ru systems), piped Python writes ANSI (cp1251). Decode per
+    line: strict UTF-8, then whichever legacy decode looks less wrong."""
     fb = "mbcs" if pi.IS_WIN else "utf-8"
+    oem = _oem_cp()
     out = []
     for b in data.splitlines():
         try:
             out.append(b.decode("utf-8"))
+            continue
         except UnicodeDecodeError:
-            out.append(b.decode(fb, errors="replace"))
+            pass
+        ansi = b.decode(fb, errors="replace")
+        if oem:
+            try:
+                alt = b.decode(oem, errors="replace")
+                if _mojibake_score(alt) < _mojibake_score(ansi):
+                    ansi = alt
+            except LookupError:
+                pass
+        out.append(ansi)
     return "\n".join(out)
 
 

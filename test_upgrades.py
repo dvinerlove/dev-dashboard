@@ -167,6 +167,20 @@ def test4_log_parser():
     assert len(iss) == 2 and iss[0]["count"] == 3, iss
     print("  ok: line levels correct, dedup x3 within the 60s window")
 
+    # decode_log: console tools write OEM (cp866 on ru Windows), piped
+    # Python writes ANSI (cp1251), run markers are UTF-8 — all three must
+    # survive the same log file
+    if be.pi.IS_WIN:
+        oem = be._oem_cp()
+        if oem == "cp866":
+            cmd_err = "не является внутренней или внешней командой"
+            back = be.decode_log(cmd_err.encode("cp866"))
+            assert "не является" in back,                 "cmd.exe OEM output must not mojibake: " + back[:40]
+            py_out = "Ошибка: файл не найден".encode("cp1251")
+            assert "Ошибка" in be.decode_log(py_out),                 "piped python ANSI output must stay readable"
+            assert be.decode_log("utf8 маркер".encode("utf-8")                 ).startswith("utf8"), "utf-8 passthrough"
+            print("  ok: decode_log disambiguates cp866/cp1251/utf-8")
+
 
 def test5_env_api():
     """ENV: secret masking, saving, restart_required."""
