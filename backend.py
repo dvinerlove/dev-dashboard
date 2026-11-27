@@ -1810,28 +1810,35 @@ def write_update_helper(target_exe, pid, action, ps1_path, port=0):
         "while (Get-Process -Id %d -ErrorAction SilentlyContinue)"
         " { Start-Sleep 1 }" % pid,
         "Start-Sleep 1",
-    ] + do + [
-        "Start-Sleep 4",
-        "$p = Start-Process -FilePath '%s' -PassThru" % target_exe,
-    ]
+    ] + do + ["Start-Sleep 4"]
     if port:
-        # root-cause-agnostic self-healing: whatever stalls the first start
-        # (AV scan of the fresh unsigned binary, extraction races) — the
-        # second one goes through, same as a manual launch always did
+        # root-cause-agnostic self-healing: whatever stalls a start (AV scan
+        # of the fresh unsigned binary, extraction races) — a retry goes
+        # through, same as a manual launch always did. 40s per attempt:
+        # the first extraction of ~90 dlls under a live AV scan legitimately
+        # takes >25s, and killing it mid-write leaves a half-extracted _MEI
+        # whose child then dies on missing dlls — the very failure the
+        # retry exists to fix
         lines += [
             "$up = $false",
-            "for ($i = 0; $i -lt 25 -and -not $up; $i++) {",
-            "  Start-Sleep 1",
-            "  try { $null = Invoke-WebRequest -Uri"
+            "for ($try = 0; $try -lt 3 -and -not $up; $try++) {",
+            "  if ($try -gt 0) { Start-Sleep 2 }",
+            "  $p = Start-Process -FilePath '%s' -PassThru" % target_exe,
+            "  for ($i = 0; $i -lt 40 -and -not $up"
+            " -and -not $p.HasExited; $i++) {",
+            "    Start-Sleep 1",
+            "    try { $null = Invoke-WebRequest -Uri"
             " 'http://127.0.0.1:%d/api/state' -TimeoutSec 2"
             " -UseBasicParsing; $up = $true } catch {}" % port,
-            "}",
-            "if (-not $up) {",
-            "  taskkill /PID $p.Id /T /F | Out-Null",
-            "  Start-Sleep 2",
-            "  Start-Process -FilePath '%s'" % target_exe,
+            "  }",
+            "  if (-not $up) {",
+            "    taskkill /PID $p.Id /T /F | Out-Null",
+            "  }",
             "}",
         ]
+    else:
+        lines.append(
+            "$p = Start-Process -FilePath '%s' -PassThru" % target_exe)
     lines.append(
         "Remove-Item -LiteralPath $MyInvocation.MyCommand.Path -Force"
         " -ErrorAction SilentlyContinue")
