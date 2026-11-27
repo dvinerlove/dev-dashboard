@@ -192,7 +192,9 @@ export function PortsView() {
             onClick={(e) => {
               if (!r.owner || (e.target as HTMLElement).closest("button"))
                 return;
-              app.openNamed(r.owner);
+              if (r.ownerKind)
+                app.openItem({ kind: r.ownerKind, name: r.owner });
+              else app.openNamed(r.owner);
             }}
             className={cn(
               "group flex h-[38px] items-center gap-3 border-b border-(--border-hairline) px-3.5 select-none last:border-b-0 hover:bg-(--bg-hover)",

@@ -18,8 +18,23 @@ def _c():
     global _con
     os.makedirs(os.path.dirname(DB), exist_ok=True)
     if _con is None:
-        _con = sqlite3.connect(DB, check_same_thread=False)
-        _con.execute("PRAGMA journal_mode=WAL")
+        try:
+            _con = sqlite3.connect(DB, check_same_thread=False)
+            _con.execute("PRAGMA journal_mode=WAL")
+            _con.execute("SELECT count(*) FROM sqlite_master").fetchone()
+        except sqlite3.DatabaseError:
+            try:
+                _con.close()
+            except Exception:
+                pass
+            _con = None
+            try:  # quarantine the corrupt file, start clean — same
+                # technique as the .corrupt-<ts> JSON config recovery
+                os.rename(DB, DB + ".corrupt-%d" % time.time())
+            except OSError:
+                pass
+            _con = sqlite3.connect(DB, check_same_thread=False)
+            _con.execute("PRAGMA journal_mode=WAL")
         _con.execute("PRAGMA busy_timeout=2000")  # writers from different threads
         _con.execute("CREATE TABLE IF NOT EXISTS runs"
                      "(name TEXT, t0 REAL, t1 REAL, exit TEXT)")
@@ -61,8 +76,10 @@ def save_issue(it):
     c = _c()
     with _lock:
         if it.get("_rid"):
-            c.execute("UPDATE issues SET count=? WHERE rowid=?",
-                      (it.get("count", 1), it["_rid"]))
+            c.execute("UPDATE issues SET count=?, t=?, sel=? WHERE rowid=?",
+                      (it.get("count", 1), it["t"],
+                       json.dumps(it["sel"], separators=(",", ":"))
+                       if it.get("sel") else None, it["_rid"]))
         else:
             cur = c.execute("INSERT INTO issues VALUES(?,?,?,?,?,?)",
                             (it["t"], it["kind"], it["name"], it["text"],

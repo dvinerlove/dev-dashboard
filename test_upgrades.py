@@ -342,6 +342,24 @@ def test9_self_update_mechanics():
             pass
         time.sleep(0.5)
     assert open(target).read() == "NEW", "exe not swapped after death"
+    # verification-enabled script: shaped-json check, image-scoped kill,
+    # backup/rollback, apostrophe escaping — the mechanics the audit bit on
+    ps1v = os.path.join(tmp, "verify.ps1")
+    be.write_update_helper(target, 999999, ("copy", src), ps1v,
+                           port=4850, port_file=os.path.join(tmp, "api.port"))
+    txt = open(ps1v, encoding="utf-8-sig").read()
+    assert "Invoke-RestMethod" in txt and ".services" in txt, \
+        "verification must check the api shape, not any 200"
+    assert "taskkill" not in txt, "tree-kill massacres user processes"
+    assert "Get-Process -Name 'target'" in txt, \
+        "kill must target our own image name only, never the tree"
+    assert ".bak" in txt, "backup/rollback missing"
+    assert "Get-Content" in txt, "api.port marker fallback missing"
+    apos = os.path.join(tmp, "o'neil.exe")
+    ps1a = os.path.join(tmp, "apos.ps1")
+    be.write_update_helper(apos, 999999, ("copy", src), ps1a)
+    atxt = open(ps1a, encoding="utf-8-sig").read()
+    assert "o''neil" in atxt, "apostrophe must escape as '' in ps literals"
     print("  ok: helper waits for exit, swaps exe, relaunch line present")
 
 
@@ -385,6 +403,13 @@ def test11_find_project_pid_cwd():
         assert be.find_project_pid(proj) == inside.pid
         cwds = {inside.pid: os.path.normcase(srv)}
         assert be.find_project_pid(proj, cwds) == inside.pid
+        # self-exclusion: our own pid is never adoptable even when its
+        # cwd sits inside the project tree
+        cwds_self = {os.getpid(): os.path.normcase(srv),
+                     inside.pid: os.path.normcase(srv)}
+        assert be.find_project_pid(proj, cwds_self) == inside.pid
+        solo = {os.getpid(): os.path.normcase(srv)}
+        assert be.find_project_pid(proj, solo) is None
         assert be.find_project_pid({"cwd": os.path.join(root, "other")}) \
             is None
     finally:
@@ -429,6 +454,70 @@ def test12_issue_sel_roundtrip():
     print("  ok: sel roundtrip, legacy migration, linkless rows degrade")
 
 
+
+
+def test13_probe_foreign_busy():
+    """_probe_service: a port held by a process that matches nothing in the
+    spec reads as dead+foreign — the split-brain guard for double binds.
+    _remap_port then offers the next free port instead."""
+    import socket
+    holder = socket.socket()
+    holder.bind(("127.0.0.1", 0))
+    holder.listen()
+    port = holder.getsockname()[1]
+    try:
+        spec = {"name": "t-fb", "ports": [port], "proc": "no-such-proc-xyz"}
+        st, detail = be._probe_service(spec, [], {port: os.getpid()})
+        assert st == "dead" and "foreign" in detail, (st, detail)
+        # without proc/match there is nothing to be foreign against
+        spec2 = {"name": "t-fb2", "ports": [port]}
+        st2, _ = be._probe_service(spec2, [], {port: os.getpid()})
+        assert st2 == "up", st2
+        d = core.Dashboard.__new__(core.Dashboard)
+        d.__init__()
+        d.services_data = []
+        newp = d._remap_port(spec)
+        assert isinstance(newp, int) and port < newp <= port + 20, newp
+        assert not be._port_open(newp)
+    finally:
+        holder.close()
+    print("  ok: foreign busy-port -> dead, remap finds a free port")
+
+
+def test14_dep_cycle():
+    """depends_on cycle: ordering terminates, every service is ordered,
+    and a deps issue with the cycle warning is emitted once."""
+    d = core.Dashboard.__new__(core.Dashboard)
+    d.__init__()
+    a = {"name": "cy-a", "depends_on": ["cy-b"], "start": "x"}
+    b = {"name": "cy-b", "depends_on": ["cy-a"], "start": "x"}
+    c = {"name": "cy-c", "depends_on": ["cy-a"], "start": "x"}
+    d._issues.clear()
+    out = d._dep_order([a, b, c])
+    assert sorted(s["name"] for s in out) == ["cy-a", "cy-b", "cy-c"], out
+    cyc = [i for i in d._issues if i["kind"] == "deps"]
+    assert cyc, "no deps issue emitted for the cycle"
+    assert all(i.get("sel", {}).get("kind") == "svc" for i in cyc)
+    print("  ok: cycle terminates, all ordered, deps issue typed")
+
+
+def test15_i18n_fallback():
+    """tr: miss falls back to EN then to the bare key; placeholders format.
+    tr_detail: unknown detail passes through, templated detail localizes."""
+    assert be.tr("NO_SUCH_KEY_ANYWHERE") == "NO_SUCH_KEY_ANYWHERE"
+    assert be.tr_detail("") == ""
+    assert be.tr_detail("totally unknown detail") == "totally unknown detail"
+    if "ru" in be.LOCALES:
+        prev = be._LANG
+        try:
+            be._LANG = "ru"
+            s = be.tr_detail(":4850 busy · foreign process pid 123")
+            assert "4850" in s and "123" in s and "foreign" not in s, s
+        finally:
+            be._LANG = prev
+    print("  ok: key/en fallback, placeholders, templated detail localization")
+
+
 if __name__ == "__main__":
     print("step1: job objects")
     test1_job_kills_tree()
@@ -454,4 +543,10 @@ if __name__ == "__main__":
     test11_find_project_pid_cwd()
     print("step12: issue sel roundtrip")
     test12_issue_sel_roundtrip()
+    print("step13: foreign busy-port + remap")
+    test13_probe_foreign_busy()
+    print("step14: dependency cycle")
+    test14_dep_cycle()
+    print("step15: i18n fallback")
+    test15_i18n_fallback()
     print("ALL PASS")

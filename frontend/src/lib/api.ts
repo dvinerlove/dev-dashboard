@@ -43,6 +43,7 @@ export interface PortRow {
   proc: string;
   cmd: string;
   owner: string | null;
+  ownerKind?: "svc" | "prj" | null;
   self: boolean;
   cat: "db" | "dev" | "net" | "sys" | "other";
   label: string;

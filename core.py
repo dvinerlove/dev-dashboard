@@ -378,8 +378,9 @@ class _ApiHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         # CSRF: allow only local Origins (or none — curl etc.)
         origin = self.headers.get("Origin")
+        port = self.server.server_address[1]
         if origin and not re.match(
-                r"^https?://(127\.0\.0\.1|localhost)(:\d+)?$", origin):
+                r"^https?://(127\.0\.0\.1|localhost):%d$" % port, origin):
             self._send(403, {"error": "forbidden origin"})
             return
         if not self._host_ok():
@@ -525,6 +526,7 @@ class Dashboard:
         self._lock = threading.RLock()
         self._procs = {}          # name -> Popen (started by the dashboard)
         self._svc_spawn = {}      # name -> (pid, ctime) of the service shell wrapper
+        self._svc_stop_gen = {}   # name -> intentional-stop generation
         self._proj_dead = {}      # name -> had a crash ("dead" pill)
         self._proj_seen = set()   # names witnessed alive this session —
         # a persisted pid that vanished while we were down is "not
@@ -753,10 +755,22 @@ class Dashboard:
                     except (psutil.NoSuchProcess, psutil.AccessDenied):
                         pass
             projects = {}
+            claims = {}  # pid -> (project, cwd depth) — one pid, one owner
+            cand = {}
             for p in list(self.projects_data):
                 pid = p.get("pid")
                 if not be.is_pid_running(pid, p.get("pid_ctime")):
                     pid = be.find_project_pid(p, proc_cwds)
+                cand[p["name"]] = (p, pid)
+                if pid:
+                    depth = len(os.path.normpath(
+                        p.get("cwd") or "").split(os.sep))
+                    cur = claims.get(pid)
+                    if cur is None or depth > cur[1]:
+                        claims[pid] = (p, depth)
+            for p, pid in cand.values():
+                if pid and claims.get(pid, (None,))[0] is not p:
+                    pid = None  # contested — the longest-cwd project owns it
                 entry = {"pid": pid, "running": bool(pid)}
                 if pid:
                     entry["stats"] = be.proc_stats(pid, self._proj_cpu)
@@ -852,7 +866,7 @@ class Dashboard:
                 with open(path, "rb") as f:
                     f.seek(off)
                     data = f.read()
-                self._log_off[spec["name"]] = size
+                    self._log_off[spec["name"]] = f.tell()
             except OSError:
                 continue
             for line in be.decode_log(data).splitlines():
@@ -1105,6 +1119,8 @@ class Dashboard:
             for p in self.projects_data:
                 info = projects.get(p["name"], {})
                 pid = info.get("pid")
+                if not pid and p["name"] in self._procs:
+                    continue  # dashboard-started: _wait_proc owns its death
                 if pid:
                     # witnessed alive this session — also when the pid simply
                     # persists (no transition): a dev server that survived our
@@ -1204,12 +1220,17 @@ class Dashboard:
                     be.tr("AR_IN", d=delay), sel=_svc_sel(spec))
         self._log(f"[{name}] " + be.tr(
             "AR_IN_DEAD", d=delay))
-        _timer(delay, lambda s=spec: self._autorestart_fire(s))
+        gen = self._svc_stop_gen.get(name, 0)
+        _timer(delay, lambda s=spec, g=gen: self._autorestart_fire(s, g))
 
-    def _autorestart_fire(self, spec):
+    def _autorestart_fire(self, spec, gen=None):
         """Deferred autorestart: do not resurrect a service that was deleted,
-        already brought up, or cut off by the circuit."""
+        already brought up, cut off by the circuit, or stopped by the user
+        after the restart was scheduled (stop-generation moved on)."""
         if spec not in self.services_data:
+            return
+        if gen is not None \
+                and self._svc_stop_gen.get(spec["name"], 0) != gen:
             return
         name = spec["name"]
         if name in self._cb_open:
@@ -1225,9 +1246,12 @@ class Dashboard:
         and the frontend jumps straight to it without re-resolving by name."""
         with self._lock:
             it = self._issues[-1] if self._issues else None
-            if it and it["kind"] == kind and it["name"] == name:
+            if it and it["kind"] == kind and it["name"] == name \
+                    and it.get("sel") == sel:
                 it["count"] += 1
                 it["t"] = time.time()
+                if sel and "sel" not in it:
+                    it["sel"] = sel  # legacy linkless row — adopt the type
             else:
                 it = {"t": time.time(), "kind": kind,
                       "name": name, "text": text, "count": 1}
@@ -1243,8 +1267,9 @@ class Dashboard:
         """Error from a service/project log: text dedup within a 60s window (×N)."""
         text = text.strip()[:300]
         now = time.time()
+        key = (name, (sel or {}).get("kind"), (sel or {}).get("remote"))
         with self._lock:
-            it = self._err_issues.get(name)
+            it = self._err_issues.get(key)
             if it and it["text"] == text and now - it["t"] < 60:
                 it["count"] += 1
                 it["t"] = now
@@ -1253,7 +1278,7 @@ class Dashboard:
                       "text": text, "count": 1}
                 if sel:
                     it["sel"] = sel
-                self._err_issues[name] = it
+                self._err_issues[key] = it
                 self._issues.append(it)
         try:
             st.save_issue(it)
@@ -1428,8 +1453,13 @@ class Dashboard:
         swaps the exe directly. A detached .bat does the swap after this
         process exits — a running exe cannot overwrite itself."""
         import tempfile
+        if getattr(self, "_update_in_progress", False):
+            return False, be.tr("UPDATE_IN_PROGRESS")
+        self._update_in_progress = True
+        import tempfile
         ch = be.update_channel()
         if ch == "dev":
+            self._update_in_progress = False
             return False, be.tr("UPDATE_DEV_MODE")
         rel = None
         if ch == "git":
@@ -1440,6 +1470,7 @@ class Dashboard:
                 return False, be.tr("UPDATE_NONE")
         target, pid = sys.executable, os.getpid()
         tmp = os.path.join(tempfile.gettempdir(), "devdash-update")
+        os.makedirs(tmp, exist_ok=True)
         try:
             if ch == "git":
                 action = ("copy", be.download_update_zip(rel["zip_url"], tmp))
@@ -1453,8 +1484,11 @@ class Dashboard:
             ps1 = be.write_update_helper(target, pid, action,
                                          os.path.join(tmp,
                                                       "apply-update.ps1"),
-                                         port=self.api_port)
+                                         port=self.api_port,
+                                         port_file=os.path.join(
+                                             be.DATA_DIR, "api.port"))
         except (OSError, ValueError, urllib.error.URLError) as e:
+            self._update_in_progress = False
             return False, str(e)[:200]
         # CREATE_NO_WINDOW only: DETACHED_PROCESS leaves powershell.exe
         # (a console app) without a console and it never runs; windows
@@ -1793,6 +1827,10 @@ class Dashboard:
         self._log(f"[{spec['name']}] " + (be.tr(
             "STOPPED_PID", p=", ".join(map(str, killed))) if killed
             else be.tr("PROCS_NOT_FOUND")))
+        self._svc_prev[spec["name"]] = "down"  # intentional — not a crash,
+        # not an autorestart trigger on the next probe tick
+        self._svc_stop_gen[spec["name"]] = (
+            self._svc_stop_gen.get(spec["name"], 0) + 1)
         self._force_probe(800)
         return True
 
@@ -1904,10 +1942,15 @@ class Dashboard:
                          "autorestart", "monitor_only", "depends_on",
                          "health_url", "mem_limit_mb", "watch",
                          "restart_every_min", "env_profiles", "env_profile"}
+                if data["name"].strip() != old_name \
+                        and self._service(data["name"].strip()):
+                    return False, be.tr("NAME_TAKEN", name=data["name"])
                 for k in known - set(data):
                     spec.pop(k, None)
                 spec.update(data)
             else:
+                if self._service(data["name"].strip()):
+                    return False, be.tr("NAME_TAKEN", name=data["name"])
                 self.services_data.append(data)
             be.save_services(self.services_data)
         be.drop_deleted_service(data["name"])  # re-added — forget the remembered one
@@ -2029,15 +2072,13 @@ class Dashboard:
                 self._procs.pop(name, None)
             self._run_end(name, f"exit {rc}")
             p = self._proj(name)
-            if p:
-                was = bool(p.get("pid"))
+            if p and p.get("pid") == proc.pid:
                 p["pid"] = None
                 p["pid_ctime"] = None
-                if was:
-                    self._proj_dead[name] = True
-                    self._issue("crash", name, f"exit {rc}", sel=_prj_sel(name))
-                    self._tray("Dev Dashboard", be.tr(
-                        "NAME_EXITED", name=name))
+                self._proj_dead[name] = True
+                self._issue("crash", name, f"exit {rc}", sel=_prj_sel(name))
+                self._tray("Dev Dashboard", be.tr(
+                    "NAME_EXITED", name=name))
                 be.save_projects(self.projects_data)
 
     def stop_project(self, name):
@@ -2091,7 +2132,22 @@ class Dashboard:
                 # save without them would break the p["cwd"] indexes
                 data.setdefault("cmd", "")
                 data.setdefault("cwd", "")
+                if data["name"].strip() != old_name:
+                    if self._proj(data["name"].strip()):
+                        return False, be.tr("NAME_TAKEN", name=data["name"])
+                    # runtime state is keyed by name — it must move with the
+                    # rename or witnessed deaths of the renamed project
+                    # silently lose their crash report
+                    if old_name in self._proj_seen:
+                        self._proj_seen.discard(old_name)
+                        self._proj_seen.add(data["name"].strip())
+                    for m in (self._proj_dead, self._procs, self._jobs,
+                              self._detected_url):
+                        if old_name in m:
+                            m[data["name"].strip()] = m.pop(old_name)
                 data.setdefault("pid", p.get("pid"))
+                if (data.get("cwd") or "") != (p.get("cwd") or ""):
+                    data["pid"], data["pid_ctime"] = None, None
                 p.update(data)  # unknown keys + pid are preserved
             else:
                 if self._proj(data["name"].strip()):
@@ -2507,15 +2563,15 @@ class Dashboard:
                 if (spec.get("proc") and p["name"] == spec["proc"].lower()) \
                         or (spec.get("match")
                             and spec["match"].lower() in p["cl"]):
-                    own[p["pid"]] = spec["name"]
+                    own[p["pid"]] = (spec["name"], "svc")
             # spawned/adopted pid of a service without proc/match — also "ours"
             for pid in (spec.get("pid"),
                         (self._svc_spawn.get(spec["name"]) or (0,))[0]):
                 if pid:
-                    own[pid] = spec["name"]
+                    own[pid] = (spec["name"], "svc")
         for prj in prjs:
             if prj.get("pid"):
-                own[prj["pid"]] = prj["name"]
+                own[prj["pid"]] = (prj["name"], "prj")
         return own
 
     def api_ports(self):
@@ -2558,14 +2614,21 @@ class Dashboard:
                 age = time.time() - pr.create_time()
             except (psutil.Error, OSError):
                 proc, cmd, age = (info or {}).get("name", "?"), "", 0
-            owner = _own_owner(pid, own, by_pid) or own_by_cwd(pid)
+            ot = _own_owner(pid, own, by_pid)
+            if ot:
+                owner, okind = ot
+            else:
+                owner, okind = own_by_cwd(pid), "prj"
+            if not owner:
+                okind = None
             zombie, agent = _proc_flags(pid, info, pr, by_pid, age, prev)
             if pid == os.getpid():
                 zombie = None  # the dashboard itself is detached, not a zombie
             cat, label = be.port_class(proc, port)
             out.append({"port": port, "pid": pid,
                         "proc": proc or "?", "cmd": cmd[:140],
-                        "owner": owner, "self": pid == os.getpid(),
+                        "owner": owner, "ownerKind": okind,
+                        "self": pid == os.getpid(),
                         "cat": cat, "label": be.tr(label),
                         "lan": lan.get(port), "age": int(age),
                         "mine": (proc or "").lower() in mine,
@@ -2624,8 +2687,9 @@ class Dashboard:
                 mb, age = 0, 0
             zombie, agent = _proc_flags(p["pid"], p, p["proc"], by_pid,
                                         age, prev)
+            ot = _own_owner(p["pid"], own, by_pid)
             bg.append({"name": p["name"], "pid": p["pid"], "mb": mb,
-                       "owner": _own_owner(p["pid"], own, by_pid)
+                       "owner": (ot[0] if ot else None)
                        or own_by_cwd(p["pid"]),
                        "zombie": zombie, "agent": agent})
         bg.sort(key=lambda p: -p["mb"])  # hungriest idle processes on top
@@ -2971,6 +3035,7 @@ class Dashboard:
 
     def clear_issues(self):
         self._issues.clear()
+        self._err_issues.clear()
         st.clear_issues()
         return True, ""
 

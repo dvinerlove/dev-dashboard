@@ -506,28 +506,45 @@ def main():
     # breaks restart loops and is cleared by the first successful load.
     loaded_ok = threading.Event()
     win.events.loaded += lambda *_: loaded_ok.set()
+    wv_marker = os.path.join(be.DATA_DIR, "wv-restart.once")
+
+    def _clear_marker(*_):
+        # whenever a load DOES succeed — even after the 40s deadline — the
+        # anti-loop marker is stale and must go, otherwise it disables
+        # self-healing for all future incidents
+        try:
+            os.remove(wv_marker)
+        except OSError:
+            pass
+    win.events.loaded += _clear_marker
 
     def _webview_watchdog():
-        marker = os.path.join(be.DATA_DIR, "wv-restart.once")
         if loaded_ok.wait(40):
-            try:
-                os.remove(marker)
-            except OSError:
-                pass
             return
+        if quitting["v"] or quit_evt.is_set():
+            return                # user is exiting — never restart behind them
         be.append_dashboard_log("[SYSTEM] webview never loaded in 40s")
-        if os.path.exists(marker) or not getattr(sys, "frozen", False):
+        if os.path.exists(wv_marker) or not getattr(sys, "frozen", False):
             return                # already restarted once, or dev mode
-        open(marker, "w").close()
+        if loaded_ok.wait(2):
+            return                # slow load raced past the deadline
+        try:
+            ps1 = be.write_update_helper(
+                sys.executable, os.getpid(), ("cmd", ""),
+                os.path.join(be.DATA_DIR, "wv-restart.ps1"), dash.api_port,
+                port_file=os.path.join(be.DATA_DIR, "api.port"))
+            subprocess.Popen(["powershell", "-NoProfile", "-ExecutionPolicy",
+                              "Bypass", "-File", ps1],
+                             creationflags=getattr(subprocess,
+                                                   "CREATE_NO_WINDOW", 0),
+                             close_fds=True)
+        except Exception as e:
+            be.append_dashboard_log(f"[SYSTEM] watchdog restart failed: {e}")
+            return                # no marker — the next incident may retry
+        # marker only after the helper is actually running: a failed launch
+        # must not permanently disable self-healing
+        open(wv_marker, "w").close()
         be.append_dashboard_log("[SYSTEM] restarting once to recover")
-        ps1 = be.write_update_helper(
-            sys.executable, os.getpid(), ("cmd", ""),
-            os.path.join(be.DATA_DIR, "wv-restart.ps1"), dash.api_port)
-        subprocess.Popen(["powershell", "-NoProfile", "-ExecutionPolicy",
-                          "Bypass", "-File", ps1],
-                         creationflags=getattr(subprocess,
-                                               "CREATE_NO_WINDOW", 0),
-                         close_fds=True)
         quit_app()
     threading.Thread(target=_webview_watchdog, daemon=True).start()
 

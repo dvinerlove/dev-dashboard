@@ -469,6 +469,7 @@
     "UPDATE_DEV_MODE": "self-update is unavailable when running from source",
     "UPDATE_NONE": "already up to date",
     "WATCH_RESTART": "files changed — restarting",
-    "WRITE_FAIL": "Failed to write {path}: {e}"
+    "WRITE_FAIL": "Failed to write {path}: {e}",
+    "UPDATE_IN_PROGRESS": "update already in progress"
   }
 }

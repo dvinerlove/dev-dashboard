@@ -348,6 +348,8 @@ def find_project_pid(project, proc_cwds=None):
     for p in psutil.process_iter(["pid", "exe", "cmdline", "name"]):
         try:
             info = p.info
+            if info["pid"] == os.getpid():
+                continue  # the dashboard itself is not its own project
             if (info["name"] or "").lower() in SHELLS:
                 continue
             cl = os.path.normcase(" ".join(info["cmdline"] or [])
@@ -1786,23 +1788,36 @@ def download_update_zip(zip_url, dest_dir, timeout=180):
     return os.path.join(dest_dir, "DevDashboard.exe")
 
 
-def write_update_helper(target_exe, pid, action, ps1_path, port=0):
+def write_update_helper(target_exe, pid, action, ps1_path, port=0,
+                        port_file=""):
     """Detached helper: wait for the app to die, apply the update, relaunch.
     `action` is either ("copy", src_exe) or ("cmd", shell_command).
     PowerShell, not .bat — cmd's `find`/`timeout` get shadowed by Git/MSYS
     binaries on dev machines and the wait loop silently breaks.
-    `port` — verify the relaunched instance actually serves the API and
-    restart it once if it hung; 0 skips verification."""
+    `port` + `port_file` — verify the relaunched instance actually serves
+    the dashboard API (shaped JSON, not any HTTP 200) and restart it if it
+    hung; 0 skips verification."""
+    def q(p):  # single-quoted PowerShell literal: ' escapes as ''
+        return p.replace("'", "''")
+    tgt, bak = q(target_exe), q(target_exe + ".bak")
+    img = q(os.path.splitext(os.path.basename(target_exe))[0])
     if action[0] == "copy":
         # retry: the bootloader parent of the dying exe holds the file
         # locked for seconds after the python child exits (_MEI cleanup) —
-        # a single Copy-Item can hit sharing violation and silently fail
+        # a single Copy-Item can hit sharing violation and silently fail.
+        # backup first: a failed copy can leave the target truncated
         do = [
+            "try { Copy-Item -LiteralPath '%s' -Destination '%s' -Force"
+            " -ErrorAction Stop } catch {}" % (tgt, bak),
             "$ok = $false",
             "for ($i = 0; $i -lt 20 -and -not $ok; $i++) {",
             "  try { Copy-Item -LiteralPath '%s' -Destination '%s' -Force"
-            " -ErrorAction Stop; $ok = $true }" % (action[1], target_exe),
+            " -ErrorAction Stop; $ok = $true }" % (q(action[1]), tgt),
             "  catch { Start-Sleep 1 }",
+            "}",
+            "if (-not $ok) {",
+            "  try { Copy-Item -LiteralPath '%s' -Destination '%s' -Force"
+            " -ErrorAction Stop } catch {}" % (bak, tgt),
             "}",
         ]
     else:
@@ -1813,36 +1828,59 @@ def write_update_helper(target_exe, pid, action, ps1_path, port=0):
         "Start-Sleep 1",
     ] + do + ["Start-Sleep 4"]
     if port:
-        # root-cause-agnostic self-healing: whatever stalls a start (AV scan
-        # of the fresh unsigned binary, extraction races) — a retry goes
-        # through, same as a manual launch always did. 40s per attempt:
-        # the first extraction of ~90 dlls under a live AV scan legitimately
-        # takes >25s, and killing it mid-write leaves a half-extracted _MEI
-        # whose child then dies on missing dlls — the very failure the
-        # retry exists to fix
-        lines += [
+        # verification must prove OUR instance is up, not just any HTTP 200:
+        # shaped JSON with a services key, on the passed port or the actual
+        # bound port the new instance writes into its api.port marker (the
+        # fallback range want..want+9 can move it). Killing targets only
+        # processes with our own image name — never the tree: autostarted
+        # projects/services are children, and a tree-kill massacres them
+        verify = [
             "$up = $false",
             "for ($try = 0; $try -lt 3 -and -not $up; $try++) {",
             "  if ($try -gt 0) { Start-Sleep 2 }",
-            "  $p = Start-Process -FilePath '%s' -PassThru" % target_exe,
-            "  for ($i = 0; $i -lt 40 -and -not $up"
-            " -and -not $p.HasExited; $i++) {",
+            "  $p = Start-Process -FilePath '%s' -PassThru" % tgt,
+            "  for ($i = 0; $i -lt 40 -and -not $up; $i++) {",
             "    Start-Sleep 1",
-            "    try { $null = Invoke-WebRequest -Uri"
-            " 'http://127.0.0.1:%d/api/state' -TimeoutSec 2"
-            " -UseBasicParsing; $up = $true } catch {}" % port,
+            "    $cands = @(%d)" % port,
+        ]
+        if port_file:
+            verify.append(
+                "    try { $mp = [int](Get-Content -LiteralPath '%s'"
+                " -ErrorAction Stop).Trim();"
+                " if ($cands -notcontains $mp) { $cands += $mp } }"
+                " catch {}" % q(port_file))
+        verify += [
+            "    foreach ($cand in $cands) {",
+            "      try { $r = Invoke-RestMethod -Uri"
+            " ('http://127.0.0.1:' + $cand + '/api/state') -TimeoutSec 2;"
+            " if ($null -ne $r.services) { $up = $true; break } } catch {}",
+            "    }",
             "  }",
             "  if (-not $up) {",
-            "    taskkill /PID $p.Id /T /F | Out-Null",
+            "    Get-Process -Name '%s' -ErrorAction SilentlyContinue"
+            " | Stop-Process -Force" % img,
             "  }",
             "}",
+            "if (-not $up) {",
+            "  # three verified failures — the new build is broken, not slow:",
+            "  # roll back to the backup and run it, no further verification",
+            "  Get-Process -Name '%s' -ErrorAction SilentlyContinue"
+            " | Stop-Process -Force" % img,
+            "  try { Copy-Item -LiteralPath '%s' -Destination '%s' -Force"
+            " -ErrorAction Stop } catch {}" % (bak, tgt),
+            "  Start-Process -FilePath '%s'" % tgt,
+            "}",
         ]
+        lines += verify
+        lines.append(
+            "Remove-Item -LiteralPath '%s' -Force"
+            " -ErrorAction SilentlyContinue" % bak)
     else:
         lines.append(
-            "$p = Start-Process -FilePath '%s' -PassThru" % target_exe)
+            "$p = Start-Process -FilePath '%s' -PassThru" % tgt)
     lines.append(
         "Remove-Item -LiteralPath $MyInvocation.MyCommand.Path -Force"
         " -ErrorAction SilentlyContinue")
     with open(ps1_path, "w", encoding="utf-8-sig") as f:
-        f.write("\r\n".join(lines) + "\r\n")
+        f.write((chr(13)+chr(10)).join(lines) + chr(13)+chr(10))
     return ps1_path
