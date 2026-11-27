@@ -850,3 +850,25 @@ body[data-theme="retro"] .panel {
   .boot-item, [data-reveal], [data-stagger].in > * { opacity: 1 !important; transform: none !important; }
   .svc.crashed .svc-dot { animation: none; }
 }
+
+/* ==== evidence (real build captures) ==== */
+.ev-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; }
+.ev-shot { margin: 0; border: 1px solid var(--line); background: var(--bg2); position: relative; }
+.ev-full { grid-column: span 6; }
+.ev-shot:not(.ev-full):nth-of-type(2), .ev-shot:not(.ev-full):nth-of-type(3) { grid-column: span 3; }
+.ev-shot:nth-of-type(4), .ev-shot:nth-of-type(5), .ev-shot:nth-of-type(6) { grid-column: span 2; }
+.ev-shot img { display: block; width: 100%; height: auto; border-bottom: 1px solid var(--line); }
+.ev-shot figcaption {
+  font-family: "JetBrains Mono", monospace; font-size: 10px; letter-spacing: .12em;
+  color: var(--ink3); padding: 8px 10px; text-transform: uppercase;
+}
+.ev-shot::before, .ev-shot::after {
+  content: ""; position: absolute; width: 7px; height: 7px; pointer-events: none;
+  border-color: var(--ink3); border-style: solid; opacity: .6;
+}
+.ev-shot::before { top: -1px; left: -1px; border-width: 1px 0 0 1px; }
+.ev-shot::after { bottom: -1px; right: -1px; border-width: 0 1px 1px 0; }
+@media (max-width: 760px) {
+  .ev-full, .ev-shot:not(.ev-full):nth-of-type(2), .ev-shot:not(.ev-full):nth-of-type(3),
+  .ev-shot:nth-of-type(4), .ev-shot:nth-of-type(5), .ev-shot:nth-of-type(6) { grid-column: span 6; }
+}
