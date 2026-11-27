@@ -350,9 +350,14 @@ def test9_self_update_mechanics():
     txt = open(ps1v, encoding="utf-8-sig").read()
     assert "Invoke-RestMethod" in txt and ".services" in txt, \
         "verification must check the api shape, not any 200"
-    assert "taskkill" not in txt, "tree-kill massacres user processes"
+    # verification kills only the exact tree it launched — image-wide
+    # tree-kills massacred user processes, and mid-extraction kills of a
+    # retry's bootloader corrupt the _MEI dir a pid-reused retry reuses
+    assert "taskkill /PID $p.Id" in txt, \
+        "verification must kill only the launched tree"
+    assert "/IM" not in txt, "image-wide taskkill massacres user processes"
     assert "Get-Process -Name 'target'" in txt, \
-        "kill must target our own image name only, never the tree"
+        "rollback must clear zombies locking the exe before copying"
     assert ".bak" in txt, "backup/rollback missing"
     assert "Get-Content" in txt, "api.port marker fallback missing"
     apos = os.path.join(tmp, "o'neil.exe")

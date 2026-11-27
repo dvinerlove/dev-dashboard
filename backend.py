@@ -22,7 +22,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(
     sys.executable if getattr(sys, "frozen", False) else __file__))
 # read-only resources (frontend/dist, icon.ico): _MEIPASS in a onefile bundle
 RESOURCE_DIR = getattr(sys, "_MEIPASS", BASE_DIR)
-VERSION = "0.10.0"
+VERSION = "0.10.1"
 
 
 def _default_data_dir():
@@ -1862,7 +1862,7 @@ def write_update_helper(target_exe, pid, action, ps1_path, port=0,
             "for ($try = 0; $try -lt 3 -and -not $up; $try++) {",
             "  if ($try -gt 0) { Start-Sleep 2 }",
             ("  $p = Start-Process -FilePath '%s' -PassThru" + args_ps) % tgt,
-            "  for ($i = 0; $i -lt 40 -and -not $up; $i++) {",
+            "  for ($i = 0; $i -lt 90 -and -not $up; $i++) {",
             "    Start-Sleep 1",
             "    $cands = @(%d)" % port,
         ]
@@ -1880,15 +1880,20 @@ def write_update_helper(target_exe, pid, action, ps1_path, port=0,
             "    }",
             "  }",
             "  if (-not $up) {",
-            "    Get-Process -Name '%s' -ErrorAction SilentlyContinue"
-            " | Stop-Process -Force" % img,
+            "    if ($p -and -not $p.HasExited) {",
+            "      taskkill /PID $p.Id /T /F | Out-Null",
+            "    }",
             "  }",
             "}",
             "if (-not $up) {",
             "  # three verified failures — the new build is broken, not slow:",
             "  # roll back to the backup and run it, no further verification",
+            "  if ($p -and -not $p.HasExited) {",
+            "    taskkill /PID $p.Id /T /F | Out-Null",
+            "  }",
             "  Get-Process -Name '%s' -ErrorAction SilentlyContinue"
             " | Stop-Process -Force" % img,
+            "  Start-Sleep 2",
             "  try { Copy-Item -LiteralPath '%s' -Destination '%s' -Force"
             " -ErrorAction Stop } catch {}" % (bak, tgt),
             ("  Start-Process -FilePath '%s'" + args_ps) % tgt,
