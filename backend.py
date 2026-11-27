@@ -46,6 +46,7 @@ CONFIG_FILE = os.path.join(DATA_DIR, "projects_config.json")
 SERVICES_FILE = os.path.join(DATA_DIR, "services_config.json")
 SETTINGS_FILE = os.path.join(DATA_DIR, "settings.json")
 ICON_FILE = os.path.join(RESOURCE_DIR, "icon.ico")
+TRAY_ICON_FILE = os.path.join(RESOURCE_DIR, "icon-tray.ico")  # dark tray: the bg-less outline reads better
 LOGS_DIR = os.path.join(DATA_DIR, "logs")
 
 TAG_COLORS = ["#7aa2f7", "#9ece6a", "#e0af68", "#bb9af7", "#7dcfff", "#ff9e64"]

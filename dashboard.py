@@ -36,8 +36,9 @@ _BG = "#0B0D11"  # --bg-base: form background until the WebView repaints
 
 def _tray_image():
     from PIL import Image
-    if os.path.exists(be.ICON_FILE):
-        return Image.open(be.ICON_FILE)
+    for f in (be.TRAY_ICON_FILE, be.ICON_FILE):
+        if os.path.exists(f):
+            return Image.open(f)
     img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
     from PIL import ImageDraw
     d = ImageDraw.Draw(img)

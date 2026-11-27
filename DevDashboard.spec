@@ -6,7 +6,7 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[('frontend/dist', 'frontend/dist'), ('icon.ico', '.'),
-           ('locales', 'locales')],
+           ('icon-tray.ico', '.'), ('locales', 'locales')],
     hiddenimports=['webview.platforms.winforms', 'webview.platforms.edgechromium',
                    'clr_loader', 'pystray._win32'],
     hookspath=[],
