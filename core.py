@@ -2676,7 +2676,7 @@ class Dashboard:
             out.append({"port": port, "pid": pid,
                         "proc": proc or "?", "cmd": cmd[:140],
                         "owner": owner, "ownerKind": okind,
-                        "ctime": be.pid_ctime(r["pid"]),
+                        "ctime": be.pid_ctime(pid),
                         "self": pid == os.getpid(),
                         "cat": cat, "label": be.tr(label),
                         "lan": lan.get(port), "age": int(age),

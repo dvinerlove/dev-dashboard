@@ -513,6 +513,15 @@ def test13_probe_foreign_busy():
         holder.close()
     print("  ok: foreign busy-port -> dead, remap finds a free port")
 
+    # api_ports must not 500: the ctime field referenced a loop variable
+    # that only exists in a later loop — caught nothing because no test
+    # ever called the endpoint end to end
+    d2 = core.Dashboard.__new__(core.Dashboard)
+    d2.__init__()
+    rows = d2.api_ports()
+    assert isinstance(rows, dict) and "ports" in rows, rows.keys()
+    print("  ok: api_ports end-to-end, no leaked-name 500")
+
 
 def test14_dep_cycle():
     """depends_on cycle: ordering terminates, every service is ordered,
