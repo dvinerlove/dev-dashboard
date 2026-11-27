@@ -340,7 +340,8 @@ def find_project_pid(project, proc_cwds=None):
     without it cwd is queried per process here."""
     if not project.get("cwd"):
         return None  # '' → normpath('.') matches almost everything
-    d = os.path.normcase(os.path.normpath(project["cwd"]))
+    d = os.path.normcase(os.path.normpath(
+        os.path.realpath(project["cwd"])))
     if d.endswith(os.sep):
         target, tdir = d, d[:-1]
     else:
