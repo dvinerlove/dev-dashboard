@@ -8,6 +8,7 @@
 [![Downloads](https://img.shields.io/github/downloads/dvinerlove/dev-dashboard/total)](https://github.com/dvinerlove/dev-dashboard/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![CI](https://github.com/dvinerlove/dev-dashboard/actions/workflows/ci.yml/badge.svg)](https://github.com/dvinerlove/dev-dashboard/actions/workflows/ci.yml)
+[![Site](https://img.shields.io/badge/site-landing-a78bfa)](https://dvinerlove.github.io/dev-dashboard/)
 
 <img src="docs/screenshot.png" alt="Dev Dashboard — overview with service inspector" width="880">
 
