@@ -19,7 +19,13 @@ function ArRow({ row }: { row: AutorunRow }) {
   const app = useApp();
   const t = useT();
   return (
-    <div className="group flex h-[42px] items-center gap-3 border-b border-(--border-hairline) px-3.5 last:border-b-0 hover:bg-(--bg-hover)">
+    <div
+      onClick={(e) => {
+        if ((e.target as HTMLElement).closest("button")) return;
+        app.openItem({ kind: "autorun", name: row.name });
+      }}
+      className="group flex h-[42px] cursor-pointer items-center gap-3 border-b border-(--border-hairline) px-3.5 select-none last:border-b-0 hover:bg-(--bg-hover)"
+    >
       <Switch
         aria-label={t("AUTORUN_SWITCH", { name: row.name })}
         checked={row.arEnabled}

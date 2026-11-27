@@ -38,6 +38,8 @@ export interface AppApi {
   setSection: (s: Section) => void;
   sel: Sel | null;
   select: (s: Sel | null) => void;
+  openItem: (s: Sel) => void;
+  openNamed: (name: string) => void;
   inspector: boolean;
   setInspector: (v: boolean) => void;
   inspectorTab: string;

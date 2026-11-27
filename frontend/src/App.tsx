@@ -213,6 +213,24 @@ export default function App() {
     return {
       theme, setTheme,
       section, setSection, sel, select: setSel,
+      // click on any row with inspector content: select + open.
+      // (auto-select on load stays `select` — must not reopen a
+      // panel the user deliberately closed)
+      openItem: (s) => {
+        setSel(s);
+        setInspector(true);
+      },
+      // owner strings (ports view) carry no kind — resolve by name
+      openNamed: (name) => {
+        const s = findSvc(name);
+        if (s) {
+          setSel({ kind: "svc", name: s.name, remote: s.remote });
+          setInspector(true);
+        } else if (getDash()?.projects.some((p) => p.name === name)) {
+          setSel({ kind: "prj", name });
+          setInspector(true);
+        }
+      },
       inspector, setInspector, inspectorTab, setInspectorTab,
       palette, setPalette,
       railAuto, setRailAuto,

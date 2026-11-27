@@ -263,8 +263,7 @@ export function AttentionList({ st }: { st: DashState }) {
 
   const openDetails = (a: Attention) => {
     if (!a.sel) return;
-    app.select(a.sel);
-    app.setInspector(true);
+    app.openItem(a.sel);
     if (a.envIssue) app.setInspectorTab("env");
   };
 

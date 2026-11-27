@@ -48,7 +48,7 @@ function ServiceRowItem({
 
   return (
     <div
-      onClick={() => app.select({ kind: "svc", name: row.name, remote })}
+      onClick={() => app.openItem({ kind: "svc", name: row.name, remote })}
       className={cn(
         "group relative flex h-[46px] cursor-pointer items-center gap-3 border-b border-(--border-hairline) px-3.5 last:border-b-0 select-none hover:bg-(--bg-hover)",
         selected && "bg-(--bg-selected) hover:bg-(--bg-selected)",
@@ -71,7 +71,7 @@ function ServiceRowItem({
             title={row.name}
             onClick={(e) => {
               e.stopPropagation();
-              app.select({ kind: "svc", name: row.name, remote });
+              app.openItem({ kind: "svc", name: row.name, remote });
             }}
             className="outline-none cursor-pointer truncate rounded text-left text-[13px] font-medium text-(--text-primary) focus-visible:ring-1 focus-visible:ring-(--accent)"
           >

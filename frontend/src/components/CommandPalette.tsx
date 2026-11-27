@@ -113,7 +113,7 @@ export function CommandPalette() {
                   key={"s" + s.name}
                   value={`${s.name} ${s.chip} сервис service`}
                   onSelect={run(() => {
-                    app.select({ kind: "svc", name: s.name, remote: s.remote });
+                    app.openItem({ kind: "svc", name: s.name, remote: s.remote });
                     app.setSection("infra");
                   })}
                 >
@@ -165,7 +165,7 @@ export function CommandPalette() {
                   key={"p" + p.name}
                   value={`${p.name} ${p.chip} проект project`}
                   onSelect={run(() => {
-                    app.select({ kind: "prj", name: p.name });
+                    app.openItem({ kind: "prj", name: p.name });
                     app.setSection("projects");
                   })}
                 >

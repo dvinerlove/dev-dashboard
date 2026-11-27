@@ -189,7 +189,15 @@ export function PortsView() {
         {list.map((r) => (
           <div
             key={`${r.port}-${r.pid}`}
-            className="group flex h-[38px] items-center gap-3 border-b border-(--border-hairline) px-3.5 last:border-b-0 hover:bg-(--bg-hover)"
+            onClick={(e) => {
+              if (!r.owner || (e.target as HTMLElement).closest("button"))
+                return;
+              app.openNamed(r.owner);
+            }}
+            className={cn(
+              "group flex h-[38px] items-center gap-3 border-b border-(--border-hairline) px-3.5 select-none last:border-b-0 hover:bg-(--bg-hover)",
+              r.owner && "cursor-pointer",
+            )}
           >
             <span
               className={cn(
