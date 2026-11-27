@@ -75,7 +75,7 @@ _GENERIC_DIRS = _GENERIC_STEMS | {"src", "dist", "build", "bin", "lib",
 
 def _smart_name(stem, dpath):
     """Generic stem -> anchor to the nearest meaningful folder, e.g.
-    index.ts in job-intelligence\\server -> "job-intelligence index"."""
+    index.ts in my-app\\server -> "my-app index"."""
     if stem.lower() not in _GENERIC_STEMS:
         return stem
     for d in reversed(dpath.replace("/", "\\").strip("\\").split("\\")):
@@ -740,14 +740,18 @@ class Dashboard:
             # dashboard (cmd/npm/IDE) often carries no project path in
             # exe/cmdline, but its working dir sits inside the project tree
             proc_cwds = {}
-            for pr_ in psutil.process_iter():
-                try:
-                    c = pr_.cwd()
-                    if c:
-                        proc_cwds[pr_.pid] = os.path.normcase(
-                            os.path.normpath(c))
-                except (psutil.NoSuchProcess, psutil.AccessDenied):
-                    pass
+            pidless = any(
+                not be.is_pid_running(p.get("pid"), p.get("pid_ctime"))
+                for p in list(self.projects_data))
+            if pidless:  # the sweep exists for adoption — idle otherwise
+                for pr_ in psutil.process_iter():
+                    try:
+                        c = pr_.cwd()
+                        if c:
+                            proc_cwds[pr_.pid] = os.path.normcase(
+                                os.path.normpath(c))
+                    except (psutil.NoSuchProcess, psutil.AccessDenied):
+                        pass
             projects = {}
             for p in list(self.projects_data):
                 pid = p.get("pid")
@@ -1101,6 +1105,12 @@ class Dashboard:
             for p in self.projects_data:
                 info = projects.get(p["name"], {})
                 pid = info.get("pid")
+                if pid:
+                    # witnessed alive this session — also when the pid simply
+                    # persists (no transition): a dev server that survived our
+                    # own restart is as witnessed as a freshly adopted one,
+                    # its later death must not go silent
+                    self._proj_seen.add(p["name"])
                 if pid != p.get("pid"):
                     was = bool(p.get("pid"))
                     p["pid"] = pid
@@ -1108,7 +1118,6 @@ class Dashboard:
                     be.save_projects(self.projects_data)
                     if pid:
                         self._proj_dead[p["name"]] = False
-                        self._proj_seen.add(p["name"])
                         self._run_start(p["name"])
                         self._log(f"[{p['name']}] " + be.tr(
                             "PROC_FOUND", pid=pid))
