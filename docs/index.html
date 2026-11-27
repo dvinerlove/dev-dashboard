@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dev Dashboard — Every dev service. One window.</title>
+<meta name="description" content="Free, open-source local control panel for dev services on Windows. Watch every process, port and crash. Restarts what dies. Talks to your AI agents over MCP. No account, no telemetry.">
+<link rel="canonical" href="https://dvinerlove.github.io/dev-dashboard/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Dev Dashboard — Every dev service. One window.">
+<meta property="og:description" content="Local control panel for dev services on Windows. Restarts what crashes. Every port, owned. Free and open source.">
+<meta property="og:url" content="https://dvinerlove.github.io/dev-dashboard/">
+<meta property="og:image" content="https://dvinerlove.github.io/dev-dashboard/screenshot.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Dev Dashboard — Every dev service. One window.">
+<meta name="twitter:description" content="Local control panel for dev services on Windows. Restarts what crashes. Free and open source.">
+<meta name="twitter:image" content="https://dvinerlove.github.io/dev-dashboard/screenshot.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Dev Dashboard",
+  "operatingSystem": "Windows",
+  "applicationCategory": "DeveloperApplication",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "license": "https://opensource.org/licenses/MIT",
+  "url": "https://dvinerlove.github.io/dev-dashboard/",
+  "downloadUrl": "https://github.com/dvinerlove/dev-dashboard/releases/latest"
+}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="landing.css">
+<script src="landing.js" defer></script>
+</head>
+<body data-theme="graphite">
+
+<header class="topbar">
+  <div class="wrap topbar-in">
+    <a class="brand" href="#top" aria-label="Dev Dashboard home">
+      <span class="brand-glyph" aria-hidden="true">◈</span>
+      <span class="brand-name">DEV<span class="brand-dim">/</span>DASHBOARD</span>
+    </a>
+    <nav class="topnav" aria-label="Sections">
+      <a href="#restarts">RESTARTS</a>
+      <a href="#ports">PORTS</a>
+      <a href="#events">EVENTS</a>
+      <a href="#mcp">MCP</a>
+      <a href="#themes">THEMES</a>
+    </nav>
+    <a class="topbar-gh" href="https://github.com/dvinerlove/dev-dashboard" rel="noopener">GITHUB&nbsp;↗</a>
+  </div>
+</header>
+
+<main id="top">
+
+  <!-- ============ HERO ============ -->
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div class="hero-copy">
+        <p class="sysline" aria-label="System status: nominal"><span class="sysline-bracket">[</span><span id="sysline-text"></span><span class="sysline-cursor" aria-hidden="true"></span><span class="sysline-bracket">]</span></p>
+        <h1 class="boot-item">EVERY DEV<br>SERVICE.<br><span class="h1-dim">ONE WINDOW.</span></h1>
+        <p class="hero-sub boot-item">Dev Dashboard watches every process, port and crash
+        on your machine, then restarts what dies. Free, open source,
+        no account, no telemetry.</p>
+        <div class="hero-ctas boot-item">
+          <a class="btn btn-primary" href="https://github.com/dvinerlove/dev-dashboard/releases/latest" rel="noopener">
+            <span class="btn-glyph" aria-hidden="true">▼</span> DOWNLOAD FOR WINDOWS
+          </a>
+          <a class="btn btn-ghost" href="https://github.com/dvinerlove/dev-dashboard" rel="noopener">VIEW ON GITHUB ↗</a>
+        </div>
+        <ul class="hero-chips boot-item" aria-label="Product facts">
+          <li>WINDOWS 10/11</li>
+          <li>FREE</li>
+          <li>OPEN SOURCE · MIT</li>
+          <li>NO TELEMETRY</li>
+          <li>SINGLE EXE</li>
+        </ul>
+      </div>
+
+      <!-- Live animated mock of the app -->
+      <div class="mock boot-item" id="mock" role="img" aria-label="Animated preview of the Dev Dashboard app: four services running, one crashes and is restarted automatically">
+        <div class="mock-corner tl" aria-hidden="true"></div><div class="mock-corner br" aria-hidden="true"></div>
+        <div class="mock-titlebar">
+          <span class="mt-left"><span class="mt-glyph" aria-hidden="true">◈</span> DEV DASHBOARD</span>
+          <span class="mt-right" aria-hidden="true"><span class="mt-btn">─</span><span class="mt-btn">▢</span><span class="mt-btn mt-close">✕</span></span>
+        </div>
+        <div class="mock-toasts" id="mock-toasts" aria-hidden="true"></div>
+        <div class="mock-body">
+          <aside class="mock-side" aria-hidden="true">
+            <span class="ms-item"><i>◉</i><b>OVERVIEW</b></span>
+            <span class="ms-item ms-active"><i>▤</i><b>SERVICES</b><em id="ms-count">4/4</em></span>
+            <span class="ms-item"><i>⇄</i><b>PORTS</b></span>
+            <span class="ms-item"><i>⟳</i><b>AUTORUN</b></span>
+            <span class="ms-item"><i>⚡</i><b>EVENTS</b></span>
+          </aside>
+          <div class="mock-main">
+            <div class="mock-colhead" aria-hidden="true">
+              <span>SERVICE</span><span class="mc-cpu">CPU</span><span class="mc-mem">RAM</span><span class="mc-spark">LOAD</span><span class="mc-up">UPTIME</span>
+            </div>
+            <div class="svc" data-svc="api-server">
+              <span class="svc-dot"></span>
+              <div class="svc-id"><b>api-server</b><i class="svc-state">running · 2544</i></div>
+              <span class="svc-cpu">1.2%</span>
+              <span class="svc-mem">52 MB</span>
+              <svg class="svc-spark" viewBox="0 0 64 20" preserveAspectRatio="none" aria-hidden="true"><polyline points="" fill="none"/></svg>
+              <span class="svc-up">14:02</span>
+              <div class="svc-backoff"><i></i></div>
+            </div>
+            <div class="svc" data-svc="postgres">
+              <span class="svc-dot"></span>
+              <div class="svc-id"><b>postgres</b><i class="svc-state">running · 4104</i></div>
+              <span class="svc-cpu">2.8%</span>
+              <span class="svc-mem">63 MB</span>
+              <svg class="svc-spark" viewBox="0 0 64 20" preserveAspectRatio="none" aria-hidden="true"><polyline points="" fill="none"/></svg>
+              <span class="svc-up">11:47</span>
+              <div class="svc-backoff"><i></i></div>
+            </div>
+            <div class="svc" data-svc="web-frontend">
+              <span class="svc-dot"></span>
+              <div class="svc-id"><b>web-frontend</b><i class="svc-state">running · 8812</i></div>
+              <span class="svc-cpu">4.1%</span>
+              <span class="svc-mem">118 MB</span>
+              <svg class="svc-spark" viewBox="0 0 64 20" preserveAspectRatio="none" aria-hidden="true"><polyline points="" fill="none"/></svg>
+              <span class="svc-up">09:31</span>
+              <div class="svc-backoff"><i></i></div>
+            </div>
+            <div class="svc" data-svc="worker">
+              <span class="svc-dot"></span>
+              <div class="svc-id"><b>worker</b><i class="svc-state">running · 22616</i></div>
+              <span class="svc-cpu">7.4%</span>
+              <span class="svc-mem">41 MB</span>
+              <svg class="svc-spark" viewBox="0 0 64 20" preserveAspectRatio="none" aria-hidden="true"><polyline points="" fill="none"/></svg>
+              <span class="svc-up">12:08</span>
+              <div class="svc-backoff"><i></i></div>
+            </div>
+          </div>
+          <div class="mock-insp" aria-hidden="true">
+            <div class="insp-head"><span class="insp-dot"></span>INSPECTOR · LOGS</div>
+            <div class="insp-logs" id="insp-logs"></div>
+          </div>
+        </div>
+        <div class="mock-statusbar" aria-hidden="true">
+          <span id="msb-state">4 UP · 0 DOWN</span><span class="msb-sep">|</span><span>API 127.0.0.1:4850</span><span class="msb-sep">|</span><span id="msb-clock">PROBE 4S</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 01 BACKOFF ============ -->
+  <section class="section" id="restarts">
+    <div class="wrap">
+      <div class="sec-head" data-reveal>
+        <p class="eyebrow">01 // CRASH HANDLING</p>
+        <h2>Restarts what crashes.</h2>
+        <p class="sec-sub">Exponential backoff: 2, 5, 10, 20 seconds, reset after a minute of uptime.
+        Five crashes inside sixty seconds and the circuit breaker trips instead of burning your CPU.
+        A manual start resets everything.</p>
+      </div>
+      <div class="panel backoff-panel" data-reveal>
+        <div class="panel-tag">CRASH/RESTART TIMELINE · 40S WINDOW</div>
+        <div class="bo-stage" id="bo-stage">
+          <div class="bo-axis"></div>
+          <div class="bo-playhead" id="bo-playhead"></div>
+          <!-- crash ticks at t = 0, 2, 7, 17, 37 of a 40s window -->
+          <div class="bo-tick" style="--x:2%"  data-cx="0.02"><i></i><span class="bo-tick-label">CRASH</span></div>
+          <div class="bo-tick" style="--x:7%"  data-cx="0.07"><i></i><span class="bo-tick-label">CRASH</span></div>
+          <div class="bo-tick" style="--x:19.5%" data-cx="0.195"><i></i><span class="bo-tick-label">CRASH</span></div>
+          <div class="bo-tick" style="--x:44.5%" data-cx="0.445"><i></i><span class="bo-tick-label">CRASH</span></div>
+          <div class="bo-tick" style="--x:94.5%" data-cx="0.945"><i></i><span class="bo-tick-label">CRASH</span></div>
+          <div class="bo-pulse" style="--x:7%"   data-px="0.07"></div>
+          <div class="bo-pulse" style="--x:19.5%" data-px="0.195"></div>
+          <div class="bo-pulse" style="--x:44.5%" data-px="0.445"></div>
+          <div class="bo-pulse" style="--x:94.5%" data-px="0.945"></div>
+          <div class="bo-seglabel" style="--x:4.5%">2s</div>
+          <div class="bo-seglabel" style="--x:13%">5s</div>
+          <div class="bo-seglabel" style="--x:32%">10s</div>
+          <div class="bo-seglabel" style="--x:69%">20s</div>
+          <div class="bo-circuit" id="bo-circuit">
+            <span class="bo-circuit-led"></span>CIRCUIT OPEN<span class="bo-circuit-sub">5 CRASHES / 60S · AUTORESTART HALTED</span>
+          </div>
+          <button class="bo-reset" id="bo-reset" type="button" tabindex="-1" aria-hidden="true">⟳ MANUAL START</button>
+        </div>
+        <div class="bo-legend">
+          <span><i class="mk mk-err"></i>CRASH</span>
+          <span><i class="mk mk-ok"></i>AUTORESTART</span>
+          <span><i class="mk mk-acc"></i>BACKOFF INTERVAL</span>
+          <span class="bo-legend-r">BACKOFF RESETS AFTER 60S UPTIME</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 02 PORTS ============ -->
+  <section class="section" id="ports">
+    <div class="wrap">
+      <div class="sec-head" data-reveal>
+        <p class="eyebrow">02 // PORT ATTRIBUTION</p>
+        <h2>Every port, owned.</h2>
+        <p class="sec-sub">Every TCP listener on the machine, attributed to the service that owns it.
+        Conflicts get detected before they bite, then remapped automatically by scanning +20.</p>
+      </div>
+      <div class="panel ports-panel" data-reveal>
+        <div class="panel-tag">TCP LISTENERS · THIS MACHINE</div>
+        <div class="ports-stage" id="ports-stage">
+          <div class="port-row" data-pr="0"><span class="port-num">:3000</span><span class="port-link"><i></i><b>▸</b></span><span class="port-svc">web-frontend</span><span class="port-kind ok">LISTENING</span></div>
+          <div class="port-row" data-pr="1"><span class="port-num">:5432</span><span class="port-link"><i></i><b>▸</b></span><span class="port-svc">postgres</span><span class="port-kind ok">LISTENING</span></div>
+          <div class="port-row" data-pr="2"><span class="port-num">:8080</span><span class="port-link"><i></i><b>▸</b></span><span class="port-svc">api-server</span><span class="port-kind warn">REMAPPED +20</span></div>
+          <div class="port-row" data-pr="3"><span class="port-num">:9090</span><span class="port-link"><i></i><b>▸</b></span><span class="port-svc">worker</span><span class="port-kind ok">LISTENING</span></div>
+          <div class="port-row port-row-foreign" data-pr="4"><span class="port-num">:65200</span><span class="port-link"><i></i><b>▸</b></span><span class="port-svc">unattributed</span><span class="port-kind dim">FOREIGN</span></div>
+        </div>
+        <div class="ports-foot">CONFLICT ON :8080? THE SERVICE COMES UP ON :8100. THE DASHBOARD TELLS YOU WHY.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 03 EVENTS ============ -->
+  <section class="section" id="events">
+    <div class="wrap">
+      <div class="sec-head" data-reveal>
+        <p class="eyebrow">03 // EVENT FEED</p>
+        <h2>Events that explain themselves.</h2>
+        <p class="sec-sub">Crashes, restarts, port conflicts: one feed, no log archaeology.
+        Click an event, land on the service.</p>
+      </div>
+      <div class="panel events-panel" data-reveal>
+        <div class="panel-tag">EVENT STREAM · LIVE</div>
+        <div class="ev-stage" id="ev-stage">
+          <div class="ev-row" data-ev="0"><span class="ev-t">22:41:03</span><span class="ev-chip err">CRASH</span><span class="ev-msg">worker exited · code 1</span><span class="ev-jump">→ worker</span></div>
+          <div class="ev-row" data-ev="1"><span class="ev-t">22:41:05</span><span class="ev-chip ok">RESTART</span><span class="ev-msg">worker restarted · backoff 2s</span><span class="ev-jump">→ worker</span></div>
+          <div class="ev-row" data-ev="2"><span class="ev-t">22:41:19</span><span class="ev-chip warn">PORT</span><span class="ev-msg">:8080 in use; api-server remapped to :8100</span><span class="ev-jump">→ api-server</span></div>
+          <div class="ev-row" data-ev="3"><span class="ev-t">22:41:44</span><span class="ev-chip err">CRASH</span><span class="ev-msg">postgres exited · code 1</span><span class="ev-jump">→ postgres</span></div>
+          <div class="ev-row" data-ev="4"><span class="ev-t">22:41:49</span><span class="ev-chip ok">RESTART</span><span class="ev-msg">postgres restarted · backoff 5s</span><span class="ev-jump">→ postgres</span></div>
+          <div class="ev-row" data-ev="5"><span class="ev-t">22:42:10</span><span class="ev-chip dim">DEPS</span><span class="ev-msg">web-frontend waiting on api-server · health 200</span><span class="ev-jump">→ web-frontend</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 04 MCP ============ -->
+  <section class="section" id="mcp">
+    <div class="wrap">
+      <div class="sec-head" data-reveal>
+        <p class="eyebrow">04 // AGENT INTERFACE</p>
+        <h2>Talks to your AI agents.</h2>
+        <p class="sec-sub">MCP over stdio JSON-RPC: your agent can list services, read logs,
+        restart a crashed worker. Plus a local HTTP API on <span class="mono-inline">127.0.0.1:4850</span>.</p>
+      </div>
+      <div class="panel mcp-panel" data-reveal>
+        <div class="panel-tag">MCP · STDIO JSON-RPC</div>
+        <div class="mcp-term" id="mcp-term" aria-hidden="true">
+          <div class="mcp-line mcp-req"><span class="mcp-prompt">agent&gt;</span> <span id="mcp-typed"></span><span class="mcp-cursor" id="mcp-cursor"></span></div>
+          <pre class="mcp-resp" id="mcp-resp"></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 05 THEMES ============ -->
+  <section class="section" id="themes">
+    <div class="wrap">
+      <div class="sec-head" data-reveal>
+        <p class="eyebrow">05 // APPEARANCE</p>
+        <h2>Six themes. Zero compromise.</h2>
+        <p class="sec-sub">The same six themes the app ships. Click a swatch. This page re-skins live.</p>
+      </div>
+      <div class="panel themes-panel" data-reveal>
+        <div class="panel-tag">THEME SELECT · APPLIES TO THIS PAGE</div>
+        <div class="swatches" role="group" aria-label="Theme selector">
+          <button class="swatch" type="button" data-set-theme="graphite" aria-label="Graphite theme, dark" aria-pressed="true">
+            <span class="sw-preview sw-graphite" aria-hidden="true"><i></i><i></i><i></i></span>GRAPHITE
+          </button>
+          <button class="swatch" type="button" data-set-theme="console" aria-label="Console theme, green phosphor" aria-pressed="false">
+            <span class="sw-preview sw-console" aria-hidden="true"><i></i><i></i><i></i></span>CONSOLE
+          </button>
+          <button class="swatch" type="button" data-set-theme="paper" aria-label="Paper theme, light" aria-pressed="false">
+            <span class="sw-preview sw-paper" aria-hidden="true"><i></i><i></i><i></i></span>PAPER
+          </button>
+          <button class="swatch" type="button" data-set-theme="paperdark1" aria-label="Paperdark one theme, deep blue black" aria-pressed="false">
+            <span class="sw-preview sw-paperdark1" aria-hidden="true"><i></i><i></i><i></i></span>PAPERDARK 1
+          </button>
+          <button class="swatch" type="button" data-set-theme="paperdark2" aria-label="Paperdark two theme, warm espresso" aria-pressed="false">
+            <span class="sw-preview sw-paperdark2" aria-hidden="true"><i></i><i></i><i></i></span>PAPERDARK 2
+          </button>
+          <button class="swatch" type="button" data-set-theme="retro" aria-label="Retro theme, classic light gray" aria-pressed="false">
+            <span class="sw-preview sw-retro" aria-hidden="true"><i></i><i></i><i></i></span>RETRO
+          </button>
+        </div>
+        <p class="themes-note">LIVE DEMO · EVERYTHING ON THIS PAGE, INCLUDING THE MOCK ABOVE, RUNS ON THE SAME VARIABLES.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 06 FEATURE GRID ============ -->
+  <section class="section" id="features">
+    <div class="wrap">
+      <div class="sec-head" data-reveal>
+        <p class="eyebrow">06 // ALSO ON BOARD</p>
+        <h2>The quiet parts, done right.</h2>
+      </div>
+      <div class="feat-grid" data-reveal data-stagger>
+        <div class="feat-card">
+          <p class="feat-title">ENV EDITOR, SECRETS MASKED</p>
+          <div class="feat-env">
+            <code id="env-line">API_TOKEN=<span id="env-secret">••••••••••</span></code>
+            <button class="env-eye" id="env-eye" type="button" aria-label="Reveal secret" aria-pressed="false">◉</button>
+          </div>
+          <p class="feat-copy">Per-service environment overrides. Secrets stay masked until you ask.</p>
+        </div>
+        <div class="feat-card">
+          <p class="feat-title">AUTORUN MANAGER</p>
+          <p class="feat-mono">HKCU\…\Run · 15 entries</p>
+          <p class="feat-copy">Everything in the Windows Run registry, one list. Flip autostart per service.</p>
+        </div>
+        <div class="feat-card">
+          <p class="feat-title">SELF-UPDATE, VERIFIED</p>
+          <p class="feat-mono">sha256 ✓ · rollback ready</p>
+          <p class="feat-copy">Updates from GitHub releases, sha256-verified. Roll back if it misbehaves.</p>
+        </div>
+        <div class="feat-card">
+          <p class="feat-title">DEPENDS_ON ORDERING</p>
+          <p class="feat-mono">db → api → web</p>
+          <p class="feat-copy">Services start in order. Health checks gate the next one: HTTP 200 or TCP accept.</p>
+        </div>
+        <div class="feat-card">
+          <p class="feat-title">TRAY · SINGLE INSTANCE</p>
+          <p class="feat-mono">one process · one window</p>
+          <p class="feat-copy">Lives in the tray. Close the window, the dashboard keeps watching.</p>
+        </div>
+        <div class="feat-card">
+          <p class="feat-title">RU / EN UI</p>
+          <p class="feat-mono">lang: auto → os</p>
+          <p class="feat-copy">English and Russian interface, auto-detected from the operating system.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 07 DOWNLOAD ============ -->
+  <section class="section download-section" id="download">
+    <div class="wrap">
+      <div class="dl-plate" data-reveal>
+        <div class="mock-corner tl" aria-hidden="true"></div><div class="mock-corner br" aria-hidden="true"></div>
+        <p class="eyebrow">07 // DEPLOY</p>
+        <h2 class="dl-h">Get Dev Dashboard.</h2>
+        <p class="dl-meta" id="dl-version">LATEST RELEASE · GITHUB</p>
+        <a class="btn btn-primary btn-xl" id="dl-btn" href="https://github.com/dvinerlove/dev-dashboard/releases/latest" rel="noopener" aria-label="Download Dev Dashboard for Windows">
+          <span class="btn-glyph" aria-hidden="true">▼</span> DOWNLOAD FOR WINDOWS
+        </a>
+        <p class="dl-sub">WINDOWS 10/11 · SINGLE EXE · NO INSTALL</p>
+        <p class="dl-note">RELEASE BINARIES SHA256-VERIFIED BY THE BUILT-IN UPDATER</p>
+        <a class="dl-star" href="https://github.com/dvinerlove/dev-dashboard" rel="noopener">★ STAR ON GITHUB</a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <div class="wrap footer-in">
+    <span>MIT LICENSE</span>
+    <a href="https://github.com/dvinerlove/dev-dashboard" rel="noopener">github.com/dvinerlove/dev-dashboard</a>
+    <span class="footer-priv">RUNS ENTIRELY ON YOUR MACHINE · NO ACCOUNT, NO TELEMETRY</span>
+  </div>
+</footer>
+
+</body>
+</html>
