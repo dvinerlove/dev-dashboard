@@ -538,6 +538,7 @@ class Dashboard:
         self._last_services = {}
         self._svc_prev = {}
         self._jobs = {}           # name -> process_tree.Job
+        self._pid_ctimes = {}     # pid -> ctime seen at the last ports scan
         self._crash_ts = {}       # name -> [ts] of crashes (sliding window)
         self._quick_fails = {}    # name -> consecutive quick crashes (backoff)
         self._cb_open = set()     # circuit breaker: autorestart disabled
@@ -1111,7 +1112,8 @@ class Dashboard:
                         self._svc_autorestart(spec)
 
             ok = sum(1 for st, _ in services.values() if st == "up")
-            problems = [{"name": n, "why": be.tr_detail(detail)}
+            problems = [{"name": n, "why": be.tr_detail(detail),
+                         "kind": "svc"}
                         for n, (st, detail) in services.items()
                         if st in ("down", "dead")
                         and not specs.get(n, {}).get("note")]
@@ -1165,7 +1167,8 @@ class Dashboard:
             self._ar_mine, self._ar_other = mine, other
             ok += sum(1 for _, _, r, mn, e in autorun if r and e)
             known = {p["name"] for p in problems}
-            problems += [{"name": n, "why": be.tr("AR_PROBLEM")}
+            problems += [{"name": n, "why": be.tr("AR_PROBLEM"),
+                          "kind": "autorun"}
                          for n, _, r, mn, e in autorun
                          if not r and mn and e and n not in known]
 
@@ -1602,7 +1605,11 @@ class Dashboard:
 
     def _start_after_deps(self, spec, deps):
         for dep in deps:
+            if spec not in self.services_data:
+                return False  # deleted while waiting
             if not self._wait_ready(dep, self._dep_timeout):
+                if spec not in self.services_data:
+                    return False
                 self._issue("deps_timeout", spec["name"],
                             be.tr("DEP_TIMEOUT",
                                   dep=dep["name"], t=self._dep_timeout),
@@ -1613,6 +1620,8 @@ class Dashboard:
                 self._info(be.tr("DEP_FAIL_NAME",
                                  name=spec["name"], dep=dep["name"]))
                 return False
+        if spec not in self.services_data:
+            return False  # deleted while waiting — do not resurrect
         self._do_start(spec)
         return True
 
@@ -1753,6 +1762,8 @@ class Dashboard:
     def _start_verify(self, spec):
         """If after 8s the service is still not up and no process — insta-crash:
         count it as a crash so the circuit breaker kicks in."""
+        if spec not in self.services_data:
+            return  # deleted during the verify window
         if self._last_services.get(spec["name"], (None,))[0] == "up":
             return
         if any((spec.get("proc") and p["name"] == spec["proc"])
@@ -1844,7 +1855,8 @@ class Dashboard:
         if not spec:
             return False, be.tr("NAME_NOT_FOUND", name=name)
         if self._stop_service(spec):
-            _timer(1.5, lambda: self._start_service(spec))
+            _timer(1.5, lambda s=spec: self._start_service(s)
+                   if s in self.services_data else None)
         return True, ""
 
     def stop_all_targets(self):
@@ -1948,6 +1960,17 @@ class Dashboard:
                 for k in known - set(data):
                     spec.pop(k, None)
                 spec.update(data)
+                new_name = data["name"].strip()
+                if new_name != old_name:
+                    for m in (self._procs, self._jobs, self._svc_spawn,
+                              self._svc_prev, self._quick_fails,
+                              self._crash_ts, self._svc_up_since,
+                              self._svc_stop_gen, self._log_off):
+                        if old_name in m:
+                            m[new_name] = m.pop(old_name)
+                    if (old_name, "svc") in self._cb_open:
+                        self._cb_open.add((new_name, "svc"))
+                        self._cb_open.discard((old_name, "svc"))
             else:
                 if self._service(data["name"].strip()):
                     return False, be.tr("NAME_TAKEN", name=data["name"])
@@ -2018,6 +2041,13 @@ class Dashboard:
         p = self._proj(name)
         if not p or be.is_pid_running(p.get("pid"), p.get("pid_ctime")):
             return False, be.tr("PROJ_NOT_FOUND_OR_RUNNING")
+        ext = be.find_project_pid(p)
+        if ext:  # already running outside — adopt, don't double-start
+            with self._lock:
+                p["pid"], p["pid_ctime"] = ext, be.pid_ctime(ext)
+                self._proj_dead[name] = False
+                be.save_projects(self.projects_data)
+            return True, ""
         flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
         job = None
         try:
@@ -2060,7 +2090,8 @@ class Dashboard:
                 line = be.decode_log(raw).rstrip()
                 if line:
                     self._log(f"[{name}{' ERR' if err else ''}] {line}")
-                    if classify_log_line(line) == "error":
+                    if classify_log_line(line) == "error" \
+                            and self._proj(name):
                         self._issue_log_error(name, line, sel=_prj_sel(name))
         except (OSError, ValueError):
             pass
@@ -2170,6 +2201,11 @@ class Dashboard:
             self.projects_data.remove(p)
             self._proj_seen.discard(name)
             self._proj_dead.pop(name, None)
+            self._detected_url.pop(name, None)
+            self._procs.pop(name, None)
+            job = self._jobs.pop(name, None)
+            if job:
+                job.disarm()  # survives, but is no longer ours to kill
             be.save_projects(self.projects_data)
         return True, ""
 
@@ -2433,6 +2469,9 @@ class Dashboard:
             pid = int(pid)
         except (TypeError, ValueError):
             return False, be.tr("BAD_PID")
+        seen = self._pid_ctimes.get(pid)
+        if seen is not None and be.pid_ctime(pid) != seen:
+            return False, be.tr("PID_RECYCLED", pid=pid)
         if pid == os.getpid():
             return False, be.tr("CANT_KILL_SELF")
         if self._protected_pid(pid):
@@ -2581,6 +2620,8 @@ class Dashboard:
         procs, listeners, lan = be._proc_snapshot()
         by_pid = {p["pid"]: p for p in procs}
         prev, _PREV_PIDS = _PREV_PIDS, set(by_pid)
+        self._pid_ctimes = {pid: be.pid_ctime(pid)
+                            for pid in by_pid}
         with self._lock:  # snapshot shared lists — writes go under _lock
             svcs, prjs = list(self.services_data), list(self.projects_data)
         own = self._own_pids(procs, svcs, prjs)
@@ -2628,6 +2669,7 @@ class Dashboard:
             out.append({"port": port, "pid": pid,
                         "proc": proc or "?", "cmd": cmd[:140],
                         "owner": owner, "ownerKind": okind,
+                        "ctime": be.pid_ctime(r["pid"]),
                         "self": pid == os.getpid(),
                         "cat": cat, "label": be.tr(label),
                         "lan": lan.get(port), "age": int(age),

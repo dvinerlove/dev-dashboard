@@ -329,7 +329,8 @@ def pid_ctime(pid):
 SHELLS = {"cmd.exe", "powershell.exe", "pwsh.exe", "bash.exe", "sh.exe", "zsh.exe",
           "windowsterminal.exe", "wt.exe", "conhost.exe", "explorer.exe", "code.exe",
           "devin.exe", "codex.exe", "studiomcp.exe", "git.exe", "ssh.exe", "npx.exe",
-          "sh", "bash", "zsh", "fish", "ssh", "npx"}  # POSIX names without .exe
+          "sh", "bash", "zsh", "fish", "ssh", "npx", "npm", "npm.exe", "pnpm", "pnpm.exe",
+          "yarn", "yarn.exe", "bun", "bun.exe"}  # POSIX names without .exe
 
 
 def find_project_pid(project, proc_cwds=None):
@@ -362,11 +363,14 @@ def find_project_pid(project, proc_cwds=None):
                 cwd = os.path.normcase(os.path.normpath(p.cwd() or ""))
             if exe.startswith(target) or target in cl \
                     or cwd == tdir or cwd.startswith(target):
-                if best is None or info["pid"] < best:
-                    best = info["pid"]
+                rank = (0 if cwd == tdir else
+                        1 if cwd.startswith(target) else
+                        2 if exe.startswith(target) else 3)
+                if best is None or (rank, info["pid"]) < best:
+                    best = (rank, info["pid"])
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             continue
-    return best
+    return best[1] if best else None
 
 
 def find_project_ports(pid):

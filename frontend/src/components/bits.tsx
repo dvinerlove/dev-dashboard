@@ -252,11 +252,14 @@ export function AttentionList({ st }: { st: DashState }) {
       name: p.name,
       text: p.why || t("NEEDS_ATTENTION"),
       tone: "warn",
-      sel: row
-        ? { kind: "svc", name: row.name, remote: row.remote }
-        : ar
-          ? { kind: "autorun", name: ar.name }
-          : undefined,
+      sel:
+        p.kind === "autorun"
+          ? { kind: "autorun", name: p.name }
+          : row
+            ? { kind: "svc", name: row.name, remote: row.remote }
+            : ar
+              ? { kind: "autorun", name: ar.name }
+              : undefined,
       section: row ? "infra" : "autorun",
     });
   }
